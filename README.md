@@ -65,3 +65,15 @@ This application demonstrates a clean architecture approach to mobile developmen
 ## License
 
 MIT 
+
+## Deploy on Iphone
+
+List all devices
+```bash
+xcrun xctrace list devices
+````
+
+Prebuild & deploy
+```bash
+npx expo prebuild && npx expo run:ios --device "00XXXXXX-XXXXXXXXXXXX1E" --configuration Release
+```
