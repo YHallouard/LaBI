@@ -7,7 +7,15 @@ export class GetAnalysesUseCase {
   ) {}
 
   async execute(): Promise<BiologicalAnalysis[]> {
-    return this.repository.getAll();
+    console.log('GetAnalysesUseCase.execute() called');
+    try {
+      const results = await this.repository.getAll();
+      console.log('GetAnalysesUseCase received results:', results.length);
+      return results;
+    } catch (error) {
+      console.error('Error in GetAnalysesUseCase.execute():', error);
+      throw error;
+    }
   }
 }
 

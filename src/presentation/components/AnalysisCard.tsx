@@ -16,6 +16,10 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onPress })
 
   // Format date as DD/MM/YYYY
   const formattedDate = analysis.date.toLocaleDateString('fr-FR');
+  
+  // Get CRP value from new structure
+  const crpValue = analysis["Proteine C Reactive"]?.value || 0;
+  const crpUnit = analysis["Proteine C Reactive"]?.unit || "mg/L";
 
   return (
     <TouchableOpacity 
@@ -27,7 +31,7 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onPress })
         <Text style={styles.date}>{formattedDate}</Text>
         <View style={styles.valueContainer}>
           <Text style={styles.label}>CRP</Text>
-          <Text style={styles.value}>{analysis.crpValue.toFixed(2)} mg/L</Text>
+          <Text style={styles.value}>{typeof crpValue === 'number' ? crpValue.toFixed(2) : '0.00'} {crpUnit}</Text>
         </View>
       </View>
     </TouchableOpacity>
