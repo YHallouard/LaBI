@@ -25,4 +25,4 @@ const mockDb: Database = {
 export const initializeDatabase = jest.fn().mockResolvedValue(undefined);
 
 // Mock getDatabase function
-export const getDatabase = jest.fn().mockReturnValue(mockDb); 
+export const getDatabase = jest.fn().mockReturnValue(mockDb);

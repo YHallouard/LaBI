@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/types';
+import { UploadStackParamList } from '../../types/navigation';
 import { AnalyzePdfUseCase } from '../../application/usecases/AnalyzePdfUseCase';
+import { ScreenLayout } from '../components/ScreenLayout';
 
 type UploadScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList, 'UploadPdf'>;
+  navigation: StackNavigationProp<UploadStackParamList, 'UploadScreen'>;
   analyzePdfUseCase: AnalyzePdfUseCase | null;
   isLoadingApiKey: boolean;
   apiKeyError: string | null;
@@ -19,119 +20,141 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   apiKeyError 
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const pickAndProcessDocument = async (): Promise<void> => {
     if (isAnalyzing) return;
 
     if (!analyzePdfUseCase) {
-      Alert.alert('Setup Required', apiKeyError || 'API Key is not configured. Please set it in Settings.');
+      setErrorMessage(apiKeyError || 'API Key is not configured. Please set it in Settings.');
       return;
     }
 
     setIsAnalyzing(true);
-    let pdfUri: string | null = null;
-
+    setErrorMessage(null);
+    
     try {
-      console.log('Opening document picker...');
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/pdf',
-        copyToCacheDirectory: true
-      });
-      
-      if (result.canceled || !result.assets || result.assets.length === 0) {
-        console.log('Document picking cancelled or no assets found.');
+      const pdfUri = await selectPdfDocument();
+      if (!pdfUri) {
         setIsAnalyzing(false);
         return;
       }
       
-      pdfUri = result.assets[0].uri;
-      console.log(`Document selected: ${result.assets[0].name}, URI: ${pdfUri}`);
-
-      console.log(`Analyzing document: ${pdfUri}`);
-      await analyzePdfUseCase.execute(pdfUri);
-      console.log('Analysis complete.');
-
-      Alert.alert(
-        'Success', 
-        'Analysis extracted and saved successfully',
-        [{ text: 'OK' }]
-      );
-
+      await analyzePdfDocument(pdfUri, analyzePdfUseCase);
+      displaySuccessMessage();
     } catch (err) {
-      console.error('Error during pick/process document:', err);
-      if (pdfUri) {
-         Alert.alert('Analysis Error', 'Failed to process PDF. Please check the logs.');
-      } else {
-         Alert.alert('File Error', 'Failed to select or access the document.');
-      }
+      handleDocumentProcessingError(err);
     } finally {
       setIsAnalyzing(false);
     }
   };
   
+  const selectPdfDocument = async (): Promise<string | null> => {
+    console.log('Opening document picker...');
+    const result = await DocumentPicker.getDocumentAsync({
+      type: 'application/pdf',
+      copyToCacheDirectory: true
+    });
+    
+    if (result.canceled || !result.assets || result.assets.length === 0) {
+      console.log('Document picking cancelled or no assets found.');
+      return null;
+    }
+    
+    const pdfUri = result.assets[0].uri;
+    console.log(`Document selected: ${result.assets[0].name}, URI: ${pdfUri}`);
+    return pdfUri;
+  };
+  
+  const analyzePdfDocument = async (pdfUri: string, useCase: AnalyzePdfUseCase): Promise<void> => {
+    console.log(`Analyzing document: ${pdfUri}`);
+    await useCase.execute(pdfUri);
+    console.log('Analysis complete.');
+  };
+  
+  const displaySuccessMessage = (): void => {
+    setSuccessMessage('Analysis extracted and saved successfully');
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
+  
+  const handleDocumentProcessingError = (err: any): void => {
+    console.error('Error during pick/process document:', err);
+    Alert.alert('Error', 'Failed to process PDF. Please check the logs.');
+  };
+  
   if (isLoadingApiKey) {
-    return (
-      <View style={styles.containerCentered}>
-        <ActivityIndicator size="large" color="#2c7be5" />
-        <Text style={styles.loadingText}>Loading configuration...</Text>
-      </View>
-    );
+    return <LoadingView />;
   }
   
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Upload Medical Lab Report</Text>
-      <Text style={styles.description}>
-        Select a PDF of your lab report to automatically extract and save the data.
-      </Text>
-      
-      {apiKeyError && !analyzePdfUseCase && (
-        <View style={styles.warningContainer}>
-          <Text style={styles.warningText}>{apiKeyError}</Text>
-        </View>
-      )}
-
-      <TouchableOpacity 
-        style={[styles.uploadButton, (isAnalyzing || !analyzePdfUseCase) && styles.disabledButton]} 
-        onPress={pickAndProcessDocument}
-        disabled={isAnalyzing || !analyzePdfUseCase}
-      >
-        {isAnalyzing ? (
-           <ActivityIndicator size="small" color="#ffffff" style={styles.buttonSpinner} />
-        ) : (
-          <Text style={styles.uploadButtonText}>Select & Analyze PDF</Text>
+    <ScreenLayout>
+      <View style={styles.contentWrapper}>
+        <Text style={styles.description}>
+          Select a PDF of your lab report to automatically extract and save the data.
+        </Text>
+        
+        {successMessage && (
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>{successMessage}</Text>
+          </View>
         )}
-      </TouchableOpacity>
+        
+        {errorMessage && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        )}
+        
+        {apiKeyError && !analyzePdfUseCase && !errorMessage && (
+          <View style={styles.warningContainer}>
+            <Text style={styles.warningText}>{apiKeyError}</Text>
+          </View>
+        )}
 
-      {!isAnalyzing && (
-         <Text style={styles.infoText}>
-           Tap the button above to select and process your PDF report.
-         </Text>
-      )}
-       {isAnalyzing && (
-         <Text style={styles.infoText}>
-           Processing your document... please wait.
-         </Text>
-      )}
+        <TouchableOpacity 
+          style={[styles.uploadButton, (isAnalyzing || !analyzePdfUseCase) && styles.disabledButton]} 
+          onPress={pickAndProcessDocument}
+          disabled={isAnalyzing || !analyzePdfUseCase}
+        >
+          {isAnalyzing ? (
+             <ActivityIndicator size="small" color="#ffffff" style={styles.buttonSpinner} />
+          ) : (
+            <Text style={styles.uploadButtonText}>Select & Analyze PDF</Text>
+          )}
+        </TouchableOpacity>
 
-    </View>
+        <Text style={styles.infoText}>
+          {isAnalyzing 
+            ? 'Processing your document... please wait.' 
+            : 'Tap the button above to select and process your PDF report.'}
+        </Text>
+      </View>
+    </ScreenLayout>
   );
 };
 
+const LoadingView = () => (
+  <ScreenLayout>
+    <View style={styles.containerCentered}>
+      <ActivityIndicator size="large" color="#2c7be5" />
+      <Text style={styles.loadingText}>Loading configuration...</Text>
+    </View>
+  </ScreenLayout>
+);
+
 const styles = StyleSheet.create({
-  container: {
+  containerCentered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contentWrapper: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
     paddingTop: 40,
-    backgroundColor: '#f5f7fb',
-  },
-  containerCentered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f7fb',
   },
   title: {
     fontSize: 24,
@@ -166,7 +189,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-   buttonSpinner: {
+  buttonSpinner: {
     marginRight: 10,
   },
   loadingText: {
@@ -190,6 +213,22 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 5,
   },
+  errorContainer: {
+    backgroundColor: 'rgba(230, 55, 87, 0.1)',
+    borderColor: '#e63757',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
+    width: '100%',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#e63757',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 5,
+  },
   infoText: {
     marginTop: 30,
     fontSize: 14,
@@ -197,4 +236,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 10,
   },
-}); 
+  successContainer: {
+    backgroundColor: 'rgba(0, 217, 126, 0.1)',
+    borderColor: '#00d97e',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 20,
+    width: '100%',
+    alignItems: 'center',
+  },
+  successText: {
+    color: '#00a86b',
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+});

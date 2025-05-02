@@ -1,3 +1,5 @@
+import { LAB_VALUE_KEYS } from '../../config/LabConfig';
+
 export interface LabValue {
   value: number;
   unit: string;
@@ -8,19 +10,6 @@ export interface BiologicalAnalysis {
   date: Date;
   pdfSource?: string;
   
-  // Add structured lab values
-  Hematies?: LabValue;
-  Hémoglobine?: LabValue;
-  Hématocrite?: LabValue;
-  VGM?: LabValue;
-  TCMH?: LabValue;
-  CCMH?: LabValue;
-  Leucocytes?: LabValue;
-  "Polynucléaires neutrophiles"?: LabValue;
-  "Polynucléaires éosinophiles"?: LabValue;
-  "Polynucléaires basophiles"?: LabValue;
-  Lymphocytes?: LabValue;
-  Monocytes?: LabValue;
-  Plaquettes?: LabValue;
-  "Proteine C Reactive"?: LabValue;
-} 
+  // Dynamically include all lab values using index signature
+  [key: string]: string | Date | LabValue | null | undefined;
+}

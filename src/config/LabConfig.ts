@@ -2,7 +2,6 @@
  * Configuration centralisée pour les valeurs de laboratoire
  */
 
-// Liste des clés des valeurs de laboratoire disponibles
 export const LAB_VALUE_KEYS = [
   "Hematies", 
   "Hémoglobine", 
@@ -17,10 +16,11 @@ export const LAB_VALUE_KEYS = [
   "Lymphocytes", 
   "Monocytes", 
   "Plaquettes",
-  "Proteine C Reactive"
+  "Proteine C Reactive",
+  "Vitamine B9",
+  "Vitamine B12"
 ];
 
-// Unités pour chaque valeur de laboratoire
 export const LAB_VALUE_UNITS: Record<string, string> = {
   "Hematies": "T/L",
   "Hémoglobine": "g/dL",
@@ -35,7 +35,9 @@ export const LAB_VALUE_UNITS: Record<string, string> = {
   "Lymphocytes": "giga/L",
   "Monocytes": "giga/L",
   "Plaquettes": "giga/L",
-  "Proteine C Reactive": "mg/L"
+  "Proteine C Reactive": "mg/L",
+  "Vitamine B9": "ng/mL",
+  "Vitamine B12": "pg/mL"
 };
 
 export const LAB_VALUE_REFERENCE_RANGES: Record<string, { min: number; max: number }> = {
@@ -52,5 +54,7 @@ export const LAB_VALUE_REFERENCE_RANGES: Record<string, { min: number; max: numb
   "Lymphocytes": { min: 1.0, max: 4.80 },
   "Monocytes": { min: 0.18, max: 1.0 },
   "Plaquettes": { min: 150.0, max: 400.0 },
-  "Proteine C Reactive": { min: 0.0, max: 5.0 }
-}; 
+  "Proteine C Reactive": { min: 0.0, max: 5.0 },
+  "Vitamine B9": { min: 3.89, max: 26.80 },
+  "Vitamine B12": { min: 197.0, max: 771.0 }
+};

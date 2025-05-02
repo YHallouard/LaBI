@@ -38,3 +38,6 @@ yarn-error.*
 # ios and android
 ios/*
 android/*
+
+# cursor
+.cursor/*

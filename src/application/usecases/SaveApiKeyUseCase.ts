@@ -17,4 +17,4 @@ export class SaveApiKeyUseCase {
       throw new Error('Could not save API key securely.');
     }
   }
-} 
+}

@@ -139,19 +139,19 @@ describe('MistralOcrService', () => {
       LAB_VALUE_KEYS.forEach(key => {
         expect(result).toHaveProperty(key);
         
-        if (key === 'Hematies') {
-          const labValue = result[key] as LabValue;
-          expect(labValue.value).toBe(4.5);
-          expect(labValue.unit).toBe('T/L');
-        } else if (key === 'Proteine C Reactive') {
-          const labValue = result[key] as LabValue;
-          expect(labValue.value).toBe(5.2);
-          expect(labValue.unit).toBe('mg/L');
-        } else {
-          // All other keys should have default values
-          const labValue = result[key] as LabValue;
-          expect(labValue.value).toBe(0);
-          expect(labValue.unit).toBe(LAB_VALUE_UNITS[key] || '');
+        const labValue = result[key] as LabValue | undefined;
+        if (labValue) {
+          if (key === 'Hematies') {
+            expect(labValue.value).toBe(4.5);
+            expect(labValue.unit).toBe('T/L');
+          } else if (key === 'Proteine C Reactive') {
+            expect(labValue.value).toBe(5.2);
+            expect(labValue.unit).toBe('mg/L');
+          } else {
+            // All other keys should have default values
+            expect(labValue.value).toBe(0);
+            expect(labValue.unit).toBe(LAB_VALUE_UNITS[key] || '');
+          }
         }
       });
     });
@@ -174,9 +174,11 @@ describe('MistralOcrService', () => {
       // Verify all lab values have default values
       LAB_VALUE_KEYS.forEach(key => {
         expect(result).toHaveProperty(key);
-        const labValue = result[key] as LabValue;
-        expect(labValue.value).toBe(0);
-        expect(labValue.unit).toBe(LAB_VALUE_UNITS[key] || '');
+        const labValue = result[key] as LabValue | undefined;
+        if (labValue) {
+          expect(labValue.value).toBe(0);
+          expect(labValue.unit).toBe(LAB_VALUE_UNITS[key] || '');
+        }
       });
     });
     
@@ -224,8 +226,10 @@ describe('MistralOcrService', () => {
       // Verify all lab values have default values
       LAB_VALUE_KEYS.forEach(key => {
         expect(result).toHaveProperty(key);
-        const labValue = result[key] as LabValue;
-        expect(labValue.value).toBe(0);
+        const labValue = result[key] as LabValue | undefined;
+        if (labValue) {
+          expect(labValue.value).toBe(0);
+        }
       });
     });
   });

@@ -41,7 +41,7 @@ describe('UpdateAnalysisUseCase', () => {
       
       // Verify the repository was updated
       const savedAnalysis = await repository.getById('1');
-      expect(savedAnalysis?.Hematies?.value).toBe(5.0);
+      expect((savedAnalysis?.Hematies as LabValue)?.value).toBe(5.0);
     });
 
     it('should throw error when analysis has no ID', async () => {
@@ -88,12 +88,12 @@ describe('UpdateAnalysisUseCase', () => {
 
       // Verify the returned result
       expect(result.id).toBe('1');
-      expect(result.Hematies?.value).toBe(5.0);
-      expect(result.Hematies?.unit).toBe('T/L'); // Unit should not change
+      expect((result.Hematies as LabValue)?.value).toBe(5.0);
+      expect((result.Hematies as LabValue)?.unit).toBe('T/L'); // Unit should not change
       
       // Verify the repository was updated
       const savedAnalysis = await repository.getById('1');
-      expect(savedAnalysis?.Hematies?.value).toBe(5.0);
+      expect((savedAnalysis?.Hematies as LabValue)?.value).toBe(5.0);
     });
 
     it('should update a lab value with a new unit', async () => {
@@ -112,13 +112,13 @@ describe('UpdateAnalysisUseCase', () => {
 
       // Verify the returned result
       expect(result.id).toBe('1');
-      expect(result.Hematies?.value).toBe(5.0);
-      expect(result.Hematies?.unit).toBe('g/L'); // Unit should change
+      expect((result.Hematies as LabValue)?.value).toBe(5.0);
+      expect((result.Hematies as LabValue)?.unit).toBe('g/L'); // Unit should change
       
       // Verify the repository was updated
       const savedAnalysis = await repository.getById('1');
-      expect(savedAnalysis?.Hematies?.value).toBe(5.0);
-      expect(savedAnalysis?.Hematies?.unit).toBe('g/L');
+      expect((savedAnalysis?.Hematies as LabValue)?.value).toBe(5.0);
+      expect((savedAnalysis?.Hematies as LabValue)?.unit).toBe('g/L');
     });
 
     it('should add a new lab value if it does not exist', async () => {
@@ -137,14 +137,14 @@ describe('UpdateAnalysisUseCase', () => {
 
       // Verify the returned result
       expect(result.id).toBe('1');
-      expect(result.Hematies?.value).toBe(4.5); // Original value unchanged
-      expect(result.Leucocytes?.value).toBe(8.5); // New value added
-      expect(result.Leucocytes?.unit).toBe('G/L');
+      expect((result.Hematies as LabValue)?.value).toBe(4.5); // Original value unchanged
+      expect((result.Leucocytes as LabValue)?.value).toBe(8.5); // New value added
+      expect((result.Leucocytes as LabValue)?.unit).toBe('G/L');
       
       // Verify the repository was updated
       const savedAnalysis = await repository.getById('1');
-      expect(savedAnalysis?.Leucocytes?.value).toBe(8.5);
-      expect(savedAnalysis?.Leucocytes?.unit).toBe('G/L');
+      expect((savedAnalysis?.Leucocytes as LabValue)?.value).toBe(8.5);
+      expect((savedAnalysis?.Leucocytes as LabValue)?.unit).toBe('G/L');
     });
 
     it('should throw error when analysis is not found', async () => {

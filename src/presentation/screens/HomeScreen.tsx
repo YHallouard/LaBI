@@ -15,14 +15,16 @@ import { GetAnalysesUseCase } from '../../application/usecases/GetAnalysesUseCas
 import { DeleteAnalysisUseCase } from '../../application/usecases/DeleteAnalysisUseCase';
 import { AnalysisCard } from '../components/AnalysisCard';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../navigation/types';
+import { HomeStackParamList } from '../../types/navigation';
 import { Swipeable } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenLayout } from '../components/ScreenLayout';
+import { useFocusEffect } from '@react-navigation/native';
 
 type HomeScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
   deleteAnalysisUseCase: DeleteAnalysisUseCase;
-  navigation: StackNavigationProp<RootStackParamList, 'Home'>;
+  navigation: StackNavigationProp<HomeStackParamList, 'HomeScreen'>;
 };
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ 
@@ -34,11 +36,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [activeSwipeable, setActiveSwipeable] = useState<Swipeable | null>(null);
+  
+  const swipeableRefs = React.useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
     loadAnalyses();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadAnalyses(true);
+    }, [])
+  );
 
   const loadAnalyses = async (refresh: boolean = false): Promise<void> => {
     if (!refresh) {
@@ -48,10 +57,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     }
     
     try {
-      console.log('HomeScreen: About to execute getAnalysesUseCase.execute()');
-      const result = await getAnalysesUseCase.execute();
-      console.log('HomeScreen: Received results from UseCase:', result.length);
-      const sortedAnalyses = [...result].sort((a, b) => b.date.getTime() - a.date.getTime());
+      const result = await fetchAnalysesFromRepository();
+      const sortedAnalyses = sortAnalysesByDateDescending(result);
       setAnalyses(sortedAnalyses); 
       setError(null);
     } catch (err) {
@@ -62,32 +69,49 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       setIsRefreshing(false);
     }
   };
+  
+  const fetchAnalysesFromRepository = async (): Promise<BiologicalAnalysis[]> => {
+    console.log('HomeScreen: About to execute getAnalysesUseCase.execute()');
+    const result = await getAnalysesUseCase.execute();
+    console.log('HomeScreen: Received results from UseCase:', result.length);
+    return result;
+  };
+  
+  const sortAnalysesByDateDescending = (analyses: BiologicalAnalysis[]): BiologicalAnalysis[] => {
+    return [...analyses].sort((a, b) => b.date.getTime() - a.date.getTime());
+  };
 
   const onRefresh = () => {
     console.log('HomeScreen: Refresh triggered');
     loadAnalyses(true);
   };
 
-  const handleAnalysisPress = (analysis: BiologicalAnalysis): void => {
+  const navigateToAnalysisDetails = (analysis: BiologicalAnalysis): void => {
     navigation.navigate('AnalysisDetails', { analysisId: analysis.id });
   };
 
-  const handleDeleteAnalysis = async (analysisId: string) => {
+  const deleteAnalysis = async (analysisId: string) => {
     try {
       await deleteAnalysisUseCase.execute(analysisId);
-      // Update the list
-      setAnalyses(prevAnalyses => prevAnalyses.filter(analysis => analysis.id !== analysisId));
-      if (activeSwipeable) {
-        activeSwipeable.close();
-        setActiveSwipeable(null);
-      }
+      removeAnalysisFromList(analysisId);
+      closeSwipeableItem(analysisId);
     } catch (error) {
       console.error('Error deleting analysis:', error);
       Alert.alert('Error', 'Failed to delete analysis');
     }
   };
+  
+  const removeAnalysisFromList = (analysisId: string): void => {
+    setAnalyses(prevAnalyses => prevAnalyses.filter(analysis => analysis.id !== analysisId));
+  };
+  
+  const closeSwipeableItem = (itemId: string): void => {
+    if (swipeableRefs.current[itemId]) {
+      swipeableRefs.current[itemId]?.close();
+    }
+  };
 
-  const confirmDeleteAnalysis = (analysisId: string) => {
+  const confirmDelete = (analysisId: string) => {
     Alert.alert(
       'Confirm Delete',
       'Are you sure you want to delete this analysis?',
@@ -96,15 +120,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         { 
           text: 'Delete', 
           style: 'destructive', 
-          onPress: () => handleDeleteAnalysis(analysisId) 
+          onPress: () => deleteAnalysis(analysisId) 
         }
       ]
     );
   };
 
-  const swipeableRefs = React.useRef<{ [key: string]: Swipeable | null }>({});
-
-  const closeAllSwiped = (currentId?: string) => {
+  const closeAllSwipeableItems = (currentId?: string) => {
     Object.entries(swipeableRefs.current).forEach(([id, ref]) => {
       if (currentId !== id && ref) {
         ref.close();
@@ -112,17 +134,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     });
   };
 
-  const renderRightActions = (analysisId: string, dragX: any) => {
+  const renderDeleteButton = (analysisId: string) => {
     return (
       <View style={styles.rightActionsContainer}>
         <TouchableOpacity 
           style={styles.deleteButton}
           onPress={() => {
-            confirmDeleteAnalysis(analysisId);
-            // Close swipeable after action is taken
-            if (swipeableRefs.current[analysisId]) {
-              swipeableRefs.current[analysisId]?.close();
-            }
+            confirmDelete(analysisId);
+            closeSwipeableItem(analysisId);
           }}
         >
           <Ionicons name="trash-outline" size={24} color="white" />
@@ -131,13 +150,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     );
   };
 
-  const renderItem = ({ item }: { item: BiologicalAnalysis }) => {
+  const renderAnalysisItem = ({ item }: { item: BiologicalAnalysis }) => {
     return (
       <Swipeable
-        renderRightActions={(progress, dragX) => renderRightActions(item.id, dragX)}
-        onSwipeableOpen={() => {
-          closeAllSwiped(item.id);
-        }}
+        renderRightActions={() => renderDeleteButton(item.id)}
+        onSwipeableOpen={() => closeAllSwipeableItems(item.id)}
         ref={(ref) => {
           if (ref) swipeableRefs.current[item.id] = ref;
         }}
@@ -148,11 +165,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <AnalysisCard 
           analysis={item} 
           onPress={() => {
-            // Close swipeable when card is pressed
-            if (swipeableRefs.current[item.id]) {
-              swipeableRefs.current[item.id]?.close();
-            }
-            handleAnalysisPress(item);
+            closeSwipeableItem(item.id);
+            navigateToAnalysisDetails(item);
           }}
         />
       </Swipeable>
@@ -160,38 +174,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   if (loading && !isRefreshing) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2c7be5" />
-      </View>
-    );
+    return <LoadingView />;
   }
 
   if (error && !isRefreshing) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Button title="Try Again" onPress={() => loadAnalyses()} />
-      </View>
-    );
+    return <ErrorView error={error} onRetry={() => loadAnalyses()} />;
   }
 
   if (analyses.length === 0 && !isRefreshing) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.emptyText}>No analyses found</Text>
-        <Text style={styles.emptySubtext}>Upload a report to get started</Text>
-        <Button title="Refresh" onPress={() => loadAnalyses()} />
-      </View>
-    );
+    return <EmptyView onRefresh={() => loadAnalyses()} />;
   }
 
   return (
-    <View style={styles.container}>
+    <ScreenLayout>
       <FlatList
         data={analyses}
         keyExtractor={item => item.id}
-        renderItem={renderItem}
+        renderItem={renderAnalysisItem}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -203,15 +202,38 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         }
       />
-    </View>
+    </ScreenLayout>
   );
 };
 
+const LoadingView = () => (
+  <ScreenLayout>
+    <View style={styles.centered}>
+      <ActivityIndicator size="large" color="#2c7be5" />
+    </View>
+  </ScreenLayout>
+);
+
+const ErrorView = ({ error, onRetry }: { error: string, onRetry: () => void }) => (
+  <ScreenLayout>
+    <View style={styles.centered}>
+      <Text style={styles.errorText}>{error}</Text>
+      <Button title="Try Again" onPress={onRetry} />
+    </View>
+  </ScreenLayout>
+);
+
+const EmptyView = ({ onRefresh }: { onRefresh: () => void }) => (
+  <ScreenLayout>
+    <View style={styles.centered}>
+      <Text style={styles.emptyText}>No analyses found</Text>
+      <Text style={styles.emptySubtext}>Upload a report to get started</Text>
+      <Button title="Refresh" onPress={onRefresh} />
+    </View>
+  </ScreenLayout>
+);
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f7fb',
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -255,4 +277,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-}); 
+});

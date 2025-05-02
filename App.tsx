@@ -1,17 +1,15 @@
-// Import crypto polyfill before anything else
 import './cryptoPolyfill';
-// Import stream polyfill for ReadableStream support
 import './streamPolyfill';
 
 import React, { useState, useEffect } from 'react';
 import { NavigationContainer, Route, useNavigation } from '@react-navigation/native';
-import { createBottomTabNavigator, BottomTabNavigationOptions, BottomTabBarButtonProps, BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import { createStackNavigator, StackNavigationOptions, StackNavigationProp, StackScreenProps } from '@react-navigation/stack';
+import { createBottomTabNavigator, BottomTabNavigationOptions, BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
+import { createStackNavigator, StackNavigationProp, StackScreenProps } from '@react-navigation/stack';
 import { ChartScreen } from './src/presentation/screens/ChartScreen';
 import { HomeScreen } from './src/presentation/screens/HomeScreen';
 import { UploadScreen } from './src/presentation/screens/UploadScreen';
 import { SettingsScreen } from './src/presentation/screens/SettingsScreen';
-import { GetAnalysesUseCase, GetAnalysisByIdUseCase } from './src/application/usecases/GetAnalysesUseCase';
+import { GetAnalysesUseCase, GetAnalysisByIdUseCase, GetLabTestDataUseCase } from './src/application/usecases/GetAnalysesUseCase';
 import { AnalyzePdfUseCase } from './src/application/usecases/AnalyzePdfUseCase';
 import { SQLiteBiologicalAnalysisRepository } from './src/adapters/repositories/SQLiteBiologicalAnalysisRepository';
 import { MistralOcrService } from './src/adapters/services/MistralOcrService';
@@ -23,44 +21,18 @@ import { Text, View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'rea
 import AnalysisDetailsScreen from './src/presentation/screens/AnalysisDetailsScreen';
 import { SaveApiKeyUseCase } from './src/application/usecases/SaveApiKeyUseCase';
 import { LoadApiKeyUseCase } from './src/application/usecases/LoadApiKeyUseCase';
+import { HemeaLogo } from './src/presentation/components';
+import { CalculateStatisticsUseCase } from './src/application/usecases/CalculateStatisticsUseCase';
+import { HomeStackParamList, ChartStackParamList, UploadStackParamList, RootTabParamList } from './src/types/navigation';
 
-// Define Param Lists
-export type HomeStackParamList = {
-  HomeScreen: undefined;
-  AnalysisDetails: { analysisId: string };
-  SettingsScreen: undefined; // Settings moved here
-};
-
-export type ChartStackParamList = {
-  ChartScreen: undefined;
-};
-
-export type UploadStackParamList = {
-  UploadScreen: undefined;
-};
-
-// Main Bottom Tab Param List
-export type RootTabParamList = {
-  Home: undefined; // Corresponds to HomeStack
-  Upload: undefined; // Corresponds to UploadStack
-  Charts: undefined; // Corresponds to ChartStack
-};
-
-// Type for Stack Navigators
 const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
 const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
 const UploadStackNavigator = createStackNavigator<UploadStackParamList>();
 
-// Type for Bottom Tab Navigator
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
-// Remove global initialization - we'll only do it inside the component
-console.log('Starting app initialization');
-
-// Helper function for the Settings Button JSX
 const SettingsButton = () => {
-  // Use the useNavigation hook to get the navigation object regardless of stack context
-  const navigation = useNavigation<StackNavigationProp<any>>(); // Use a generic type or define a combined param list type if needed
+  const navigation = useNavigation<StackNavigationProp<any>>();
   return (
     <TouchableOpacity 
       onPress={() => navigation.navigate('Home', { screen: 'SettingsScreen' })} 
@@ -79,120 +51,163 @@ export default function App() {
   const [deleteAnalysisUseCase, setDeleteAnalysisUseCase] = useState<DeleteAnalysisUseCase | null>(null);
   const [saveApiKeyUseCase, setSaveApiKeyUseCase] = useState<SaveApiKeyUseCase | null>(null);
   const [loadApiKeyUseCase, setLoadApiKeyUseCase] = useState<LoadApiKeyUseCase | null>(null);
+  const [getLabTestDataUseCase, setGetLabTestDataUseCase] = useState<GetLabTestDataUseCase | null>(null);
+  const [calculateStatisticsUseCase, setCalculateStatisticsUseCase] = useState<CalculateStatisticsUseCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
 
-  // Unified initialization in a single useEffect
   useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        console.log('Initializing database...');
-        await initializeDatabase();
-        
-        // Create repository
-        console.log('Creating repository...');
-        const repository = new SQLiteBiologicalAnalysisRepository();
-        
-        // Create use cases
-        console.log('Creating use cases...');
-        const newGetAnalysesUseCase = new GetAnalysesUseCase(repository);
-        const newGetAnalysisByIdUseCase = new GetAnalysisByIdUseCase(repository);
-        const newUpdateAnalysisUseCase = new UpdateAnalysisUseCase(repository);
-        const newDeleteAnalysisUseCase = new DeleteAnalysisUseCase(repository);
-        const newSaveApiKeyUseCase = new SaveApiKeyUseCase();
-        const newLoadApiKeyUseCase = new LoadApiKeyUseCase();
-        
-        // Set them in state
-        setGetAnalysesUseCase(newGetAnalysesUseCase);
-        setGetAnalysisByIdUseCase(newGetAnalysisByIdUseCase);
-        setUpdateAnalysisUseCase(newUpdateAnalysisUseCase);
-        setDeleteAnalysisUseCase(newDeleteAnalysisUseCase);
-        setSaveApiKeyUseCase(newSaveApiKeyUseCase);
-        setLoadApiKeyUseCase(newLoadApiKeyUseCase);
-        
-        // Load API key with our newly created use case
-        console.log('Loading API key...');
-        try {
-          const loadedApiKey = await newLoadApiKeyUseCase.execute();
-          
-          if (loadedApiKey) {
-            console.log('API key found');
-            const ocrService = new MistralOcrService(loadedApiKey);
-            setAnalyzePdfUseCase(new AnalyzePdfUseCase(ocrService, repository));
-          } else {
-            console.warn('API key not found. OCR features disabled.');
-            setApiKeyError('API key not set. Please configure it in Settings.');
-            // Still create OCR service but it won't work until key is set
-            const ocrService = new MistralOcrService("");
-            setAnalyzePdfUseCase(new AnalyzePdfUseCase(ocrService, repository));
-          }
-        } catch (error) {
-          console.error("Error during API key loading:", error);
-          setApiKeyError('Failed to load API key configuration.');
-          // Still create OCR service but it won't work until key is set
-          const ocrService = new MistralOcrService("");
-          setAnalyzePdfUseCase(new AnalyzePdfUseCase(ocrService, repository));
-        }
-        
-        console.log('App initialization complete');
-      } catch (error) {
-        console.error('Error during app initialization:', error);
-        setAppError('Failed to initialize application. Please restart the app.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    initializeApp();
+    initializeApplication();
   }, []);
 
-  // --- Navigation Stacks ---
+  const initializeApplication = async () => {
+    try {
+      await initializeDatabase();
+      const repository = createRepository();
+      const loadApiKeyUseCase = createBasicUseCases(repository);
+      await initializeOcrFeatures(loadApiKeyUseCase);
+    } catch (error) {
+      handleInitializationError(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const createRepository = () => {
+    return new SQLiteBiologicalAnalysisRepository();
+  };
+
+  const createBasicUseCases = (repository: SQLiteBiologicalAnalysisRepository): LoadApiKeyUseCase => {
+    const newGetAnalysesUseCase = new GetAnalysesUseCase(repository);
+    const newGetAnalysisByIdUseCase = new GetAnalysisByIdUseCase(repository);
+    const newUpdateAnalysisUseCase = new UpdateAnalysisUseCase(repository);
+    const newDeleteAnalysisUseCase = new DeleteAnalysisUseCase(repository);
+    const newGetLabTestDataUseCase = new GetLabTestDataUseCase();
+    const newSaveApiKeyUseCase = new SaveApiKeyUseCase();
+    const newLoadApiKeyUseCase = new LoadApiKeyUseCase();
+    const newCalculateStatisticsUseCase = new CalculateStatisticsUseCase();
+    
+    setGetAnalysesUseCase(newGetAnalysesUseCase);
+    setGetAnalysisByIdUseCase(newGetAnalysisByIdUseCase);
+    setUpdateAnalysisUseCase(newUpdateAnalysisUseCase);
+    setDeleteAnalysisUseCase(newDeleteAnalysisUseCase);
+    setGetLabTestDataUseCase(newGetLabTestDataUseCase);
+    setSaveApiKeyUseCase(newSaveApiKeyUseCase);
+    setLoadApiKeyUseCase(newLoadApiKeyUseCase);
+    setCalculateStatisticsUseCase(newCalculateStatisticsUseCase);
+    
+    return newLoadApiKeyUseCase;
+  };
+
+  const initializeOcrFeatures = async (loadApiKeyUseCase: LoadApiKeyUseCase) => {
+    try {
+      const loadedApiKey = await loadApiKeyUseCase.execute();
+      
+      if (loadedApiKey) {
+        createOcrService(loadedApiKey);
+      } else {
+        handleMissingApiKey();
+      }
+    } catch (error) {
+      handleApiKeyLoadError(error);
+    }
+  };
+
+  const createOcrService = (apiKey: string) => {
+    const ocrService = new MistralOcrService(apiKey);
+    const repository = new SQLiteBiologicalAnalysisRepository();
+    setAnalyzePdfUseCase(new AnalyzePdfUseCase(ocrService, repository));
+  };
+
+  const handleMissingApiKey = () => {
+    setApiKeyError('API key not set. Please configure it in Settings.');
+    createOcrService("");
+  };
+
+  const handleApiKeyLoadError = (error: any) => {
+    setApiKeyError('Failed to load API key configuration.');
+    createOcrService("");
+  };
+
+  const handleInitializationError = (error: any) => {
+    console.error('Error during app initialization:', error);
+    setAppError('Failed to initialize application. Please restart the app.');
+  };
+
   function HomeStack() {
     return (
       <HomeStackNavigator.Navigator
          screenOptions={{ 
            headerShown: true, 
+           headerBackTitle: ' ',
+           headerLeftContainerStyle: { paddingLeft: 10 },
          }}
       >
         <HomeStackNavigator.Screen
           name="HomeScreen"
           options={{ 
-            headerTitle: 'Home',
+            headerTitle: () => <HemeaLogo />,
             headerRight: () => <SettingsButton />, 
           }}
         >
-          {(props: StackScreenProps<HomeStackParamList, 'HomeScreen'>) => 
-            <HomeScreen 
-              {...props} 
-              getAnalysesUseCase={getAnalysesUseCase}
-              deleteAnalysisUseCase={deleteAnalysisUseCase}
-            />
-          }
+          {(props: StackScreenProps<HomeStackParamList, 'HomeScreen'>) => {
+            if (!getAnalysesUseCase || !deleteAnalysisUseCase) {
+              return <ErrorView errorMessage="Application is not properly initialized" />;
+            }
+            
+            return (
+              <HomeScreen 
+                {...props} 
+                getAnalysesUseCase={getAnalysesUseCase}
+                deleteAnalysisUseCase={deleteAnalysisUseCase}
+              />
+            );
+          }}
         </HomeStackNavigator.Screen>
         <HomeStackNavigator.Screen
           name="AnalysisDetails"
-          options={{ headerTitle: 'Analysis Details' }}
+          options={{ 
+            headerTitle: 'Analysis Details',
+            headerBackTitle: ' ',
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
         >
-          {(props: StackScreenProps<HomeStackParamList, 'AnalysisDetails'>) => (
-            <AnalysisDetailsScreen
-              {...props}
-              getAnalysisByIdUseCase={getAnalysisByIdUseCase}
-              updateAnalysisUseCase={updateAnalysisUseCase}
-            />
-          )}
+          {(props: StackScreenProps<HomeStackParamList, 'AnalysisDetails'>) => {
+            if (!getAnalysisByIdUseCase || !updateAnalysisUseCase) {
+              return <ErrorView errorMessage="Application is not properly initialized" />;
+            }
+            
+            return (
+              <AnalysisDetailsScreen
+                {...props}
+                getAnalysisByIdUseCase={getAnalysisByIdUseCase}
+                updateAnalysisUseCase={updateAnalysisUseCase}
+              />
+            );
+          }}
         </HomeStackNavigator.Screen>
         <HomeStackNavigator.Screen
           name="SettingsScreen"
-          options={{ headerTitle: 'Settings' }}
-         >
-           {(props: StackScreenProps<HomeStackParamList, 'SettingsScreen'>) => (
-             <SettingsScreen 
-               {...props} 
-               saveApiKeyUseCase={saveApiKeyUseCase} 
-               loadApiKeyUseCase={loadApiKeyUseCase} 
-             />
-           )}
+          options={{ 
+            headerTitle: 'Settings',
+            headerBackTitle: ' ',
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+        >
+          {(props: StackScreenProps<HomeStackParamList, 'SettingsScreen'>) => {
+            if (!saveApiKeyUseCase || !loadApiKeyUseCase) {
+              return <ErrorView errorMessage="Application is not properly initialized" />;
+            }
+            
+            return (
+              <SettingsScreen 
+                {...props} 
+                saveApiKeyUseCase={saveApiKeyUseCase} 
+                loadApiKeyUseCase={loadApiKeyUseCase} 
+              />
+            );
+          }}
         </HomeStackNavigator.Screen>
       </HomeStackNavigator.Navigator>
     );
@@ -203,16 +218,32 @@ export default function App() {
       <ChartStackNavigator.Navigator 
         screenOptions={{
           headerShown: true,
-          headerRight: () => <SettingsButton />, 
+          headerBackTitle: ' ',
+          headerLeftContainerStyle: { paddingLeft: 10 },
+          headerTitleAlign: 'center',
         }}
       >
         <ChartStackNavigator.Screen
           name="ChartScreen"
-          options={{ headerTitle: 'Charts' }}
+          options={{ 
+            headerTitle: () => <HemeaLogo />,
+            headerRight: () => <SettingsButton />
+          }}
         >
-          {(props: StackScreenProps<ChartStackParamList, 'ChartScreen'>) => 
-            <ChartScreen {...props} getAnalysesUseCase={getAnalysesUseCase} />
-          }
+          {(props: StackScreenProps<ChartStackParamList, 'ChartScreen'>) => {
+            if (!getAnalysesUseCase || !getLabTestDataUseCase || !calculateStatisticsUseCase) {
+              return <ErrorView errorMessage="Application is not properly initialized" />;
+            }
+            
+            return (
+              <ChartScreen 
+                {...props} 
+                getAnalysesUseCase={getAnalysesUseCase} 
+                getLabTestDataUseCase={getLabTestDataUseCase}
+                calculateStatisticsUseCase={calculateStatisticsUseCase}
+              />
+            );
+          }}
         </ChartStackNavigator.Screen>
       </ChartStackNavigator.Navigator>
     );
@@ -223,12 +254,17 @@ export default function App() {
       <UploadStackNavigator.Navigator
         screenOptions={{
           headerShown: true,
-          headerRight: () => <SettingsButton />,
+          headerBackTitle: ' ',
+          headerLeftContainerStyle: { paddingLeft: 10 },
+          headerTitleAlign: 'center',
         }}
       >
         <UploadStackNavigator.Screen
           name="UploadScreen"
-          options={{ headerTitle: 'Upload Report' }}
+          options={{ 
+            headerTitle: () => <HemeaLogo />,
+            headerRight: () => <SettingsButton />
+          }}
         >
           {(props: StackScreenProps<UploadStackParamList, 'UploadScreen'>) => (
             <UploadScreen
@@ -242,78 +278,103 @@ export default function App() {
       </UploadStackNavigator.Navigator>
     );
   }
-  // --- End Navigation Stacks ---
 
-  // Show loading indicator while app is initializing
   if (isLoading) {
-    return (
-      <View style={styles.centeredLoader}>
-        <ActivityIndicator size="large" color="#2c7be5" />
-        <Text style={styles.loadingText}>Loading application...</Text>
-      </View>
-    );
+    return <LoadingView />;
   }
 
-  // Show error screen if initialization failed
   if (appError) {
-    return (
-      <View style={styles.centeredLoader}>
-        <Text style={styles.errorText}>{appError}</Text>
-      </View>
-    );
+    return <ErrorView errorMessage={appError} />;
   }
 
-  return (
-    <NavigationContainer>
-      <Tab.Navigator
-        screenOptions={({ route }: { route: Route<keyof RootTabParamList> }): BottomTabNavigationOptions => ({
-          tabBarActiveTintColor: '#2c7be5',
-          tabBarInactiveTintColor: 'gray',
-          headerShown: false,
-          tabBarShowLabel: true,
-          tabBarStyle: styles.tabBar,
-          tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
-            let iconName: keyof typeof Ionicons.glyphMap | undefined;
-
-            if (route.name === 'Home') {
-              iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Charts') {
-              iconName = focused ? 'bar-chart' : 'bar-chart-outline';
-            } 
-            
-            if (!iconName) return null;
-
-            return <Ionicons name={iconName} size={size} color={color} />;
-          },
-        })}
-      >
-        <Tab.Screen name="Home" component={HomeStack} />
-        <Tab.Screen 
-          name="Upload" 
-          component={UploadStack}
-          options={{
-             tabBarLabel: ' ',
-             tabBarIcon: ({ color }: { color: string }) => (
-               <Ionicons name="add-circle-outline" size={30} color={color} /> 
-            ),
-             tabBarButton: (props: BottomTabBarButtonProps) => (
-              <TouchableOpacity
-                {...props}
-                style={styles.uploadTabButton}
-                activeOpacity={0.8}
-              >
-                <View style={styles.uploadTabButtonInner}> 
-                   <Ionicons name="add" size={32} color="white" />
-                 </View>
-              </TouchableOpacity>
-            ),
-          }} 
-        />
-        <Tab.Screen name="Charts" component={ChartStack} />
-      </Tab.Navigator>
-    </NavigationContainer>
-  );
+  return <MainNavigationContainer 
+    homeStack={HomeStack} 
+    uploadStack={UploadStack} 
+    chartStack={ChartStack} 
+  />;
 }
+
+const LoadingView = () => (
+  <View style={styles.centeredLoader}>
+    <ActivityIndicator size="large" color="#2c7be5" />
+    <Text style={styles.loadingText}>Loading application...</Text>
+  </View>
+);
+
+const ErrorView = ({ errorMessage }: { errorMessage: string }) => (
+  <View style={styles.centeredLoader}>
+    <Text style={styles.errorText}>{errorMessage}</Text>
+  </View>
+);
+
+interface MainNavigationContainerProps {
+  homeStack: () => React.ReactElement;
+  uploadStack: () => React.ReactElement;
+  chartStack: () => React.ReactElement;
+}
+
+const MainNavigationContainer = ({ 
+  homeStack, 
+  uploadStack, 
+  chartStack 
+}: MainNavigationContainerProps) => (
+  <NavigationContainer>
+    <Tab.Navigator
+      screenOptions={configureTabScreenOptions}
+    >
+      <Tab.Screen name="Home" component={homeStack} />
+      <Tab.Screen 
+        name="Upload" 
+        component={uploadStack}
+        options={{
+           tabBarLabel: ' ',
+           tabBarIcon: ({ color }: { color: string }) => (
+             <Ionicons name="add-circle-outline" size={30} color={color} /> 
+          ),
+           tabBarButton: createUploadTabButton,
+        }} 
+      />
+      <Tab.Screen name="Charts" component={chartStack} />
+    </Tab.Navigator>
+  </NavigationContainer>
+);
+
+const configureTabScreenOptions = ({ route }: { route: Route<keyof RootTabParamList> }): BottomTabNavigationOptions => ({
+  tabBarActiveTintColor: '#2c7be5',
+  tabBarInactiveTintColor: 'gray',
+  headerShown: false,
+  tabBarShowLabel: true,
+  tabBarStyle: styles.tabBar,
+  tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
+    return createTabBarIcon(route.name, focused, color, size);
+  },
+});
+
+const createTabBarIcon = (routeName: string, focused: boolean, color: string, size: number) => {
+  let iconName: keyof typeof Ionicons.glyphMap | undefined;
+
+  if (routeName === 'Home') {
+    iconName = focused ? 'home' : 'home-outline';
+  } else if (routeName === 'Charts') {
+    iconName = focused ? 'bar-chart' : 'bar-chart-outline';
+  } 
+  
+  if (!iconName) return null;
+
+  return <Ionicons name={iconName} size={size} color={color} />;
+};
+
+const createUploadTabButton = (props: BottomTabBarButtonProps) => (
+  <TouchableOpacity
+    {...props as any}
+    style={styles.uploadTabButton}
+    activeOpacity={0.8}
+  >
+    <View style={styles.uploadTabButtonInner}> 
+       <Ionicons name="add" size={32} color="white" />
+     </View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -379,7 +440,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     zIndex: 1,
   },
-   uploadTabButtonInner: {
+  uploadTabButtonInner: {
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -11,143 +11,155 @@ export class SQLiteBiologicalAnalysisRepository implements BiologicalAnalysisRep
     this.ensureLabValuesColumn();
   }
 
-  // Ensure the lab_values column exists
   private async ensureLabValuesColumn() {
     try {
-      // Check if lab_values column exists
-      const result = await this.db.getAllAsync<{name: string}>(
-        "PRAGMA table_info(biological_analyses)"
-      );
-      
-      const hasLabValues = result.some(col => col.name === 'lab_values');
+      const columnsInfo = await this.fetchTableColumnsInfo("biological_analyses");
+      const hasLabValues = this.checkIfColumnExists(columnsInfo, 'lab_values');
       
       if (!hasLabValues) {
-        console.log('Adding lab_values column to biological_analyses table');
-        await this.db.runAsync(
-          "ALTER TABLE biological_analyses ADD COLUMN lab_values TEXT"
-        );
+        await this.addLabValuesColumn();
       }
     } catch (error) {
       console.error('Error checking or adding lab_values column:', error);
     }
   }
+  
+  private async fetchTableColumnsInfo(tableName: string): Promise<{name: string}[]> {
+    return await this.db.getAllAsync<{name: string}>(
+      `PRAGMA table_info(${tableName})`
+    );
+  }
+  
+  private checkIfColumnExists(columns: {name: string}[], columnName: string): boolean {
+    return columns.some(col => col.name === columnName);
+  }
+  
+  private async addLabValuesColumn(): Promise<void> {
+    console.log('Adding lab_values column to biological_analyses table');
+    await this.db.runAsync(
+      "ALTER TABLE biological_analyses ADD COLUMN lab_values TEXT"
+    );
+  }
 
   async save(analysis: BiologicalAnalysis): Promise<void> {
     try {
-      // Extract lab values into a separate object
-      const labValues: Record<string, LabValue> = {};
-      LAB_VALUE_KEYS.forEach(field => {
-        if (analysis[field as keyof BiologicalAnalysis]) {
-          labValues[field] = analysis[field as keyof BiologicalAnalysis] as LabValue;
-        }
-      });
-      
-      // Convert lab values to JSON
-      const labValuesJson = JSON.stringify(labValues);
-      
-      await this.db.runAsync(
-        `INSERT OR REPLACE INTO biological_analyses (id, date, pdf_source, lab_values) 
-         VALUES (?, ?, ?, ?)`,
-        [
-          analysis.id,
-          analysis.date.toISOString(),
-          analysis.pdfSource || null,
-          labValuesJson
-        ]
-      );
+      const labValuesJson = this.extractAndSerializeLabValues(analysis);
+      await this.insertOrUpdateAnalysis(analysis, labValuesJson);
     } catch (error) {
       console.error('Error saving analysis:', error);
       throw error;
     }
   }
+  
+  private extractAndSerializeLabValues(analysis: BiologicalAnalysis): string {
+    const labValues: Record<string, LabValue> = {};
+    
+    LAB_VALUE_KEYS.forEach(field => {
+      if (analysis[field as keyof BiologicalAnalysis]) {
+        labValues[field] = analysis[field as keyof BiologicalAnalysis] as LabValue;
+      }
+    });
+    
+    return JSON.stringify(labValues);
+  }
+  
+  private async insertOrUpdateAnalysis(analysis: BiologicalAnalysis, labValuesJson: string): Promise<void> {
+    await this.db.runAsync(
+      `INSERT OR REPLACE INTO biological_analyses (id, date, pdf_source, lab_values) 
+       VALUES (?, ?, ?, ?)`,
+      [
+        analysis.id,
+        analysis.date.toISOString(),
+        analysis.pdfSource || null,
+        labValuesJson
+      ]
+    );
+  }
 
   async getAll(): Promise<BiologicalAnalysis[]> {
-    console.log('Repository.getAll() called');
     try {
-      console.log('About to execute getAllAsync query');
-      const rows = await this.db.getAllAsync<{
-        id: string;
-        date: string;
-        pdf_source: string | null;
-        lab_values: string | null;
-      }>(
-        'SELECT * FROM biological_analyses ORDER BY date DESC'
-      );
-      
-      console.log('Query executed successfully');
-      console.log('Fetching all analyses...');
-      console.log('Number of analyses found:', rows.length);
-      
-      const analyses = rows.map(row => {
-        // Create base analysis object
-        const analysis: BiologicalAnalysis = {
-          id: row.id,
-          date: new Date(row.date),
-          pdfSource: row.pdf_source || undefined
-        };
-        
-        // Parse and add lab values if they exist
-        if (row.lab_values) {
-          try {
-            const labValues = JSON.parse(row.lab_values);
-            Object.entries(labValues).forEach(([key, value]) => {
-              (analysis as any)[key] = value;
-            });
-          } catch (e) {
-            console.error('Error parsing lab values JSON:', e);
-          }
-        }
-        
-        return analysis;
-      });
-      
-      console.log('Analyses mapped:', analyses.length);
-      return analyses;
+      const rows = await this.fetchAllAnalysesFromDatabase();
+      return this.mapRowsToAnalyses(rows);
     } catch (error) {
       console.error('Error getting all analyses:', error);
       throw error;
     }
   }
+  
+  private async fetchAllAnalysesFromDatabase() {
+    return await this.db.getAllAsync<{
+      id: string;
+      date: string;
+      pdf_source: string | null;
+      lab_values: string | null;
+    }>(
+      'SELECT * FROM biological_analyses ORDER BY date DESC'
+    );
+  }
+  
+  private mapRowsToAnalyses(rows: {
+    id: string;
+    date: string;
+    pdf_source: string | null;
+    lab_values: string | null;
+  }[]): BiologicalAnalysis[] {
+    return rows.map(row => this.createAnalysisFromRow(row));
+  }
 
   async getById(id: string): Promise<BiologicalAnalysis | null> {
     try {
-      const row = await this.db.getFirstAsync<{
-        id: string;
-        date: string;
-        pdf_source: string | null;
-        lab_values: string | null;
-      }>(
-        'SELECT * FROM biological_analyses WHERE id = ?',
-        [id]
-      );
+      const row = await this.fetchAnalysisById(id);
       
       if (!row) {
         return null;
       }
       
-      // Create base analysis object
-      const analysis: BiologicalAnalysis = {
-        id: row.id,
-        date: new Date(row.date),
-        pdfSource: row.pdf_source || undefined
-      };
-      
-      // Parse and add lab values if they exist
-      if (row.lab_values) {
-        try {
-          const labValues = JSON.parse(row.lab_values);
-          Object.entries(labValues).forEach(([key, value]) => {
-            (analysis as any)[key] = value;
-          });
-        } catch (e) {
-          console.error('Error parsing lab values JSON:', e);
-        }
-      }
-      
-      return analysis;
+      return this.createAnalysisFromRow(row);
     } catch (error) {
       console.error('Error getting analysis by ID:', error);
       throw error;
+    }
+  }
+  
+  private async fetchAnalysisById(id: string) {
+    return await this.db.getFirstAsync<{
+      id: string;
+      date: string;
+      pdf_source: string | null;
+      lab_values: string | null;
+    }>(
+      'SELECT * FROM biological_analyses WHERE id = ?',
+      [id]
+    );
+  }
+  
+  private createAnalysisFromRow(row: {
+    id: string;
+    date: string;
+    pdf_source: string | null;
+    lab_values: string | null;
+  }): BiologicalAnalysis {
+    const analysis: BiologicalAnalysis = {
+      id: row.id,
+      date: new Date(row.date),
+      pdfSource: row.pdf_source || undefined
+    };
+    
+    if (row.lab_values) {
+      this.addLabValuesToAnalysis(analysis, row.lab_values);
+    }
+    
+    return analysis;
+  }
+  
+  private addLabValuesToAnalysis(analysis: BiologicalAnalysis, labValuesJson: string): void {
+    try {
+      const labValues = JSON.parse(labValuesJson);
+      Object.entries(labValues).forEach(([key, value]) => {
+        (analysis as any)[key] = value;
+      });
+    } catch (e) {
+      console.error('Error parsing lab values JSON:', e);
     }
   }
 
@@ -162,4 +174,4 @@ export class SQLiteBiologicalAnalysisRepository implements BiologicalAnalysisRep
       throw error;
     }
   }
-} 
+}

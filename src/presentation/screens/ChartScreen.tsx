@@ -5,32 +5,27 @@ import {
   View, 
   Dimensions, 
   ActivityIndicator, 
-  ScrollView, 
-  RefreshControl 
 } from 'react-native';
 import Svg, { 
-  Line, 
-  Polyline, 
+  Line,
   Circle, 
-  Path, 
-  Rect, 
+  Path,
   Text as SvgText, 
   Defs, 
   LinearGradient, 
   Stop 
 } from 'react-native-svg';
 import { BiologicalAnalysis } from '../../domain/entities/BiologicalAnalysis';
-import { GetAnalysesUseCase } from '../../application/usecases/GetAnalysesUseCase';
+import { GetAnalysesUseCase, GetLabTestDataUseCase, DataPoint } from '../../application/usecases/GetAnalysesUseCase';
+import { CalculateStatisticsUseCase } from '../../application/usecases/CalculateStatisticsUseCase';
 import { LAB_VALUE_KEYS, LAB_VALUE_UNITS, LAB_VALUE_REFERENCE_RANGES } from '../../config/LabConfig';
+import { ScreenLayout } from '../components/ScreenLayout';
+import { useFocusEffect } from '@react-navigation/native';
 
 type ChartScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
-};
-
-type DataPoint = {
-  date: Date;
-  value: number;
-  timestamp: number;
+  getLabTestDataUseCase: GetLabTestDataUseCase;
+  calculateStatisticsUseCase: CalculateStatisticsUseCase;
 };
 
 type ChartDimensions = {
@@ -43,7 +38,9 @@ type ChartDimensions = {
 };
 
 export const ChartScreen: React.FC<ChartScreenProps> = ({ 
-  getAnalysesUseCase 
+  getAnalysesUseCase,
+  getLabTestDataUseCase,
+  calculateStatisticsUseCase
 }) => {
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -60,9 +57,24 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     paddingLeft: 40
   };
 
+  // Debug props on mount
+  useEffect(() => {
+    console.log('ChartScreen mounted with props:', { 
+      hasGetAnalysesUseCase: !!getAnalysesUseCase,
+      hasGetLabTestDataUseCase: !!getLabTestDataUseCase,
+      hasCalculateStatisticsUseCase: !!calculateStatisticsUseCase
+    });
+  }, []);
+
   useEffect(() => {
     loadAnalyses();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadAnalyses();
+    }, [])
+  );
 
   const loadAnalyses = async (isRefresh: boolean = false): Promise<void> => {
     try {
@@ -90,14 +102,25 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
 
   // Maps data for a specific lab test
   const getLabTestData = (labKey: string): DataPoint[] => {
-    return analyses.map(analysis => {
-      const labData = (analysis as any)[labKey];
-      return {
-        date: new Date(analysis.date),
-        value: labData && typeof labData.value === 'number' ? labData.value : 0,
-        timestamp: new Date(analysis.date).getTime()
-      };
-    }).filter(point => point.value > 0); // Filter out zeros which might be missing data
+    if (!getLabTestDataUseCase) {
+      console.error('GetLabTestDataUseCase is undefined, using fallback implementation');
+      // Fallback implementation similar to the original function
+      return analyses
+        .map(analysis => {
+          const labData = (analysis as any)[labKey];
+          const hasValidValue = labData && 
+                             typeof labData.value === 'number' && 
+                             !Number.isNaN(labData.value);
+          
+          return {
+            date: new Date(analysis.date),
+            value: hasValidValue ? labData.value : 0, // Default to 0 if value is invalid
+            timestamp: new Date(analysis.date).getTime()
+          };
+        })
+        .filter(point => point.value !== null && point.value !== 0);
+    }
+    return getLabTestDataUseCase.execute(analyses, labKey);
   };
 
   // Format date for display
@@ -121,7 +144,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
       const timeRange = maxTime - minTime;
       const x = paddingLeft + ((point.timestamp - minTime) / timeRange) * (width - paddingLeft - paddingRight);
       const valueRange = maxValue - minValue;
-      const y = height - paddingBottom - ((point.value - minValue) / valueRange) * (height - paddingTop - paddingBottom);
+      const y = height - paddingBottom - (((point.value ?? 0) - minValue) / valueRange) * (height - paddingTop - paddingBottom);
       return `M ${x} ${y}`;
     }
     
@@ -134,7 +157,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
       const timeRange = maxTime - minTime;
       const x = paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
       const valueRange = maxValue - minValue;
-      const y = height - paddingBottom - ((point.value - minValue) / valueRange) * graphHeight;
+      const y = height - paddingBottom - (((point.value ?? 0) - minValue) / valueRange) * graphHeight;
       return { x, y, timestamp: point.timestamp };
     });
     
@@ -344,10 +367,10 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
       const x = paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
       
       const valueRange = maxValue - minValue;
-      const y = height - paddingBottom - ((point.value - minValue) / valueRange) * graphHeight;
+      const y = height - paddingBottom - (((point.value ?? 0) - minValue) / valueRange) * graphHeight;
       
       // Determine if the point is outside the reference range
-      const isOutsideRange = point.value < refRange.min || point.value > refRange.max;
+      const isOutsideRange = (point.value ?? 0) < refRange.min || (point.value ?? 0) > refRange.max;
       
       return (
         <Circle
@@ -365,52 +388,45 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2c7be5" />
-      </View>
+      <ScreenLayout>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#2c7be5" />
+        </View>
+      </ScreenLayout>
     );
   }
 
   if (error && !refreshing) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
+      <ScreenLayout>
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
   if (analyses.length < 2 && !refreshing) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.emptyText}>Insufficient Data</Text>
-        <Text style={styles.emptySubtext}>Upload at least 2 reports to see a chart</Text>
-      </View>
+      <ScreenLayout>
+        <View style={styles.centered}>
+          <Text style={styles.emptyText}>Insufficient Data</Text>
+          <Text style={styles.emptySubtext}>Upload at least 2 reports to see a chart</Text>
+        </View>
+      </ScreenLayout>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
-        style={styles.chartsContainer}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#2c7be5']}
-            tintColor="#2c7be5"
-            title="Pull to refresh..."
-            titleColor="#95aac9"
-          />
-        }
-      >
+    <ScreenLayout scrollable={true} refreshing={refreshing} onRefresh={onRefresh}>
+      <View style={styles.chartsContainer}>
         {LAB_VALUE_KEYS.map((labKey) => {
           const data = getLabTestData(labKey);
           const unit = LAB_VALUE_UNITS[labKey] || "";
           const refRange = LAB_VALUE_REFERENCE_RANGES[labKey] || { min: 0, max: 0 };
           
-          // Skip if no data
-          if (data.length === 0) return null;
+          // Skip if no data or not enough data points for a meaningful graph
+          if (data.length < 2) return null;
           
           // Calculate time range (x-axis)
           const timestamps = data.map(d => d.timestamp);
@@ -418,7 +434,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
           const maxTime = Math.max(...timestamps);
           
           // Calculate value range (y-axis) with padding
-          const values = data.map(d => d.value);
+          const values = data.map(d => d.value ?? 0);
           const dataMin = Math.min(...values);
           const dataMax = Math.max(...values);
           
@@ -427,13 +443,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
           const maxValue = Math.max(dataMax, refRange.max) * 1.05;
           
           // Calculate statistics
-          const latestValue = data.length > 0 ? data[data.length - 1].value : 0;
-          const averageValue = data.length > 0 
-            ? data.reduce((sum, point) => sum + point.value, 0) / data.length 
-            : 0;
-          const maxPointValue = data.length > 0 
-            ? Math.max(...data.map(point => point.value)) 
-            : 0;
+          const { latestValue, averageValue, maxPointValue } = calculateStatisticsUseCase.execute(data, refRange);
           
           // Create paths
           const linePath = createLinePath(data, minTime, maxTime, minValue, maxValue, chartDimensions);
@@ -485,15 +495,15 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   <View style={styles.legendRow}>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendColor, { backgroundColor: '#4484B2' }]} />
-                      <Text style={styles.legendText}>Valeur mesurée</Text>
+                      <Text style={styles.legendText}>Measured Value</Text>
                     </View>
                     <View style={styles.legendItem}>
                       <View style={[styles.legendColor, { backgroundColor: '#00c800' }]} />
-                      <Text style={styles.legendText}>Plage normale</Text>
+                      <Text style={styles.legendText}>Normal Range</Text>
                     </View>
                   </View>
                   <Text style={styles.rangeText}>
-                    Plage normale: {refRange.min} - {refRange.max} {unit}
+                    Normal range: {refRange.min} - {refRange.max} {unit}
                   </Text>
                 </View>
               </View>
@@ -504,7 +514,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   styles.statCard,
                   latestValue < refRange.min || latestValue > refRange.max ? styles.statCardAlert : {}
                 ]}>
-                  <Text style={styles.statLabel}>Dernière</Text>
+                  <Text style={styles.statLabel}>Latest</Text>
                   <Text
                     style={[
                       styles.statValue,
@@ -525,7 +535,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
                   styles.statCard,
                   averageValue < refRange.min || averageValue > refRange.max ? styles.statCardAlert : {}
                 ]}>
-                  <Text style={styles.statLabel}>Moyenne</Text>
+                  <Text style={styles.statLabel}>Average</Text>
                   <Text
                     style={[
                       styles.statValue,
@@ -563,24 +573,12 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
             </View>
           );
         })}
-      </ScrollView>
-    </View>
+      </View>
+    </ScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f7fb',
-    padding: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 16,
-    color: '#12263f',
-    textAlign: 'center',
-  },
   centered: {
     flex: 1,
     justifyContent: 'center',
@@ -589,6 +587,7 @@ const styles = StyleSheet.create({
   },
   chartsContainer: {
     flex: 1,
+    paddingHorizontal: 10,
   },
   chartSection: {
     marginBottom: 30,
@@ -700,4 +699,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 8,
   },
-}); 
+});

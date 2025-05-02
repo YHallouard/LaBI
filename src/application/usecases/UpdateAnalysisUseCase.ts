@@ -66,4 +66,30 @@ export class UpdateAnalysisUseCase {
     // Retourner l'analyse mise à jour
     return analysis;
   }
-} 
+
+  /**
+   * Met à jour la date d'une analyse biologique
+   * @param analysisId L'ID de l'analyse à mettre à jour
+   * @param date La nouvelle date
+   * @returns L'analyse mise à jour
+   */
+  async updateDate(
+    analysisId: string,
+    date: Date
+  ): Promise<BiologicalAnalysis> {
+    // Récupérer l'analyse existante
+    const analysis = await this.repository.getById(analysisId);
+    if (!analysis) {
+      throw new Error(`Analysis with ID ${analysisId} not found`);
+    }
+    
+    // Mettre à jour la date
+    analysis.date = date;
+    
+    // Sauvegarder les mises à jour
+    await this.repository.save(analysis);
+    
+    // Retourner l'analyse mise à jour
+    return analysis;
+  }
+}

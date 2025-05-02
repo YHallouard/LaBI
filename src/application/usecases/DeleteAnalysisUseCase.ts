@@ -14,4 +14,4 @@ export class DeleteAnalysisUseCase {
     
     return this.repository.deleteById(analysisId);
   }
-} 
+}

@@ -5,4 +5,4 @@ export interface BiologicalAnalysisRepository {
   getAll(): Promise<BiologicalAnalysis[]>;
   getById(id: string): Promise<BiologicalAnalysis | null>;
   deleteById(id: string): Promise<void>;
-} 
+}

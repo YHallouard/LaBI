@@ -59,4 +59,4 @@ export const getDatabase = (): Database => {
     return initializeDatabase();
   }
   return dbInstance;
-}; 
+};

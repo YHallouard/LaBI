@@ -1,64 +1,64 @@
 import { BiologicalAnalysis } from '../../domain/entities/BiologicalAnalysis';
 import { BiologicalAnalysisRepository } from '../../ports/repositories/BiologicalAnalysisRepository';
 
-/**
- * An in-memory implementation of BiologicalAnalysisRepository for testing purposes.
- * Stores analyses in memory rather than in a persistent database.
- */
+
 export class InMemoryBiologicalAnalysisRepository implements BiologicalAnalysisRepository {
   private analyses: BiologicalAnalysis[] = [];
 
-  /**
-   * Save an analysis to the in-memory store.
-   * If an analysis with the same ID exists, it will be updated.
-   */
   async save(analysis: BiologicalAnalysis): Promise<void> {
-    // Check if analysis with this id already exists
-    const existingIndex = this.analyses.findIndex(a => a.id === analysis.id);
+    const existingIndex = this.findAnalysisIndex(analysis.id);
     
-    if (existingIndex >= 0) {
-      // Update existing analysis
-      this.analyses[existingIndex] = analysis;
+    if (this.isExistingAnalysis(existingIndex)) {
+      this.updateExistingAnalysis(existingIndex, analysis);
     } else {
-      // Add new analysis
-      this.analyses.push(analysis);
+      this.addNewAnalysis(analysis);
     }
   }
 
-  /**
-   * Retrieve all analyses from the in-memory store.
-   * @returns Array of all analyses sorted by date (newest first)
-   */
+  private findAnalysisIndex(id: string): number {
+    return this.analyses.findIndex(a => a.id === id);
+  }
+
+  private isExistingAnalysis(index: number): boolean {
+    return index >= 0;
+  }
+
+  private updateExistingAnalysis(index: number, analysis: BiologicalAnalysis): void {
+    this.analyses[index] = analysis;
+  }
+
+  private addNewAnalysis(analysis: BiologicalAnalysis): void {
+    this.analyses.push(analysis);
+  }
+
   async getAll(): Promise<BiologicalAnalysis[]> {
-    // Return a copy of the analyses array, sorted by date (newest first)
+    return this.getSortedAnalysesByDate();
+  }
+
+  private getSortedAnalysesByDate(): BiologicalAnalysis[] {
     return [...this.analyses].sort((a, b) => {
       return b.date.getTime() - a.date.getTime();
     });
   }
 
-  /**
-   * Retrieve a specific analysis by ID.
-   * @param id The ID of the analysis to retrieve
-   * @returns The analysis if found, null otherwise
-   */
   async getById(id: string): Promise<BiologicalAnalysis | null> {
-    const analysis = this.analyses.find(a => a.id === id);
+    const analysis = this.findAnalysisById(id);
     return analysis || null;
   }
 
-  /**
-   * Delete an analysis from the in-memory store.
-   * @param id The ID of the analysis to delete
-   */
+  private findAnalysisById(id: string): BiologicalAnalysis | undefined {
+    return this.analyses.find(a => a.id === id);
+  }
+
   async deleteById(id: string): Promise<void> {
+    this.removeAnalysisById(id);
+  }
+
+  private removeAnalysisById(id: string): void {
     this.analyses = this.analyses.filter(a => a.id !== id);
   }
 
-  /**
-   * Clear all analyses from the in-memory store.
-   * This method is specific to the in-memory implementation for testing
-   */
   async clear(): Promise<void> {
     this.analyses = [];
   }
-} 
+}

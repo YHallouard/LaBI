@@ -38,4 +38,4 @@ export class InMemorySecureStore {
   static async clear(): Promise<void> {
     this.store = {};
   }
-} 
+}

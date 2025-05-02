@@ -9,4 +9,4 @@ export type RootTabParamList = {
   Home: undefined;
   Upload: undefined;
   Charts: undefined;
-}; 
+};

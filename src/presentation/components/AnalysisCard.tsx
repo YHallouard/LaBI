@@ -14,12 +14,8 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onPress })
     }
   };
 
-  // Format date as DD/MM/YYYY
-  const formattedDate = analysis.date.toLocaleDateString('fr-FR');
-  
-  // Get CRP value from new structure
-  const crpValue = analysis["Proteine C Reactive"]?.value || 0;
-  const crpUnit = analysis["Proteine C Reactive"]?.unit || "mg/L";
+  const formattedDate = formatAnalysisDate(analysis.date);
+  const crpData = extractCRPData(analysis);
 
   return (
     <TouchableOpacity 
@@ -31,11 +27,27 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onPress })
         <Text style={styles.date}>{formattedDate}</Text>
         <View style={styles.valueContainer}>
           <Text style={styles.label}>CRP</Text>
-          <Text style={styles.value}>{typeof crpValue === 'number' ? crpValue.toFixed(2) : '0.00'} {crpUnit}</Text>
+          <Text style={styles.value}>{formatLabValue(crpData.value, crpData.unit)}</Text>
         </View>
       </View>
     </TouchableOpacity>
   );
+};
+
+const formatAnalysisDate = (date: Date): string => {
+  return date.toLocaleDateString('fr-FR');
+};
+
+const extractCRPData = (analysis: BiologicalAnalysis): { value: number, unit: string } => {
+  const crpData = analysis["Proteine C Reactive"];
+  const value = (crpData && typeof crpData === 'object' && 'value' in crpData) ? crpData.value : 0;
+  const unit = (crpData && typeof crpData === 'object' && 'unit' in crpData) ? crpData.unit : "mg/L";
+  return { value, unit };
+};
+
+const formatLabValue = (value: number, unit: string): string => {
+  const formattedValue = typeof value === 'number' ? value.toFixed(2) : '0.00';
+  return `${formattedValue} ${unit}`;
 };
 
 const styles = StyleSheet.create({

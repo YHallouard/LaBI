@@ -7,6 +7,7 @@ import { LoadApiKeyUseCase } from '../../application/usecases/LoadApiKeyUseCase'
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
+import { ScreenLayout } from '../components/ScreenLayout';
 
 // Define Props for the screen, including the use cases
 type SettingsScreenProps = {
@@ -21,12 +22,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   loadApiKeyUseCase 
 }) => {
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
-  const [savedApiKey, setSavedApiKey] = useState<string>(''); // Store the confirmed saved key
+  const [savedApiKey, setSavedApiKey] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isEditing, setIsEditing] = useState<boolean>(false); // Start in non-editing mode if key exists
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('api');
   const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadApiKey();
@@ -34,36 +37,35 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   const loadApiKey = async () => {
     setIsLoading(true);
-    setIsEditing(false); // Default to non-editing
+    setIsEditing(false);
     try {
       const loadedKey = await loadApiKeyUseCase.execute();
       if (loadedKey) {
-        setApiKeyInput(loadedKey); // Pre-fill input for editing
-        setSavedApiKey(loadedKey); // Set the saved key state
+        setApiKeyInput(loadedKey);
+        setSavedApiKey(loadedKey);
       } else {
-        setIsEditing(true); // No key saved, start in editing mode
+        setIsEditing(true);
       }
     } catch (error) {
       Alert.alert('Error', 'Could not load API key.');
-      setIsEditing(true); // Allow editing even if load failed
+      setIsEditing(true);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSave = async () => {
-    if (!apiKeyInput.trim()) {
-      Alert.alert('Validation', 'API Key cannot be empty.');
+    if (!validateApiKey()) {
       return;
     }
-    Keyboard.dismiss(); // Dismiss keyboard on save attempt
+    
+    Keyboard.dismiss();
     setIsSaving(true);
+    
     try {
       const success = await saveApiKeyUseCase.execute(apiKeyInput);
       if (success) {
-        setSavedApiKey(apiKeyInput); // Update the saved key state
-        setIsEditing(false); // Switch to non-editing mode
-        Alert.alert('Success', 'API Key saved securely.');
+        handleSuccessfulKeySave();
       } else {
         Alert.alert('Error', 'Could not save API key.');
       }
@@ -73,9 +75,24 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       setIsSaving(false);
     }
   };
+  
+  const validateApiKey = (): boolean => {
+    if (!apiKeyInput.trim()) {
+      Alert.alert('Error', 'API Key cannot be empty.');
+      return false;
+    }
+    return true;
+  };
+  
+  const handleSuccessfulKeySave = () => {
+    setSavedApiKey(apiKeyInput);
+    setIsEditing(false);
+    setSuccessMessage('API Key saved securely.');
+    setTimeout(() => setSuccessMessage(null), 3000);
+  };
 
   const handleEdit = () => {
-    setApiKeyInput(savedApiKey); // Ensure input has the current saved value when editing starts
+    setApiKeyInput(savedApiKey);
     setIsEditing(true);
   };
 
@@ -87,31 +104,49 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const resetDatabase = async () => {
     setIsResetting(true);
     try {
-      const dbName = 'biological_analyses.db';
-      const dbDirectory = `${FileSystem.documentDirectory}SQLite`;
-      const dbPath = `${dbDirectory}/${dbName}`;
-      
-      console.log('Checking if database exists at path:', dbPath);
-      
-      const dirInfo = await FileSystem.getInfoAsync(dbDirectory);
-      if (dirInfo.exists) {
-        const fileInfo = await FileSystem.getInfoAsync(dbPath);
-        if (fileInfo.exists) {
-          console.log('Database file exists, deleting it...');
-          await FileSystem.deleteAsync(dbPath);
-          console.log('Database file deleted successfully!');
-          Alert.alert('Success', 'Database reset completed. Please restart the app.');
-        } else {
-          Alert.alert('Info', 'Database file does not exist.');
-        }
-      } else {
-        Alert.alert('Info', 'SQLite directory does not exist. No database to reset.');
-      }
+      const result = await attemptDatabaseReset();
+      displayDatabaseResetResult(result);
     } catch (error) {
       console.error('Error resetting database:', error);
       Alert.alert('Error', 'Failed to reset database: ' + error);
     } finally {
       setIsResetting(false);
+    }
+  };
+  
+  const attemptDatabaseReset = async (): Promise<'reset' | 'no_file' | 'no_dir'> => {
+    const dbName = 'biological_analyses.db';
+    const dbDirectory = `${FileSystem.documentDirectory}SQLite`;
+    const dbPath = `${dbDirectory}/${dbName}`;
+    
+    console.log('Checking if database exists at path:', dbPath);
+    
+    const dirInfo = await FileSystem.getInfoAsync(dbDirectory);
+    if (!dirInfo.exists) {
+      return 'no_dir';
+    }
+    
+    const fileInfo = await FileSystem.getInfoAsync(dbPath);
+    if (!fileInfo.exists) {
+      return 'no_file';
+    }
+    
+    console.log('Database file exists, deleting it...');
+    await FileSystem.deleteAsync(dbPath);
+    console.log('Database file deleted successfully!');
+    return 'reset';
+  };
+  
+  const displayDatabaseResetResult = (result: 'reset' | 'no_file' | 'no_dir') => {
+    if (result === 'reset') {
+      setSuccessMessage('Database reset completed. Please restart the app.');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } else if (result === 'no_file') {
+      setInfoMessage('Database file does not exist.');
+      setTimeout(() => setInfoMessage(null), 3000);
+    } else {
+      setInfoMessage('SQLite directory does not exist. No database to reset.');
+      setTimeout(() => setInfoMessage(null), 3000);
     }
   };
 
@@ -128,122 +163,138 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#2c7be5" />
-      </View>
+      <ScreenLayout>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#2c7be5" />
+        </View>
+      </ScreenLayout>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
-      
-      {/* Tab Navigation */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'api' && styles.activeTab]}
-          onPress={() => setActiveTab('api')}
-        >
-          <Ionicons name="key-outline" size={20} color={activeTab === 'api' ? "#2c7be5" : "#95aac9"} />
-          <Text style={[styles.tabText, activeTab === 'api' && styles.activeTabText]}>
-            OCR Service
-          </Text>
-        </TouchableOpacity>
+    <ScreenLayout>
+      <View style={styles.contentWrapper}>
+        <Text style={styles.title}>Settings</Text>
         
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'database' && styles.activeTab]}
-          onPress={() => setActiveTab('database')}
-        >
-          <Ionicons name="refresh-outline" size={20} color={activeTab === 'database' ? "#2c7be5" : "#95aac9"} />
-          <Text style={[styles.tabText, activeTab === 'database' && styles.activeTabText]}>
-            Database
-          </Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* Content Area */}
-      <View style={styles.contentContainer}>
-        {activeTab === 'api' ? (
-          // API Key Settings
-          <View>
-            <Text style={styles.sectionTitle}>API Key Settings</Text>
-            <Text style={styles.description}>
-              {isEditing 
-                ? "Enter your Mistral API key. It will be stored securely."
-                : "Your API key is stored securely."}
+        {/* Tab Navigation */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'api' && styles.activeTab]}
+            onPress={() => setActiveTab('api')}
+          >
+            <Ionicons name="key-outline" size={20} color={activeTab === 'api' ? "#2c7be5" : "#95aac9"} />
+            <Text style={[styles.tabText, activeTab === 'api' && styles.activeTabText]}>
+              OCR Service
             </Text>
-            
-            {isEditing ? (
-              <View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter Mistral API Key"
-                  value={apiKeyInput}
-                  onChangeText={setApiKeyInput}
-                  secureTextEntry
-                  autoCapitalize="none"
-                />
-                <View style={styles.buttonContainer}>
-                  <Button 
-                    title={isSaving ? "Saving..." : "Save API Key"} 
-                    onPress={handleSave} 
-                    disabled={isSaving}
-                  />
-                  {savedApiKey && (
-                    <Button 
-                      title="Cancel" 
-                      onPress={() => setIsEditing(false)} 
-                      color="gray"
-                    />
-                  )}
-                </View>
-              </View>
-            ) : (
-              <View style={styles.savedKeyContainer}>
-                <Text style={styles.savedKeyText}>{maskApiKey(savedApiKey)}</Text>
-                <Button title="Edit" onPress={handleEdit} />
-              </View>
-            )}
-          </View>
-        ) : (
-          // Database Reset Settings
-          <View>
-            <Text style={styles.sectionTitle}>Database Management</Text>
-            <Text style={styles.description}>
-              Reset the database to remove all analyses. This action cannot be undone.
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'database' && styles.activeTab]}
+            onPress={() => setActiveTab('database')}
+          >
+            <Ionicons name="refresh-outline" size={20} color={activeTab === 'database' ? "#2c7be5" : "#95aac9"} />
+            <Text style={[styles.tabText, activeTab === 'database' && styles.activeTabText]}>
+              Database
             </Text>
-            
-            <View style={styles.warningContainer}>
-              <Ionicons name="warning-outline" size={24} color="#e63757" style={styles.warningIcon} />
-              <Text style={styles.warningText}>
-                Resetting the database will permanently delete all your analyses and reports.
-              </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Content Area */}
+        <View style={styles.contentContainer}>
+          {successMessage && (
+            <View style={styles.successContainer}>
+              <Ionicons name="checkmark-circle-outline" size={24} color="#00d97e" style={styles.messageIcon} />
+              <Text style={styles.successText}>{successMessage}</Text>
             </View>
-            
-            <Button 
-              title={isResetting ? "Resetting..." : "Reset Database"} 
-              onPress={confirmDatabaseReset} 
-              color="#e63757"
-              disabled={isResetting}
-            />
-          </View>
-        )}
+          )}
+          
+          {infoMessage && (
+            <View style={styles.infoContainer}>
+              <Ionicons name="information-circle-outline" size={24} color="#2c7be5" style={styles.messageIcon} />
+              <Text style={styles.infoText}>{infoMessage}</Text>
+            </View>
+          )}
+          
+          {activeTab === 'api' ? (
+            // API Key Settings
+            <View>
+              <Text style={styles.sectionTitle}>API Key Settings</Text>
+              <Text style={styles.description}>
+                {isEditing 
+                  ? "Enter your Mistral API key. It will be stored securely."
+                  : "Your API key is stored securely."}
+              </Text>
+              
+              {isEditing ? (
+                <View>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter Mistral API Key"
+                    value={apiKeyInput}
+                    onChangeText={setApiKeyInput}
+                    secureTextEntry
+                    autoCapitalize="none"
+                  />
+                  <View style={styles.buttonContainer}>
+                    <Button 
+                      title={isSaving ? "Saving..." : "Save API Key"} 
+                      onPress={handleSave} 
+                      disabled={isSaving}
+                    />
+                    {savedApiKey && (
+                      <Button 
+                        title="Cancel" 
+                        onPress={() => setIsEditing(false)} 
+                        color="gray"
+                      />
+                    )}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.savedKeyContainer}>
+                  <Text style={styles.savedKeyText}>{maskApiKey(savedApiKey)}</Text>
+                  <Button title="Edit" onPress={handleEdit} />
+                </View>
+              )}
+            </View>
+          ) : (
+            // Database Reset Settings
+            <View>
+              <Text style={styles.sectionTitle}>Database Management</Text>
+              <Text style={styles.description}>
+                Reset the database to remove all analyses. This action cannot be undone.
+              </Text>
+              
+              <View style={styles.warningContainer}>
+                <Ionicons name="warning-outline" size={24} color="#e63757" style={styles.warningIcon} />
+                <Text style={styles.warningText}>
+                  Resetting the database will permanently delete all your analyses and reports.
+                </Text>
+              </View>
+              
+              <Button 
+                title={isResetting ? "Resetting..." : "Reset Database"} 
+                onPress={confirmDatabaseReset} 
+                color="#e63757"
+                disabled={isResetting}
+              />
+            </View>
+          )}
+        </View>
       </View>
-    </View>
+    </ScreenLayout>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  contentWrapper: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#f5f7fb',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f5f7fb',
   },
   title: {
     fontSize: 24,
@@ -350,4 +401,33 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
   },
-}); 
+  successContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(0, 217, 126, 0.1)',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  successText: {
+    color: '#00d97e',
+    flex: 1,
+    fontSize: 14,
+  },
+  infoContainer: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(44, 123, 229, 0.1)',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  infoText: {
+    color: '#2c7be5',
+    flex: 1,
+    fontSize: 14,
+  },
+  messageIcon: {
+    marginRight: 10,
+  },
+});
