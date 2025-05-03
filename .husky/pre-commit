@@ -1,4 +1,8 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
+# Run lint-staged first
 npx lint-staged
+
+# Then run tests
+npm test
