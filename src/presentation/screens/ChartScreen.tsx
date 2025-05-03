@@ -5,6 +5,8 @@ import {
   View, 
   Dimensions, 
   ActivityIndicator, 
+  TouchableOpacity,
+  Animated
 } from 'react-native';
 import Svg, { 
   Line,
@@ -21,6 +23,7 @@ import { CalculateStatisticsUseCase } from '../../application/usecases/Calculate
 import { LAB_VALUE_KEYS, LAB_VALUE_UNITS, LAB_VALUE_REFERENCE_RANGES } from '../../config/LabConfig';
 import { ScreenLayout } from '../components/ScreenLayout';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
 type ChartScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
@@ -37,6 +40,8 @@ type ChartDimensions = {
   paddingLeft: number;
 };
 
+type TimeRangeOption = '1y' | '3y' | '5y' | 'Max';
+
 export const ChartScreen: React.FC<ChartScreenProps> = ({ 
   getAnalysesUseCase,
   getLabTestDataUseCase,
@@ -46,6 +51,17 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRangeOption>('3y');
+  const [isTimeRangeMenuOpen, setIsTimeRangeMenuOpen] = useState<boolean>(false);
+  
+  // Animation values for each menu item
+  const animations = {
+    rotation: useState(new Animated.Value(0))[0],
+    menuItem1: useState(new Animated.Value(0))[0],
+    menuItem2: useState(new Animated.Value(0))[0],
+    menuItem3: useState(new Animated.Value(0))[0],
+    menuItem4: useState(new Animated.Value(0))[0],
+  };
 
   const screenWidth = Dimensions.get('window').width;
   const chartDimensions: ChartDimensions = {
@@ -75,6 +91,48 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
       loadAnalyses();
     }, [])
   );
+
+  const toggleTimeRangeMenu = (): void => {
+    const toValue = isTimeRangeMenuOpen ? 0 : 1;
+    
+    // Rotate the main button
+    Animated.timing(animations.rotation, {
+      toValue,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+    
+    // Fan out the menu items
+    Animated.stagger(50, [
+      Animated.spring(animations.menuItem1, {
+        toValue,
+        friction: 6,
+        useNativeDriver: true,
+      }),
+      Animated.spring(animations.menuItem2, {
+        toValue,
+        friction: 7,
+        useNativeDriver: true,
+      }),
+      Animated.spring(animations.menuItem3, {
+        toValue,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+      Animated.spring(animations.menuItem4, {
+        toValue,
+        friction: 9,
+        useNativeDriver: true,
+      }),
+    ]).start();
+    
+    setIsTimeRangeMenuOpen(!isTimeRangeMenuOpen);
+  };
+
+  const selectTimeRange = (range: TimeRangeOption): void => {
+    setSelectedTimeRange(range);
+    toggleTimeRangeMenu();
+  };
 
   const loadAnalyses = async (isRefresh: boolean = false): Promise<void> => {
     try {
@@ -121,6 +179,25 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         .filter(point => point.value !== null && point.value !== 0);
     }
     return getLabTestDataUseCase.execute(analyses, labKey);
+  };
+
+  const getFilteredDataByTimeRange = (data: DataPoint[]): DataPoint[] => {
+    if (selectedTimeRange === 'Max' || data.length === 0) {
+      return data;
+    }
+    
+    const currentDate = new Date();
+    const yearsToSubtract = selectedTimeRange === '1y' 
+      ? 1 
+      : selectedTimeRange === '3y' 
+        ? 3 
+        : 5;
+    
+    const cutoffDate = new Date();
+    cutoffDate.setFullYear(currentDate.getFullYear() - yearsToSubtract);
+    const cutoffTimestamp = cutoffDate.getTime();
+    
+    return data.filter(point => point.timestamp >= cutoffTimestamp);
   };
 
   // Format date for display
@@ -417,164 +494,355 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     );
   }
 
+  // Calculate rotation interpolation for the main button
+  const rotate = animations.rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '45deg']
+  });
+
+  // Calculate translations for menu items to create fan effect
+  const getTransformMenuItem = (animValue: Animated.Value, index: number) => {
+    // Each item fans out at a different angle
+    const angle = -Math.PI / 2 - (Math.PI / 8) * (index - 2); // Spread across roughly 90 degrees
+    const radius = 80; // Distance from main button
+    
+    return {
+      translateX: animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, radius * Math.cos(angle)]
+      }),
+      translateY: animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, radius * Math.sin(angle)]
+      }),
+      scale: animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0.5, 1]
+      }),
+      opacity: animValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 1]
+      })
+    };
+  };
+
   return (
-    <ScreenLayout scrollable={true} refreshing={refreshing} onRefresh={onRefresh}>
-      <View style={styles.chartsContainer}>
-        {LAB_VALUE_KEYS.map((labKey) => {
-          const data = getLabTestData(labKey);
-          const unit = LAB_VALUE_UNITS[labKey] || "";
-          const refRange = LAB_VALUE_REFERENCE_RANGES[labKey] || { min: 0, max: 0 };
-          
-          // Skip if no data or not enough data points for a meaningful graph
-          if (data.length < 2) return null;
-          
-          // Calculate time range (x-axis)
-          const timestamps = data.map(d => d.timestamp);
-          const minTime = Math.min(...timestamps);
-          const maxTime = Math.max(...timestamps);
-          
-          // Calculate value range (y-axis) with padding
-          const values = data.map(d => d.value ?? 0);
-          const dataMin = Math.min(...values);
-          const dataMax = Math.max(...values);
-          
-          // Ensure min/max include reference ranges
-          const minValue = Math.min(dataMin, refRange.min) * 0.95;
-          const maxValue = Math.max(dataMax, refRange.max) * 1.05;
-          
-          // Calculate statistics
-          const { latestValue, averageValue, maxPointValue } = calculateStatisticsUseCase.execute(data, refRange);
-          
-          // Create paths
-          const linePath = createLinePath(data, minTime, maxTime, minValue, maxValue, chartDimensions);
-          const referenceAreaPath = createReferenceAreaPath(
-            minTime, maxTime, refRange.min, refRange.max, minValue, maxValue, chartDimensions
-          );
-          
-          return (
-            <View key={labKey} style={styles.chartSection}>
-              <Text style={styles.chartTitle}>{labKey}</Text>
-              
-              <View style={styles.chartContainer}>
-                <Svg width={chartDimensions.width} height={chartDimensions.height}>
-                  {/* Define gradient for reference area */}
-                  <Defs>
-                    <LinearGradient id="referenceGradient" x1="0" y1="0" x2="0" y2="1">
-                      <Stop offset="0" stopColor="#00c800" stopOpacity="0.2" />
-                      <Stop offset="1" stopColor="#00c800" stopOpacity="0.05" />
-                    </LinearGradient>
-                  </Defs>
-                  
-                  {/* Reference range area */}
-                  <Path
-                    d={referenceAreaPath}
-                    fill="url(#referenceGradient)"
-                    stroke="#00c800"
-                    strokeWidth={1}
-                    opacity={0.5}
-                  />
-                  
-                  {/* Grid lines */}
-                  {createVerticalGridLines(data, minTime, maxTime, chartDimensions)}
-                  {createHorizontalGridLines(minValue, maxValue, chartDimensions, unit)}
-                  
-                  {/* Line chart */}
-                  <Path
-                    d={linePath}
-                    fill="none"
-                    stroke="#4484B2"
-                    strokeWidth={3}
-                  />
-                  
-                  {/* Data points */}
-                  {createDataPoints(data, minTime, maxTime, minValue, maxValue, chartDimensions, refRange)}
-                </Svg>
+    <>
+      <ScreenLayout scrollable={true} refreshing={refreshing} onRefresh={onRefresh}>
+        <View style={styles.chartsContainer}>
+          {LAB_VALUE_KEYS.map((labKey) => {
+            const allData = getLabTestData(labKey);
+            const data = getFilteredDataByTimeRange(allData);
+            
+            // Skip if no data or not enough data points for a meaningful graph
+            if (data.length < 2) return null;
+            
+            const unit = LAB_VALUE_UNITS[labKey] || "";
+            const refRange = LAB_VALUE_REFERENCE_RANGES[labKey] || { min: 0, max: 0 };
+            
+            // Calculate time range (x-axis)
+            const timestamps = data.map(d => d.timestamp);
+            const minTime = Math.min(...timestamps);
+            const maxTime = Math.max(...timestamps);
+            
+            // Calculate value range (y-axis) with padding
+            const values = data.map(d => d.value ?? 0);
+            const dataMin = Math.min(...values);
+            const dataMax = Math.max(...values);
+            
+            // Ensure min/max include reference ranges
+            const minValue = Math.min(dataMin, refRange.min) * 0.95;
+            const maxValue = Math.max(dataMax, refRange.max) * 1.05;
+            
+            // Calculate statistics
+            const { latestValue, averageValue, maxPointValue } = calculateStatisticsUseCase.execute(data, refRange);
+            
+            // Create paths
+            const linePath = createLinePath(data, minTime, maxTime, minValue, maxValue, chartDimensions);
+            const referenceAreaPath = createReferenceAreaPath(
+              minTime, maxTime, refRange.min, refRange.max, minValue, maxValue, chartDimensions
+            );
+            
+            return (
+              <View key={labKey} style={styles.chartSection}>
+                <Text style={styles.chartTitle}>{labKey}</Text>
                 
-                {/* Chart legend */}
-                <View style={styles.referenceLegend}>
-                  <View style={styles.legendRow}>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendColor, { backgroundColor: '#4484B2' }]} />
-                      <Text style={styles.legendText}>Measured Value</Text>
+                <View style={styles.chartContainer}>
+                  <Svg width={chartDimensions.width} height={chartDimensions.height}>
+                    {/* Define gradient for reference area */}
+                    <Defs>
+                      <LinearGradient id="referenceGradient" x1="0" y1="0" x2="0" y2="1">
+                        <Stop offset="0" stopColor="#00c800" stopOpacity="0.2" />
+                        <Stop offset="1" stopColor="#00c800" stopOpacity="0.05" />
+                      </LinearGradient>
+                    </Defs>
+                    
+                    {/* Reference range area */}
+                    <Path
+                      d={referenceAreaPath}
+                      fill="url(#referenceGradient)"
+                      stroke="#00c800"
+                      strokeWidth={1}
+                      opacity={0.5}
+                    />
+                    
+                    {/* Grid lines */}
+                    {createVerticalGridLines(data, minTime, maxTime, chartDimensions)}
+                    {createHorizontalGridLines(minValue, maxValue, chartDimensions, unit)}
+                    
+                    {/* Line chart */}
+                    <Path
+                      d={linePath}
+                      fill="none"
+                      stroke="#4484B2"
+                      strokeWidth={3}
+                    />
+                    
+                    {/* Data points */}
+                    {createDataPoints(data, minTime, maxTime, minValue, maxValue, chartDimensions, refRange)}
+                  </Svg>
+                  
+                  {/* Chart legend */}
+                  <View style={styles.referenceLegend}>
+                    <View style={styles.legendRow}>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendColor, { backgroundColor: '#4484B2' }]} />
+                        <Text style={styles.legendText}>Measured Value</Text>
+                      </View>
+                      <View style={styles.legendItem}>
+                        <View style={[styles.legendColor, { backgroundColor: '#00c800' }]} />
+                        <Text style={styles.legendText}>Normal Range</Text>
+                      </View>
                     </View>
-                    <View style={styles.legendItem}>
-                      <View style={[styles.legendColor, { backgroundColor: '#00c800' }]} />
-                      <Text style={styles.legendText}>Normal Range</Text>
-                    </View>
+                    <Text style={styles.rangeText}>
+                      Normal range: {refRange.min} - {refRange.max} {unit}
+                    </Text>
                   </View>
-                  <Text style={styles.rangeText}>
-                    Normal range: {refRange.min} - {refRange.max} {unit}
-                  </Text>
-                </View>
-              </View>
-              
-              {/* Statistics cards */}
-              <View style={styles.statsContainer}>
-                <View style={[
-                  styles.statCard,
-                  latestValue < refRange.min || latestValue > refRange.max ? styles.statCardAlert : {}
-                ]}>
-                  <Text style={styles.statLabel}>Latest</Text>
-                  <Text
-                    style={[
-                      styles.statValue,
-                      latestValue < refRange.min || latestValue > refRange.max ? styles.statValueAlert : {}
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
-                  >
-                    {latestValue.toFixed(1)} {unit}
-                  </Text>
-                  <Text style={styles.statDate}>
-                    {data.length > 0 ? formatDate(data[data.length - 1].date) : ''}
-                  </Text>
                 </View>
                 
-                <View style={[
-                  styles.statCard,
-                  averageValue < refRange.min || averageValue > refRange.max ? styles.statCardAlert : {}
-                ]}>
-                  <Text style={styles.statLabel}>Average</Text>
-                  <Text
-                    style={[
-                      styles.statValue,
-                      averageValue < refRange.min || averageValue > refRange.max ? styles.statValueAlert : {}
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
-                  >
-                    {averageValue.toFixed(1)} {unit}
-                  </Text>
-                </View>
-                
-                <View style={[
-                  styles.statCard,
-                  maxPointValue < refRange.min || maxPointValue > refRange.max ? styles.statCardAlert : {}
-                ]}>
-                  <Text style={styles.statLabel}>Max</Text>
-                  <Text
-                    style={[
-                      styles.statValue,
-                      maxPointValue < refRange.min || maxPointValue > refRange.max ? styles.statValueAlert : {}
-                    ]}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                    minimumFontScale={0.8}
-                  >
-                    {maxPointValue.toFixed(1)} {unit}
-                  </Text>
-                  <Text style={styles.statDate}>
-                    {data.length > 0 ? formatDate(data[values.indexOf(maxPointValue)].date) : ''}
-                  </Text>
+                {/* Statistics cards */}
+                <View style={styles.statsContainer}>
+                  <View style={[
+                    styles.statCard,
+                    latestValue < refRange.min || latestValue > refRange.max ? styles.statCardAlert : {}
+                  ]}>
+                    <Text style={styles.statLabel}>Latest</Text>
+                    <Text
+                      style={[
+                        styles.statValue,
+                        latestValue < refRange.min || latestValue > refRange.max ? styles.statValueAlert : {}
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      {latestValue.toFixed(1)} {unit}
+                    </Text>
+                    <Text style={styles.statDate}>
+                      {data.length > 0 ? formatDate(data[data.length - 1].date) : ''}
+                    </Text>
+                  </View>
+                  
+                  <View style={[
+                    styles.statCard,
+                    averageValue < refRange.min || averageValue > refRange.max ? styles.statCardAlert : {}
+                  ]}>
+                    <Text style={styles.statLabel}>Average</Text>
+                    <Text
+                      style={[
+                        styles.statValue,
+                        averageValue < refRange.min || averageValue > refRange.max ? styles.statValueAlert : {}
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      {averageValue.toFixed(1)} {unit}
+                    </Text>
+                  </View>
+                  
+                  <View style={[
+                    styles.statCard,
+                    maxPointValue < refRange.min || maxPointValue > refRange.max ? styles.statCardAlert : {}
+                  ]}>
+                    <Text style={styles.statLabel}>Max</Text>
+                    <Text
+                      style={[
+                        styles.statValue,
+                        maxPointValue < refRange.min || maxPointValue > refRange.max ? styles.statValueAlert : {}
+                      ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
+                      minimumFontScale={0.8}
+                    >
+                      {maxPointValue.toFixed(1)} {unit}
+                    </Text>
+                    <Text style={styles.statDate}>
+                      {data.length > 0 ? formatDate(data[values.indexOf(maxPointValue)].date) : ''}
+                    </Text>
+                  </View>
                 </View>
               </View>
-            </View>
-          );
-        })}
+            );
+          })}
+        </View>
+      </ScreenLayout>
+      
+      {/* Floating Action Button and Time Range Menu - now outside ScreenLayout */}
+      <View style={styles.fabContainer}>
+        {/* Menu Items */}
+        {/* Max button */}
+        {/* 1 year button - closest to main button */}
+        <Animated.View style={[
+          styles.fabMenuItem,
+          {
+            transform: [
+              { translateX: animations.menuItem4.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0]
+              }) },
+              { translateY: animations.menuItem4.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -60]
+              }) },
+              { scale: animations.menuItem4.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.5, 1]
+              }) }
+            ],
+            opacity: animations.menuItem4.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1]
+            })
+          }
+        ]}>
+          <TouchableOpacity 
+            style={[styles.fabMenuButton, selectedTimeRange === '1y' && styles.fabMenuButtonActive]}
+            onPress={() => selectTimeRange('1y')}
+          >
+            <Text style={[
+              styles.fabMenuButtonText, 
+              selectedTimeRange === '1y' && styles.fabMenuButtonTextActive
+            ]}>1y</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        
+        {/* 3 years button - second position */}
+        <Animated.View style={[
+          styles.fabMenuItem, 
+          {
+            transform: [
+              { translateX: animations.menuItem3.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0]
+              }) },
+              { translateY: animations.menuItem3.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -120]
+              }) },
+              { scale: animations.menuItem3.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.5, 1]
+              }) }
+            ],
+            opacity: animations.menuItem3.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1]
+            })
+          }
+        ]}>
+          <TouchableOpacity 
+            style={[styles.fabMenuButton, selectedTimeRange === '3y' && styles.fabMenuButtonActive]}
+            onPress={() => selectTimeRange('3y')}
+          >
+            <Text style={[
+              styles.fabMenuButtonText, 
+              selectedTimeRange === '3y' && styles.fabMenuButtonTextActive
+            ]}>3y</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        
+        {/* 5 years button - third position */}
+        <Animated.View style={[
+          styles.fabMenuItem, 
+          {
+            transform: [
+              { translateX: animations.menuItem2.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0]
+              }) },
+              { translateY: animations.menuItem2.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -180]
+              }) },
+              { scale: animations.menuItem2.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.5, 1]
+              }) }
+            ],
+            opacity: animations.menuItem2.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1]
+            })
+          }
+        ]}>
+          <TouchableOpacity 
+            style={[styles.fabMenuButton, selectedTimeRange === '5y' && styles.fabMenuButtonActive]}
+            onPress={() => selectTimeRange('5y')}
+          >
+            <Text style={[
+              styles.fabMenuButtonText, 
+              selectedTimeRange === '5y' && styles.fabMenuButtonTextActive
+            ]}>5y</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        
+        {/* Max button - furthest up */}
+        <Animated.View style={[
+          styles.fabMenuItem, 
+          {
+            transform: [
+              { translateX: animations.menuItem1.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0]
+              }) },
+              { translateY: animations.menuItem1.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, -240]
+              }) },
+              { scale: animations.menuItem1.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.5, 1]
+              }) }
+            ],
+            opacity: animations.menuItem1.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 1]
+            })
+          }
+        ]}>
+          <TouchableOpacity 
+            style={[styles.fabMenuButton, selectedTimeRange === 'Max' && styles.fabMenuButtonActive]}
+            onPress={() => selectTimeRange('Max')}
+          >
+            <Text style={[
+              styles.fabMenuButtonText, 
+              selectedTimeRange === 'Max' && styles.fabMenuButtonTextActive
+            ]}>Max</Text>
+          </TouchableOpacity>
+        </Animated.View>
+        
+        {/* Main FAB button */}
+        <TouchableOpacity 
+          style={styles.fab}
+          onPress={toggleTimeRangeMenu}
+        >
+          <Animated.View style={{ transform: [{ rotate }] }}>
+            <Ionicons name="time-outline" size={24} color="white" />
+          </Animated.View>
+        </TouchableOpacity>
       </View>
-    </ScreenLayout>
+    </>
   );
 };
 
@@ -588,6 +856,22 @@ const styles = StyleSheet.create({
   chartsContainer: {
     flex: 1,
     paddingHorizontal: 10,
+    paddingBottom: 80, // Add space for the FAB
+  },
+  timeRangeIndicator: {
+    alignItems: 'center',
+    marginBottom: 15, 
+    paddingVertical: 8,
+    backgroundColor: 'rgba(241, 244, 248, 0.7)',
+    borderRadius: 20,
+  },
+  timeRangeLabel: {
+    fontSize: 14,
+    color: '#12263f',
+  },
+  timeRangeValue: {
+    fontWeight: 'bold',
+    color: '#2c7be5',
   },
   chartSection: {
     marginBottom: 30,
@@ -698,5 +982,61 @@ const styles = StyleSheet.create({
     color: '#95aac9',
     textAlign: 'center',
     marginTop: 8,
+  },
+  fabContainer: {
+    position: 'absolute',
+    right: 20,
+    bottom: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  fab: {
+    backgroundColor: '#2c7be5',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 5,
+    zIndex: 10,
+  },
+  fabMenuItem: {
+    position: 'absolute',
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9,
+  },
+  fabMenuButton: {
+    backgroundColor: 'white',
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    borderRadius: 16,
+    width: 50,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  fabMenuButtonActive: {
+    backgroundColor: '#2c7be5',
+  },
+  fabMenuButtonText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#2c7be5',
+  },
+  fabMenuButtonTextActive: {
+    color: 'white',
   },
 });

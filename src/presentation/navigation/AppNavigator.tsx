@@ -50,9 +50,10 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
           {props => (
             <UploadScreen 
               {...props} 
-              analyzePdfUseCase={useCases.analyzePdfUseCase} 
+              analyzePdfUseCase={useCases.analyzePdfUseCase}
               isLoadingApiKey={isLoadingApiKey} 
               apiKeyError={apiKeyError} 
+              checkAndLoadApiKey={async () => Promise.resolve()}
             />
           )}
         </Tab.Screen>
