@@ -41,3 +41,8 @@ android/*
 
 # cursor
 .cursor/*
+
+# stryker
+.stryker-tmp/*
+reports/**
+coverage/*

@@ -20,7 +20,7 @@ export class InMemorySecureStore {
    * @returns The stored value, or null if no value is found for the key
    */
   static async getItemAsync(key: string): Promise<string | null> {
-    return this.store[key] || null;
+    return key in this.store ? this.store[key] : null;
   }
 
   /**
