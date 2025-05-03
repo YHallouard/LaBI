@@ -10,6 +10,7 @@ export type ChartStackParamList = {
 
 export type UploadStackParamList = {
   UploadScreen: undefined;
+  Settings: undefined;
 };
 
 export type RootTabParamList = {

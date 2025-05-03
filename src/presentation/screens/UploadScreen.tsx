@@ -1,32 +1,47 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { UploadStackParamList } from '../../types/navigation';
 import { AnalyzePdfUseCase } from '../../application/usecases/AnalyzePdfUseCase';
 import { ScreenLayout } from '../components/ScreenLayout';
+import { Ionicons } from '@expo/vector-icons';
 
 type UploadScreenProps = {
   navigation: StackNavigationProp<UploadStackParamList, 'UploadScreen'>;
   analyzePdfUseCase: AnalyzePdfUseCase | null;
   isLoadingApiKey: boolean;
   apiKeyError: string | null;
+  checkAndLoadApiKey: () => Promise<void>;
 };
 
 export const UploadScreen: React.FC<UploadScreenProps> = ({ 
   navigation, 
   analyzePdfUseCase,
   isLoadingApiKey,
-  apiKeyError 
+  apiKeyError,
+  checkAndLoadApiKey
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const hasCheckedApiKey = useRef<boolean>(false);
+  
+  useEffect(() => {
+    if (!isLoadingApiKey && !hasCheckedApiKey.current && !analyzePdfUseCase) {
+      hasCheckedApiKey.current = true;
+      checkAndLoadApiKey();
+    }
+  }, [isLoadingApiKey, analyzePdfUseCase]);
+
+  const hasValidApiKey = (): boolean => {
+    return !apiKeyError && Boolean(analyzePdfUseCase);
+  };
 
   const pickAndProcessDocument = async (): Promise<void> => {
     if (isAnalyzing) return;
 
-    if (!analyzePdfUseCase) {
+    if (!hasValidApiKey()) {
       setErrorMessage(apiKeyError || 'API Key is not configured. Please set it in Settings.');
       return;
     }
@@ -41,8 +56,10 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
         return;
       }
       
-      await analyzePdfDocument(pdfUri, analyzePdfUseCase);
-      displaySuccessMessage();
+      if (analyzePdfUseCase) {
+        await analyzePdfDocument(pdfUri, analyzePdfUseCase);
+        displaySuccessMessage();
+      }
     } catch (err) {
       handleDocumentProcessingError(err);
     } finally {
@@ -51,26 +68,20 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   };
   
   const selectPdfDocument = async (): Promise<string | null> => {
-    console.log('Opening document picker...');
     const result = await DocumentPicker.getDocumentAsync({
       type: 'application/pdf',
       copyToCacheDirectory: true
     });
     
     if (result.canceled || !result.assets || result.assets.length === 0) {
-      console.log('Document picking cancelled or no assets found.');
       return null;
     }
     
-    const pdfUri = result.assets[0].uri;
-    console.log(`Document selected: ${result.assets[0].name}, URI: ${pdfUri}`);
-    return pdfUri;
+    return result.assets[0].uri;
   };
   
   const analyzePdfDocument = async (pdfUri: string, useCase: AnalyzePdfUseCase): Promise<void> => {
-    console.log(`Analyzing document: ${pdfUri}`);
     await useCase.execute(pdfUri);
-    console.log('Analysis complete.');
   };
   
   const displaySuccessMessage = (): void => {
@@ -79,8 +90,11 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   };
   
   const handleDocumentProcessingError = (err: any): void => {
-    console.error('Error during pick/process document:', err);
     Alert.alert('Error', 'Failed to process PDF. Please check the logs.');
+  };
+
+  const navigateToSettings = (): void => {
+    (navigation as any).navigate('Home', { screen: 'SettingsScreen' });
   };
   
   if (isLoadingApiKey) {
@@ -88,7 +102,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   }
   
   return (
-    <ScreenLayout>
+    <ScreenLayout scrollable={false}>
       <View style={styles.contentWrapper}>
         <Text style={styles.description}>
           Select a PDF of your lab report to automatically extract and save the data.
@@ -106,16 +120,17 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
           </View>
         )}
         
-        {apiKeyError && !analyzePdfUseCase && !errorMessage && (
-          <View style={styles.warningContainer}>
-            <Text style={styles.warningText}>{apiKeyError}</Text>
-          </View>
+        {!hasValidApiKey() && !errorMessage && (
+          <ApiKeyMissingMessage 
+            apiKeyError={apiKeyError} 
+            onNavigateToSettings={navigateToSettings} 
+          />
         )}
 
         <TouchableOpacity 
-          style={[styles.uploadButton, (isAnalyzing || !analyzePdfUseCase) && styles.disabledButton]} 
+          style={[styles.uploadButton, (!hasValidApiKey() || isAnalyzing) && styles.disabledButton]} 
           onPress={pickAndProcessDocument}
-          disabled={isAnalyzing || !analyzePdfUseCase}
+          disabled={!hasValidApiKey() || isAnalyzing}
         >
           {isAnalyzing ? (
              <ActivityIndicator size="small" color="#ffffff" style={styles.buttonSpinner} />
@@ -134,8 +149,31 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   );
 };
 
+type ApiKeyMissingMessageProps = {
+  apiKeyError: string | null;
+  onNavigateToSettings: () => void;
+};
+
+const ApiKeyMissingMessage: React.FC<ApiKeyMissingMessageProps> = ({ 
+  apiKeyError, 
+  onNavigateToSettings 
+}) => (
+  <View style={styles.errorContainer}>
+    <Text style={styles.errorText}>
+      {apiKeyError || 'API Key is not configured. Please set it in Settings.'}
+    </Text>
+    <TouchableOpacity 
+      style={styles.settingsButton} 
+      onPress={onNavigateToSettings}
+    >
+      <Ionicons name="settings-outline" size={16} color="#ffffff" style={styles.settingsIcon} />
+      <Text style={styles.settingsButtonText}>Go to Settings</Text>
+    </TouchableOpacity>
+  </View>
+);
+
 const LoadingView = () => (
-  <ScreenLayout>
+  <ScreenLayout scrollable={false}>
     <View style={styles.containerCentered}>
       <ActivityIndicator size="large" color="#2c7be5" />
       <Text style={styles.loadingText}>Loading configuration...</Text>
@@ -251,5 +289,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 5,
+  },
+  settingsButton: {
+    backgroundColor: '#2c7be5',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+  },
+  settingsButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  settingsIcon: {
+    marginRight: 8,
   },
 });

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, Keyboard, TouchableOpacity } from 'react-native';
-// Remove direct Keychain import if no longer needed elsewhere in this file
-// import * as Keychain from 'react-native-keychain'; 
+
 import { SaveApiKeyUseCase } from '../../application/usecases/SaveApiKeyUseCase';
 import { LoadApiKeyUseCase } from '../../application/usecases/LoadApiKeyUseCase';
+import { DeleteApiKeyUseCase } from '../../application/usecases/DeleteApiKeyUseCase';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,13 +13,21 @@ import { ScreenLayout } from '../components/ScreenLayout';
 type SettingsScreenProps = {
   saveApiKeyUseCase: SaveApiKeyUseCase;
   loadApiKeyUseCase: LoadApiKeyUseCase;
+  deleteApiKeyUseCase: DeleteApiKeyUseCase;
+  onApiKeyDeleted: () => void;
+  onApiKeySaved: (apiKey: string) => Promise<void>;
+  onManualReload: () => void;
 };
 
 type SettingsTab = 'api' | 'database';
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ 
   saveApiKeyUseCase, 
-  loadApiKeyUseCase 
+  loadApiKeyUseCase,
+  deleteApiKeyUseCase,
+  onApiKeyDeleted,
+  onApiKeySaved,
+  onManualReload
 }) => {
   const [apiKeyInput, setApiKeyInput] = useState<string>('');
   const [savedApiKey, setSavedApiKey] = useState<string>('');
@@ -28,6 +36,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<SettingsTab>('api');
   const [isResetting, setIsResetting] = useState<boolean>(false);
+  const [isDeletingApiKey, setIsDeletingApiKey] = useState<boolean>(false);
+  const [isReloading, setIsReloading] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
 
@@ -89,11 +99,31 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     setIsEditing(false);
     setSuccessMessage('API Key saved securely.');
     setTimeout(() => setSuccessMessage(null), 3000);
+    
+    triggerReload('API key saved, reloading app...');
   };
 
   const handleEdit = () => {
     setApiKeyInput(savedApiKey);
     setIsEditing(true);
+  };
+  
+  const handleCancel = () => {
+    setApiKeyInput(savedApiKey);
+    setIsEditing(false);
+  };
+
+  const triggerReload = (message: string) => {
+    setInfoMessage(message);
+    setIsReloading(true);
+    
+    setTimeout(() => {
+      onManualReload();
+      setTimeout(() => {
+        setIsReloading(false);
+        setInfoMessage(null);
+      }, 2000);
+    }, 1000);
   };
 
   const maskApiKey = (key: string): string => {
@@ -107,7 +137,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       const result = await attemptDatabaseReset();
       displayDatabaseResetResult(result);
     } catch (error) {
-      console.error('Error resetting database:', error);
       Alert.alert('Error', 'Failed to reset database: ' + error);
     } finally {
       setIsResetting(false);
@@ -119,8 +148,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     const dbDirectory = `${FileSystem.documentDirectory}SQLite`;
     const dbPath = `${dbDirectory}/${dbName}`;
     
-    console.log('Checking if database exists at path:', dbPath);
-    
     const dirInfo = await FileSystem.getInfoAsync(dbDirectory);
     if (!dirInfo.exists) {
       return 'no_dir';
@@ -131,9 +158,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       return 'no_file';
     }
     
-    console.log('Database file exists, deleting it...');
     await FileSystem.deleteAsync(dbPath);
-    console.log('Database file deleted successfully!');
     return 'reset';
   };
   
@@ -161,6 +186,45 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     );
   };
 
+  const deleteApiKey = async () => {
+    setIsDeletingApiKey(true);
+    try {
+      const success = await deleteApiKeyUseCase.execute();
+      if (success) {
+        handleSuccessfulKeyDeletion();
+      } else {
+        Alert.alert('Error', 'Could not delete API key.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Could not delete API key.');
+    } finally {
+      setIsDeletingApiKey(false);
+    }
+  };
+
+  const handleSuccessfulKeyDeletion = () => {
+    setSavedApiKey('');
+    setApiKeyInput('');
+    setIsEditing(true);
+    setSuccessMessage('API Key deleted successfully.');
+    setTimeout(() => setSuccessMessage(null), 3000);
+    
+    onApiKeyDeleted();
+    
+    triggerReload('API key deleted, reloading app...');
+  };
+
+  const confirmApiKeyDeletion = () => {
+    Alert.alert(
+      'Confirm Deletion',
+      'This will delete your API key. You will need to enter it again to use OCR features. Are you sure?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: deleteApiKey }
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <ScreenLayout>
@@ -176,30 +240,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       <View style={styles.contentWrapper}>
         <Text style={styles.title}>Settings</Text>
         
-        {/* Tab Navigation */}
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'api' && styles.activeTab]}
-            onPress={() => setActiveTab('api')}
-          >
-            <Ionicons name="key-outline" size={20} color={activeTab === 'api' ? "#2c7be5" : "#95aac9"} />
-            <Text style={[styles.tabText, activeTab === 'api' && styles.activeTabText]}>
-              OCR Service
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'database' && styles.activeTab]}
-            onPress={() => setActiveTab('database')}
-          >
-            <Ionicons name="refresh-outline" size={20} color={activeTab === 'database' ? "#2c7be5" : "#95aac9"} />
-            <Text style={[styles.tabText, activeTab === 'database' && styles.activeTabText]}>
-              Database
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <TabNavigation 
+          activeTab={activeTab} 
+          onTabChange={setActiveTab} 
+        />
         
-        {/* Content Area */}
         <View style={styles.contentContainer}>
           {successMessage && (
             <View style={styles.successContainer}>
@@ -214,77 +259,191 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               <Text style={styles.infoText}>{infoMessage}</Text>
             </View>
           )}
-          
+        
           {activeTab === 'api' ? (
-            // API Key Settings
-            <View>
-              <Text style={styles.sectionTitle}>API Key Settings</Text>
-              <Text style={styles.description}>
-                {isEditing 
-                  ? "Enter your Mistral API key. It will be stored securely."
-                  : "Your API key is stored securely."}
-              </Text>
-              
-              {isEditing ? (
-                <View>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter Mistral API Key"
-                    value={apiKeyInput}
-                    onChangeText={setApiKeyInput}
-                    secureTextEntry
-                    autoCapitalize="none"
-                  />
-                  <View style={styles.buttonContainer}>
-                    <Button 
-                      title={isSaving ? "Saving..." : "Save API Key"} 
-                      onPress={handleSave} 
-                      disabled={isSaving}
-                    />
-                    {savedApiKey && (
-                      <Button 
-                        title="Cancel" 
-                        onPress={() => setIsEditing(false)} 
-                        color="gray"
-                      />
-                    )}
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.savedKeyContainer}>
-                  <Text style={styles.savedKeyText}>{maskApiKey(savedApiKey)}</Text>
-                  <Button title="Edit" onPress={handleEdit} />
-                </View>
-              )}
-            </View>
+            <ApiKeySettings 
+              isEditing={isEditing}
+              apiKeyInput={apiKeyInput}
+              setApiKeyInput={setApiKeyInput}
+              savedApiKey={savedApiKey}
+              handleSave={handleSave}
+              handleEdit={handleEdit}
+              handleCancel={handleCancel}
+              isSaving={isSaving}
+              isDeletingApiKey={isDeletingApiKey}
+              confirmApiKeyDeletion={confirmApiKeyDeletion}
+              maskApiKey={maskApiKey}
+            />
           ) : (
-            // Database Reset Settings
-            <View>
-              <Text style={styles.sectionTitle}>Database Management</Text>
-              <Text style={styles.description}>
-                Reset the database to remove all analyses. This action cannot be undone.
-              </Text>
-              
-              <View style={styles.warningContainer}>
-                <Ionicons name="warning-outline" size={24} color="#e63757" style={styles.warningIcon} />
-                <Text style={styles.warningText}>
-                  Resetting the database will permanently delete all your analyses and reports.
-                </Text>
-              </View>
-              
-              <Button 
-                title={isResetting ? "Resetting..." : "Reset Database"} 
-                onPress={confirmDatabaseReset} 
-                color="#e63757"
-                disabled={isResetting}
-              />
-            </View>
+            <DatabaseSettings 
+              isResetting={isResetting}
+              confirmDatabaseReset={confirmDatabaseReset}
+            />
           )}
         </View>
       </View>
     </ScreenLayout>
   );
 };
+
+type TabNavigationProps = {
+  activeTab: SettingsTab;
+  onTabChange: (tab: SettingsTab) => void;
+};
+
+const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => (
+  <View style={styles.tabContainer}>
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === 'api' && styles.activeTabButton]}
+      onPress={() => onTabChange('api')}
+    >
+      <Ionicons 
+        name="key-outline" 
+        size={20} 
+        color={activeTab === 'api' ? '#2c7be5' : '#95aac9'} 
+        style={styles.tabIcon} 
+      />
+      <Text style={[styles.tabButtonText, activeTab === 'api' && styles.activeTabButtonText]}>
+        API Key
+      </Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === 'database' && styles.activeTabButton]}
+      onPress={() => onTabChange('database')}
+    >
+      <Ionicons 
+        name="server-outline" 
+        size={20} 
+        color={activeTab === 'database' ? '#2c7be5' : '#95aac9'} 
+        style={styles.tabIcon} 
+      />
+      <Text style={[styles.tabButtonText, activeTab === 'database' && styles.activeTabButtonText]}>
+        Database
+      </Text>
+    </TouchableOpacity>
+  </View>
+);
+
+type ApiKeySettingsProps = {
+  isEditing: boolean;
+  apiKeyInput: string;
+  setApiKeyInput: (value: string) => void;
+  savedApiKey: string;
+  handleSave: () => void;
+  handleEdit: () => void;
+  handleCancel: () => void;
+  isSaving: boolean;
+  isDeletingApiKey: boolean;
+  confirmApiKeyDeletion: () => void;
+  maskApiKey: (key: string) => string;
+};
+
+const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
+  isEditing,
+  apiKeyInput,
+  setApiKeyInput,
+  savedApiKey,
+  handleSave,
+  handleEdit,
+  handleCancel,
+  isSaving,
+  isDeletingApiKey,
+  confirmApiKeyDeletion,
+  maskApiKey
+}) => (
+  <View>
+    <Text style={styles.sectionTitle}>Mistral API Key</Text>
+    <Text style={styles.description}>
+      Enter your Mistral API key to enable OCR features. The key is stored securely on your device.
+    </Text>
+    
+    {isEditing ? (
+      <View>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter Mistral API Key"
+          value={apiKeyInput}
+          onChangeText={setApiKeyInput}
+          secureTextEntry
+          autoCapitalize="none"
+        />
+        <View style={styles.buttonContainer}>
+          <Button 
+            title={isSaving ? "Saving..." : "Save API Key"} 
+            onPress={handleSave} 
+            disabled={isSaving}
+            color="#2c7be5"
+          />
+          {savedApiKey && (
+            <Button 
+              title="Cancel" 
+              onPress={handleCancel} 
+              color="gray"
+            />
+          )}
+        </View>
+      </View>
+    ) : (
+      <View>
+        <View style={styles.savedKeyContainer}>
+          <Text style={styles.savedKeyText}>{maskApiKey(savedApiKey)}</Text>
+          <Button title="Edit" onPress={handleEdit} color="#2c7be5" />
+        </View>
+        
+        {savedApiKey && (
+          <View style={styles.warningContainer}>
+            <Ionicons name="warning-outline" size={24} color="#e63757" style={styles.warningIcon} />
+            <Text style={styles.warningText}>
+              Deleting your API key will disable OCR features until a new key is provided.
+            </Text>
+          </View>
+        )}
+        
+        {savedApiKey && (
+          <View style={styles.dangerButtonContainer}>
+            <Button 
+              title={isDeletingApiKey ? "Deleting..." : "Delete API Key"} 
+              onPress={confirmApiKeyDeletion} 
+              color="#e63757"
+              disabled={isDeletingApiKey}
+            />
+          </View>
+        )}
+      </View>
+    )}
+  </View>
+);
+
+type DatabaseSettingsProps = {
+  isResetting: boolean;
+  confirmDatabaseReset: () => void;
+};
+
+const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
+  isResetting,
+  confirmDatabaseReset
+}) => (
+  <View>
+    <Text style={styles.sectionTitle}>Database Management</Text>
+    <Text style={styles.description}>
+      Reset the database to remove all analyses. This action cannot be undone.
+    </Text>
+    
+    <View style={styles.warningContainer}>
+      <Ionicons name="warning-outline" size={24} color="#e63757" style={styles.warningIcon} />
+      <Text style={styles.warningText}>
+        Resetting the database will permanently delete all your analyses and reports.
+      </Text>
+    </View>
+    
+    <Button 
+      title={isResetting ? "Resetting..." : "Reset Database"} 
+      onPress={confirmDatabaseReset} 
+      color="#e63757"
+      disabled={isResetting}
+    />
+  </View>
+);
 
 const styles = StyleSheet.create({
   contentWrapper: {
@@ -302,9 +461,21 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: '#12263f',
   },
-  tabsContainer: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#12263f',
+  },
+  description: {
+    fontSize: 14,
+    marginBottom: 20,
+    color: '#5a7184',
+    lineHeight: 20,
+  },
+  tabContainer: {
     flexDirection: 'row',
-    backgroundColor: 'white',
+    backgroundColor: '#f5f7fb',
     borderRadius: 8,
     marginBottom: 20,
     shadowColor: '#000',
@@ -312,27 +483,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    padding: 4,
   },
-  tab: {
+  tabButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    paddingHorizontal: 10,
+    borderRadius: 6,
   },
-  activeTab: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#2c7be5',
+  activeTabButton: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  tabText: {
+  tabButtonText: {
     fontSize: 14,
-    marginLeft: 6,
     color: '#95aac9',
+    fontWeight: '500',
   },
-  activeTabText: {
+  activeTabButtonText: {
     color: '#2c7be5',
     fontWeight: 'bold',
+  },
+  tabIcon: {
+    marginRight: 6,
   },
   contentContainer: {
     flex: 1,
@@ -345,45 +524,33 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#12263f',
-  },
-  description: {
-    fontSize: 14,
-    color: '#5a7184',
-    marginBottom: 20,
-  },
   input: {
-    backgroundColor: 'white',
     borderWidth: 1,
-    borderColor: '#dfe5ef',
+    borderColor: '#e3ebf6',
+    borderRadius: 4,
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 15,
     fontSize: 16,
+    marginBottom: 15,
   },
   buttonContainer: {
-    marginBottom: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
   savedKeyContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'white',
-    borderWidth: 1,
-    borderColor: '#dfe5ef',
+    alignItems: 'center',
+    marginBottom: 20,
     paddingVertical: 10,
     paddingHorizontal: 15,
-    borderRadius: 8,
+    backgroundColor: '#f1f4f8',
+    borderRadius: 4,
   },
   savedKeyText: {
     fontSize: 16,
     color: '#12263f',
-    flex: 1,
-    marginRight: 10,
+    fontFamily: 'monospace',
   },
   warningContainer: {
     flexDirection: 'row',
@@ -391,15 +558,16 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   warningIcon: {
     marginRight: 10,
   },
   warningText: {
-    color: '#e63757',
     flex: 1,
+    color: '#e63757',
     fontSize: 14,
+    lineHeight: 20,
   },
   successContainer: {
     flexDirection: 'row',
@@ -429,5 +597,22 @@ const styles = StyleSheet.create({
   },
   messageIcon: {
     marginRight: 10,
+  },
+  dangerButtonContainer: {
+    marginTop: 10,
+  },
+  reloadButtonContainer: {
+    marginTop: 25,
+    padding: 15,
+    backgroundColor: 'rgba(44, 123, 229, 0.1)',
+    borderColor: '#2c7be5',
+    borderWidth: 1,
+    borderRadius: 8,
+  },
+  reloadText: {
+    color: '#2c7be5',
+    fontSize: 14,
+    marginBottom: 10,
+    textAlign: 'center',
   },
 });

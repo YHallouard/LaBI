@@ -21,6 +21,7 @@ import { Text, View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'rea
 import AnalysisDetailsScreen from './src/presentation/screens/AnalysisDetailsScreen';
 import { SaveApiKeyUseCase } from './src/application/usecases/SaveApiKeyUseCase';
 import { LoadApiKeyUseCase } from './src/application/usecases/LoadApiKeyUseCase';
+import { DeleteApiKeyUseCase } from './src/application/usecases/DeleteApiKeyUseCase';
 import { HemeaLogo } from './src/presentation/components';
 import { CalculateStatisticsUseCase } from './src/application/usecases/CalculateStatisticsUseCase';
 import { HomeStackParamList, ChartStackParamList, UploadStackParamList, RootTabParamList } from './src/types/navigation';
@@ -51,22 +52,55 @@ export default function App() {
   const [deleteAnalysisUseCase, setDeleteAnalysisUseCase] = useState<DeleteAnalysisUseCase | null>(null);
   const [saveApiKeyUseCase, setSaveApiKeyUseCase] = useState<SaveApiKeyUseCase | null>(null);
   const [loadApiKeyUseCase, setLoadApiKeyUseCase] = useState<LoadApiKeyUseCase | null>(null);
+  const [deleteApiKeyUseCase, setDeleteApiKeyUseCase] = useState<DeleteApiKeyUseCase | null>(null);
   const [getLabTestDataUseCase, setGetLabTestDataUseCase] = useState<GetLabTestDataUseCase | null>(null);
   const [calculateStatisticsUseCase, setCalculateStatisticsUseCase] = useState<CalculateStatisticsUseCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
+  const [forceReload, setForceReload] = useState(0);
 
   useEffect(() => {
     initializeApplication();
-  }, []);
+  }, [forceReload]);
+
+  const handleManualReload = () => {
+    setForceReload(prev => prev + 1);
+  };
+
+  const checkAndLoadApiKey = async (): Promise<void> => {
+    if (!loadApiKeyUseCase) return;
+    
+    try {
+      const loadedApiKey = await loadApiKeyUseCase.execute();
+      
+      if (loadedApiKey) {
+        setApiKeyError(null);
+        createOcrService(loadedApiKey);
+      } else {
+        handleMissingApiKey();
+      }
+    } catch (error) {
+      handleApiKeyLoadError(error);
+    }
+  };
+
+  const handleApiKeyDeleted = () => {
+    setApiKeyError('API key not set. Please configure it in Settings.');
+    setAnalyzePdfUseCase(null);
+  };
+
+  const handleApiKeySaved = async (apiKey: string) => {
+    setApiKeyError(null);
+    createOcrService(apiKey);
+  };
 
   const initializeApplication = async () => {
     try {
       await initializeDatabase();
       const repository = createRepository();
       const loadApiKeyUseCase = createBasicUseCases(repository);
-      await initializeOcrFeatures(loadApiKeyUseCase);
+      await checkAndLoadApiKey();
     } catch (error) {
       handleInitializationError(error);
     } finally {
@@ -86,6 +120,7 @@ export default function App() {
     const newGetLabTestDataUseCase = new GetLabTestDataUseCase();
     const newSaveApiKeyUseCase = new SaveApiKeyUseCase();
     const newLoadApiKeyUseCase = new LoadApiKeyUseCase();
+    const newDeleteApiKeyUseCase = new DeleteApiKeyUseCase();
     const newCalculateStatisticsUseCase = new CalculateStatisticsUseCase();
     
     setGetAnalysesUseCase(newGetAnalysesUseCase);
@@ -95,23 +130,10 @@ export default function App() {
     setGetLabTestDataUseCase(newGetLabTestDataUseCase);
     setSaveApiKeyUseCase(newSaveApiKeyUseCase);
     setLoadApiKeyUseCase(newLoadApiKeyUseCase);
+    setDeleteApiKeyUseCase(newDeleteApiKeyUseCase);
     setCalculateStatisticsUseCase(newCalculateStatisticsUseCase);
     
     return newLoadApiKeyUseCase;
-  };
-
-  const initializeOcrFeatures = async (loadApiKeyUseCase: LoadApiKeyUseCase) => {
-    try {
-      const loadedApiKey = await loadApiKeyUseCase.execute();
-      
-      if (loadedApiKey) {
-        createOcrService(loadedApiKey);
-      } else {
-        handleMissingApiKey();
-      }
-    } catch (error) {
-      handleApiKeyLoadError(error);
-    }
   };
 
   const createOcrService = (apiKey: string) => {
@@ -122,16 +144,15 @@ export default function App() {
 
   const handleMissingApiKey = () => {
     setApiKeyError('API key not set. Please configure it in Settings.');
-    createOcrService("");
+    setAnalyzePdfUseCase(null);
   };
 
   const handleApiKeyLoadError = (error: any) => {
     setApiKeyError('Failed to load API key configuration.');
-    createOcrService("");
+    setAnalyzePdfUseCase(null);
   };
 
   const handleInitializationError = (error: any) => {
-    console.error('Error during app initialization:', error);
     setAppError('Failed to initialize application. Please restart the app.');
   };
 
@@ -196,7 +217,7 @@ export default function App() {
           }}
         >
           {(props: StackScreenProps<HomeStackParamList, 'SettingsScreen'>) => {
-            if (!saveApiKeyUseCase || !loadApiKeyUseCase) {
+            if (!saveApiKeyUseCase || !loadApiKeyUseCase || !deleteApiKeyUseCase) {
               return <ErrorView errorMessage="Application is not properly initialized" />;
             }
             
@@ -205,6 +226,10 @@ export default function App() {
                 {...props} 
                 saveApiKeyUseCase={saveApiKeyUseCase} 
                 loadApiKeyUseCase={loadApiKeyUseCase} 
+                deleteApiKeyUseCase={deleteApiKeyUseCase}
+                onApiKeyDeleted={handleApiKeyDeleted}
+                onApiKeySaved={handleApiKeySaved}
+                onManualReload={handleManualReload}
               />
             );
           }}
@@ -272,6 +297,7 @@ export default function App() {
               analyzePdfUseCase={analyzePdfUseCase}
               isLoadingApiKey={isLoading}
               apiKeyError={apiKeyError}
+              checkAndLoadApiKey={checkAndLoadApiKey}
             />
           )}
         </UploadStackNavigator.Screen>

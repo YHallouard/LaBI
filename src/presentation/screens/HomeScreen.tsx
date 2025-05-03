@@ -45,7 +45,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   useFocusEffect(
     React.useCallback(() => {
-      loadAnalyses(true);
+      loadAnalyses(false);
     }, [])
   );
 
@@ -62,7 +62,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       setAnalyses(sortedAnalyses); 
       setError(null);
     } catch (err) {
-      console.error('HomeScreen: Failed to load analyses:', err);
       setError('Failed to load analyses');
     } finally {
       setLoading(false);
@@ -71,10 +70,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
   
   const fetchAnalysesFromRepository = async (): Promise<BiologicalAnalysis[]> => {
-    console.log('HomeScreen: About to execute getAnalysesUseCase.execute()');
-    const result = await getAnalysesUseCase.execute();
-    console.log('HomeScreen: Received results from UseCase:', result.length);
-    return result;
+    return await getAnalysesUseCase.execute();
   };
   
   const sortAnalysesByDateDescending = (analyses: BiologicalAnalysis[]): BiologicalAnalysis[] => {
@@ -82,7 +78,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const onRefresh = () => {
-    console.log('HomeScreen: Refresh triggered');
     loadAnalyses(true);
   };
 
@@ -96,7 +91,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       removeAnalysisFromList(analysisId);
       closeSwipeableItem(analysisId);
     } catch (error) {
-      console.error('Error deleting analysis:', error);
       Alert.alert('Error', 'Failed to delete analysis');
     }
   };
@@ -186,7 +180,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }
 
   return (
-    <ScreenLayout>
+    <ScreenLayout scrollable={false}>
       <FlatList
         data={analyses}
         keyExtractor={item => item.id}
@@ -207,7 +201,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 };
 
 const LoadingView = () => (
-  <ScreenLayout>
+  <ScreenLayout scrollable={false}>
     <View style={styles.centered}>
       <ActivityIndicator size="large" color="#2c7be5" />
     </View>
@@ -215,7 +209,7 @@ const LoadingView = () => (
 );
 
 const ErrorView = ({ error, onRetry }: { error: string, onRetry: () => void }) => (
-  <ScreenLayout>
+  <ScreenLayout scrollable={false}>
     <View style={styles.centered}>
       <Text style={styles.errorText}>{error}</Text>
       <Button title="Try Again" onPress={onRetry} />
@@ -224,7 +218,7 @@ const ErrorView = ({ error, onRetry }: { error: string, onRetry: () => void }) =
 );
 
 const EmptyView = ({ onRefresh }: { onRefresh: () => void }) => (
-  <ScreenLayout>
+  <ScreenLayout scrollable={false}>
     <View style={styles.centered}>
       <Text style={styles.emptyText}>No analyses found</Text>
       <Text style={styles.emptySubtext}>Upload a report to get started</Text>

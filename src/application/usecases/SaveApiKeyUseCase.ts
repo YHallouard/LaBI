@@ -1,6 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-
-const API_KEY_SECURE_STORE_KEY = 'mistralApiKey'; // Key for SecureStore
+import { API_KEY_SECURE_STORE_KEY } from '../../config/constants';
 
 export class SaveApiKeyUseCase {
   async execute(apiKey: string): Promise<boolean> {

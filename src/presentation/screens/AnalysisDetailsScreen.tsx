@@ -137,8 +137,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
     
     LAB_VALUE_KEYS.forEach(key => {
       const value = (result as any)[key] as LabValue | undefined;
-      const isActive = value !== undefined && value !== null && 
-                      typeof value?.value === 'number' && !isNaN(value.value);
+      const isActive = isLabValueActive(value);
       
       initialActiveMetrics[key] = isActive;
       
@@ -304,8 +303,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
     
     LAB_VALUE_KEYS.forEach(key => {
       const value = (analysis as any)[key] as LabValue | undefined;
-      const isActive = value !== undefined && value !== null && 
-                      typeof value?.value === 'number' && !isNaN(value.value);
+      const isActive = isLabValueActive(value);
                       
       resetActiveMetrics[key] = isActive;
       
