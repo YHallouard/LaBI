@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import { BiologicalAnalysis } from '../../domain/entities/BiologicalAnalysis';
+import { BiologicalAnalysis, LabValue } from '../../domain/entities/BiologicalAnalysis';
 
 type AnalysisCardProps = {
   analysis: BiologicalAnalysis;
@@ -27,7 +27,7 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({ analysis, onPress })
         <Text style={styles.date}>{formattedDate}</Text>
         <View style={styles.valueContainer}>
           <Text style={styles.label}>CRP</Text>
-          <Text style={styles.value}>{formatLabValue(crpData.value, crpData.unit)}</Text>
+          <Text style={styles.value}>{formatLabValue(crpData)}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -38,16 +38,37 @@ const formatAnalysisDate = (date: Date): string => {
   return date.toLocaleDateString('fr-FR');
 };
 
-const extractCRPData = (analysis: BiologicalAnalysis): { value: number, unit: string } => {
-  const crpData = analysis["Proteine C Reactive"];
-  const value = (crpData && typeof crpData === 'object' && 'value' in crpData) ? crpData.value : 0;
-  const unit = (crpData && typeof crpData === 'object' && 'unit' in crpData) ? crpData.unit : "mg/L";
-  return { value, unit };
+type CRPData = {
+  value: number | string;
+  unit: string;
+  isActive: boolean;
 };
 
-const formatLabValue = (value: number, unit: string): string => {
-  const formattedValue = typeof value === 'number' ? value.toFixed(2) : '0.00';
-  return `${formattedValue} ${unit}`;
+const extractCRPData = (analysis: BiologicalAnalysis): CRPData => {
+  const crpData = analysis["Proteine C Reactive"];
+  const isActive = Boolean(crpData && typeof crpData === 'object' && 'value' in crpData);
+  
+  if (isActive && crpData && typeof crpData === 'object' && 'value' in crpData) {
+    const labValue = crpData as LabValue;
+    return {
+      value: labValue.value,
+      unit: labValue.unit || "mg/L",
+      isActive: true
+    };
+  }
+  
+  return {
+    value: "-.--",
+    unit: "mg/L",
+    isActive: false
+  };
+};
+
+const formatLabValue = (data: CRPData): string => {
+  if (!data.isActive || typeof data.value === 'string') {
+    return `${data.value} ${data.unit}`;
+  }
+  return `${data.value.toFixed(2)} ${data.unit}`;
 };
 
 const styles = StyleSheet.create({

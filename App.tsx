@@ -1,7 +1,7 @@
 import './cryptoPolyfill';
 import './streamPolyfill';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavigationContainer, Route, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator, BottomTabNavigationOptions, BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import { createStackNavigator, StackNavigationProp, StackScreenProps } from '@react-navigation/stack';
@@ -17,7 +17,7 @@ import { initializeDatabase } from './src/infrastructure/database/DatabaseInitia
 import { Ionicons } from '@expo/vector-icons';
 import { UpdateAnalysisUseCase } from './src/application/usecases/UpdateAnalysisUseCase';
 import { DeleteAnalysisUseCase } from './src/application/usecases/DeleteAnalysisUseCase';
-import { Text, View, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, View, StyleSheet, ActivityIndicator, TouchableOpacity, Image, Animated } from 'react-native';
 import AnalysisDetailsScreen from './src/presentation/screens/AnalysisDetailsScreen';
 import { SaveApiKeyUseCase } from './src/application/usecases/SaveApiKeyUseCase';
 import { LoadApiKeyUseCase } from './src/application/usecases/LoadApiKeyUseCase';
@@ -31,6 +31,9 @@ const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
 const UploadStackNavigator = createStackNavigator<UploadStackParamList>();
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
+
+const MIN_LOADING_TIME = 1500;
+const FADE_DURATION = 800;
 
 const SettingsButton = () => {
   const navigation = useNavigation<StackNavigationProp<any>>();
@@ -59,10 +62,28 @@ export default function App() {
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
   const [forceReload, setForceReload] = useState(0);
+  
+  // Animation de fondu
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     initializeApplication();
   }, [forceReload]);
+  
+  useEffect(() => {
+    if (!isLoading && !appError) {
+      // Déclencher la transition de fondu
+      setIsTransitioning(true);
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: FADE_DURATION,
+        useNativeDriver: true,
+      }).start(() => {
+        setIsTransitioning(false);
+      });
+    }
+  }, [isLoading, appError]);
 
   const handleManualReload = () => {
     setForceReload(prev => prev + 1);
@@ -96,6 +117,7 @@ export default function App() {
   };
 
   const initializeApplication = async () => {
+    const startTime = Date.now();
     try {
       await initializeDatabase();
       const repository = createRepository();
@@ -104,6 +126,13 @@ export default function App() {
     } catch (error) {
       handleInitializationError(error);
     } finally {
+      const elapsedTime = Date.now() - startTime;
+      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+      
+      if (remainingTime > 0) {
+        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      }
+      
       setIsLoading(false);
     }
   };
@@ -305,25 +334,49 @@ export default function App() {
     );
   }
 
-  if (isLoading) {
-    return <LoadingView />;
+  const appContent = appError ? (
+    <ErrorView errorMessage={appError} />
+  ) : (
+    <MainNavigationContainer 
+      homeStack={HomeStack} 
+      uploadStack={UploadStack} 
+      chartStack={ChartStack} 
+    />
+  );
+
+  // Si l'application est en cours de chargement ou en transition
+  if (isLoading || isTransitioning) {
+    return (
+      <View style={{ flex: 1 }}>
+        {!isLoading && appContent}
+        
+        <Animated.View 
+          style={[
+            StyleSheet.absoluteFill, 
+            styles.centeredLoader,
+            { opacity: fadeAnim }
+          ]}
+        >
+          <Image 
+            source={require('./assets/adaptive-icon.png')} 
+            style={styles.loadingImage}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      </View>
+    );
   }
 
-  if (appError) {
-    return <ErrorView errorMessage={appError} />;
-  }
-
-  return <MainNavigationContainer 
-    homeStack={HomeStack} 
-    uploadStack={UploadStack} 
-    chartStack={ChartStack} 
-  />;
+  return appContent;
 }
 
 const LoadingView = () => (
   <View style={styles.centeredLoader}>
-    <ActivityIndicator size="large" color="#2c7be5" />
-    <Text style={styles.loadingText}>Loading application...</Text>
+    <Image 
+      source={require('./assets/adaptive-icon.png')} 
+      style={styles.loadingImage}
+      resizeMode="contain"
+    />
   </View>
 );
 
@@ -421,6 +474,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f5f7fb',
+  },
+  loadingImage: {
+    width: 200,
+    height: 200,
   },
   loadingText: {
     marginTop: 10,

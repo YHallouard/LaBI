@@ -36,17 +36,36 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [initialLoadDone, setInitialLoadDone] = useState<boolean>(false);
+  const [lastScreen, setLastScreen] = useState<string | null>(null);
   
   const swipeableRefs = React.useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
-    loadAnalyses();
-  }, []);
+    if (!initialLoadDone) {
+      loadAnalyses();
+      setInitialLoadDone(true);
+    }
+  }, [initialLoadDone]);
 
   useFocusEffect(
     React.useCallback(() => {
-      loadAnalyses(false);
-    }, [])
+      const navState = navigation.getState();
+      
+      if (navState) {
+        const currentRouteName = navState.routes[navState.index].name;
+        
+        if (currentRouteName === 'HomeScreen') {
+          if (lastScreen === 'AnalysisDetails') {
+            setLastScreen(null);
+          } else if (lastScreen === 'UploadScreen' || !initialLoadDone) {
+            loadAnalyses(false);
+          }
+        } else {
+          setLastScreen(currentRouteName);
+        }
+      }
+    }, [navigation, initialLoadDone, lastScreen])
   );
 
   const loadAnalyses = async (refresh: boolean = false): Promise<void> => {

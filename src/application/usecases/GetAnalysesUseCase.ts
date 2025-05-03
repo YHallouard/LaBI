@@ -1,7 +1,6 @@
 import { BiologicalAnalysis } from '../../domain/entities/BiologicalAnalysis';
 import { BiologicalAnalysisRepository } from '../../ports/repositories/BiologicalAnalysisRepository';
 
-// Define data point type for chart data
 export type DataPoint = {
   date: Date;
   value: number | null;
@@ -37,19 +36,11 @@ export class GetAnalysisByIdUseCase {
 }
 
 export class GetLabTestDataUseCase {
-  /**
-   * Maps data for a specific lab test across multiple analyses
-   * 
-   * @param analyses Array of biological analyses
-   * @param labKey The key of the lab test to extract
-   * @returns Array of data points for the specified lab test
-   */
   execute(analyses: BiologicalAnalysis[], labKey: string): DataPoint[] {
     return analyses
       .map(analysis => {
         const labData = (analysis as any)[labKey];
         
-        // Create data point, handling null, undefined, and NaN values
         return {
           date: new Date(analysis.date),
           value: labData && 
@@ -60,7 +51,6 @@ export class GetLabTestDataUseCase {
           timestamp: new Date(analysis.date).getTime()
         };
       })
-      // Filter out null, undefined, or zero values
       .filter(point => point.value !== null && point.value !== 0);
   }
 }
