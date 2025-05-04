@@ -1,107 +1,80 @@
-import React, { useEffect, useState } from 'react';
-import { 
-  ActivityIndicator, 
-  FlatList, 
-  StyleSheet, 
-  Text, 
-  View, 
-  Button, 
-  Alert, 
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  FlatList,
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
   RefreshControl,
-  TouchableOpacity
-} from 'react-native';
-import { BiologicalAnalysis } from '../../domain/entities/BiologicalAnalysis';
-import { GetAnalysesUseCase } from '../../application/usecases/GetAnalysesUseCase';
-import { DeleteAnalysisUseCase } from '../../application/usecases/DeleteAnalysisUseCase';
-import { AnalysisCard } from '../components/AnalysisCard';
-import { StackNavigationProp } from '@react-navigation/stack';
-import { HomeStackParamList } from '../../types/navigation';
-import { Swipeable } from 'react-native-gesture-handler';
-import { Ionicons } from '@expo/vector-icons';
-import { ScreenLayout } from '../components/ScreenLayout';
-import { useFocusEffect } from '@react-navigation/native';
+  Alert,
+} from "react-native";
+import { BiologicalAnalysis } from "../../domain/entities/BiologicalAnalysis";
+import { GetAnalysesUseCase } from "../../application/usecases/GetAnalysesUseCase";
+import { DeleteAnalysisUseCase } from "../../application/usecases/DeleteAnalysisUseCase";
+import { AnalysisCard } from "../components/AnalysisCard";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { HomeStackParamList } from "../../types/navigation";
+import { Swipeable } from "react-native-gesture-handler";
+import { Ionicons } from "@expo/vector-icons";
+import { ScreenLayout } from "../components/ScreenLayout";
+import { EmptyState } from "../components/EmptyState";
 
 type HomeScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
   deleteAnalysisUseCase: DeleteAnalysisUseCase;
-  navigation: StackNavigationProp<HomeStackParamList, 'HomeScreen'>;
+  navigation: StackNavigationProp<HomeStackParamList, "HomeScreen">;
 };
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ 
-  navigation, 
+export const HomeScreen: React.FC<HomeScreenProps> = ({
+  navigation,
   getAnalysesUseCase,
-  deleteAnalysisUseCase
+  deleteAnalysisUseCase,
 }) => {
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
-  const [initialLoadDone, setInitialLoadDone] = useState<boolean>(false);
-  const [lastScreen, setLastScreen] = useState<string | null>(null);
-  
+
   const swipeableRefs = React.useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
-    if (!initialLoadDone) {
-      loadAnalyses();
-      setInitialLoadDone(true);
-    }
-  }, [initialLoadDone]);
-
-  useFocusEffect(
-    React.useCallback(() => {
-      const navState = navigation.getState();
-      
-      if (navState) {
-        const currentRouteName = navState.routes[navState.index].name;
-        
-        if (currentRouteName === 'HomeScreen') {
-          if (lastScreen === 'AnalysisDetails') {
-            setLastScreen(null);
-          } else if (lastScreen === 'UploadScreen' || !initialLoadDone) {
-            loadAnalyses(false);
-          }
-        } else {
-          setLastScreen(currentRouteName);
-        }
-      }
-    }, [navigation, initialLoadDone, lastScreen])
-  );
+    loadAnalyses();
+  }, []);
 
   const loadAnalyses = async (refresh: boolean = false): Promise<void> => {
-    if (!refresh) {
-      setLoading(true);
-    } else {
+    if (refresh) {
       setIsRefreshing(true);
+    } else if (!isRefreshing) {
+      setLoading(true);
     }
-    
+
     try {
-      const result = await fetchAnalysesFromRepository();
+      const result = await getAnalysesUseCase.execute();
       const sortedAnalyses = sortAnalysesByDateDescending(result);
-      setAnalyses(sortedAnalyses); 
+      setAnalyses(sortedAnalyses);
       setError(null);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (err) {
-      setError('Failed to load analyses');
+      setError("Failed to load analyses");
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
   };
-  
-  const fetchAnalysesFromRepository = async (): Promise<BiologicalAnalysis[]> => {
-    return await getAnalysesUseCase.execute();
-  };
-  
-  const sortAnalysesByDateDescending = (analyses: BiologicalAnalysis[]): BiologicalAnalysis[] => {
+
+  const sortAnalysesByDateDescending = (
+    analyses: BiologicalAnalysis[]
+  ): BiologicalAnalysis[] => {
     return [...analyses].sort((a, b) => b.date.getTime() - a.date.getTime());
   };
 
-  const onRefresh = () => {
+  const onRefresh = (): void => {
     loadAnalyses(true);
   };
 
   const navigateToAnalysisDetails = (analysis: BiologicalAnalysis): void => {
-    navigation.navigate('AnalysisDetails', { analysisId: analysis.id });
+    navigation.navigate("AnalysisDetails", { analysisId: analysis.id });
   };
 
   const deleteAnalysis = async (analysisId: string) => {
@@ -109,15 +82,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       await deleteAnalysisUseCase.execute(analysisId);
       removeAnalysisFromList(analysisId);
       closeSwipeableItem(analysisId);
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      Alert.alert('Error', 'Failed to delete analysis');
+      Alert.alert("Error", "Failed to delete analysis");
     }
   };
-  
+
   const removeAnalysisFromList = (analysisId: string): void => {
-    setAnalyses(prevAnalyses => prevAnalyses.filter(analysis => analysis.id !== analysisId));
+    setAnalyses((prevAnalyses) =>
+      prevAnalyses.filter((analysis) => analysis.id !== analysisId)
+    );
   };
-  
+
   const closeSwipeableItem = (itemId: string): void => {
     if (swipeableRefs.current[itemId]) {
       swipeableRefs.current[itemId]?.close();
@@ -126,15 +102,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const confirmDelete = (analysisId: string) => {
     Alert.alert(
-      'Confirm Delete',
-      'Are you sure you want to delete this analysis?',
+      "Confirm Delete",
+      "Are you sure you want to delete this analysis?",
       [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive', 
-          onPress: () => deleteAnalysis(analysisId) 
-        }
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteAnalysis(analysisId),
+        },
       ]
     );
   };
@@ -150,7 +126,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const renderDeleteButton = (analysisId: string) => {
     return (
       <View style={styles.rightActionsContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.deleteButton}
           onPress={() => {
             confirmDelete(analysisId);
@@ -175,8 +151,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         rightThreshold={40}
         overshootRight={false}
       >
-        <AnalysisCard 
-          analysis={item} 
+        <AnalysisCard
+          analysis={item}
           onPress={() => {
             closeSwipeableItem(item.id);
             navigateToAnalysisDetails(item);
@@ -187,28 +163,57 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   if (loading && !isRefreshing) {
-    return <LoadingView />;
+    return (
+      <ScreenLayout scrollable={false}>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#2c7be5" />
+          <Text style={styles.loadingText}>Loading your analyses...</Text>
+        </View>
+      </ScreenLayout>
+    );
   }
 
   if (error && !isRefreshing) {
-    return <ErrorView error={error} onRetry={() => loadAnalyses()} />;
+    return (
+      <ScreenLayout scrollable={false}>
+        <View style={styles.centered}>
+          <Ionicons name="alert-circle-outline" size={60} color="#e63757" />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => loadAnalyses(true)}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      </ScreenLayout>
+    );
   }
 
   if (analyses.length === 0 && !isRefreshing) {
-    return <EmptyView onRefresh={() => loadAnalyses()} />;
+    return (
+      <ScreenLayout scrollable={false}>
+        <EmptyState
+          navigation={navigation}
+          message="No analyses found"
+          subMessage="Upload a report to get started"
+          iconName="file-tray-outline"
+        />
+      </ScreenLayout>
+    );
   }
 
   return (
     <ScreenLayout scrollable={false}>
       <FlatList
         data={analyses}
-        keyExtractor={item => item.id}
+        keyExtractor={(item) => item.id}
         renderItem={renderAnalysisItem}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={['#2c7be5']}
+            colors={["#2c7be5"]}
             tintColor="#2c7be5"
             title="Pull to refresh..."
             titleColor="#95aac9"
@@ -219,66 +224,46 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   );
 };
 
-const LoadingView = () => (
-  <ScreenLayout scrollable={false}>
-    <View style={styles.centered}>
-      <ActivityIndicator size="large" color="#2c7be5" />
-    </View>
-  </ScreenLayout>
-);
-
-const ErrorView = ({ error, onRetry }: { error: string, onRetry: () => void }) => (
-  <ScreenLayout scrollable={false}>
-    <View style={styles.centered}>
-      <Text style={styles.errorText}>{error}</Text>
-      <Button title="Try Again" onPress={onRetry} />
-    </View>
-  </ScreenLayout>
-);
-
-const EmptyView = ({ onRefresh }: { onRefresh: () => void }) => (
-  <ScreenLayout scrollable={false}>
-    <View style={styles.centered}>
-      <Text style={styles.emptyText}>No analyses found</Text>
-      <Text style={styles.emptySubtext}>Upload a report to get started</Text>
-      <Button title="Refresh" onPress={onRefresh} />
-    </View>
-  </ScreenLayout>
-);
-
 const styles = StyleSheet.create({
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 20,
   },
   errorText: {
     fontSize: 18,
-    color: '#e63757',
-    textAlign: 'center',
+    color: "#e63757",
+    textAlign: "center",
+    marginTop: 16,
+    marginBottom: 20,
   },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#12263f',
-    textAlign: 'center',
+  retryButton: {
+    backgroundColor: "#2c7be5",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    marginTop: 10,
   },
-  emptySubtext: {
+  retryButtonText: {
+    color: "white",
     fontSize: 16,
-    color: '#95aac9',
-    textAlign: 'center',
-    marginTop: 8,
+    fontWeight: "600",
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#95aac9",
+    marginTop: 16,
   },
   deleteButton: {
-    backgroundColor: '#e63757',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#e63757",
+    justifyContent: "center",
+    alignItems: "center",
     width: 50,
     height: 50,
     borderRadius: 25,
     marginRight: 15,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
@@ -286,8 +271,8 @@ const styles = StyleSheet.create({
   },
   rightActionsContainer: {
     width: 80,
-    backgroundColor: 'transparent',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "transparent",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

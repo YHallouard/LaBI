@@ -1,12 +1,12 @@
-# LaBIReact Mobile
+# Héméa
 
-LaBIReact Mobile is a React Native (Expo) application for tracking biological analyses results from PDF medical reports.
+Héméa is a React Native (Expo) application for tracking biological analyses results from PDF medical reports.
 
 ## Features
 
 - Upload PDF lab reports
-- OCR to automatically extract CRP values from reports
-- Track and visualize CRP values over time
+- OCR to automatically extract values from reports
+- Track and visualize values over time
 - Local database storage on the device
 
 ## Project Structure
@@ -28,10 +28,7 @@ The project follows a hexagonal architecture:
 npm install
 ```
 
-2. Configure your DeepSeek API key:
-   Replace `YOUR_API_KEY_HERE` in `App.tsx` with your actual DeepSeek API key.
-
-3. Start the application:
+2. Start the application:
 
 ```bash
 npm start
@@ -50,17 +47,6 @@ npm test
 ## Mutation Testing
 
 Mutation testing helps measure the effectiveness of test cases by introducing small changes (mutations) to the code and checking if tests can detect them.
-
-### Setup
-
-This project uses Stryker Mutator for mutation testing:
-
-```bash
-# Install dependencies with legacy peer deps flag
-npm install
-```
-
-### Usage
 
 Run mutation tests on core domain and application code:
 
@@ -88,7 +74,7 @@ The mutation score indicates the percentage of mutations that were caught by tes
 - TypeScript
 - Expo SQLite for local storage
 - React Navigation for navigation
-- DeepSeek API for OCR processing
+- Mistral API for OCR processing
 - React Native Chart Kit for visualizations
 
 ## Development
@@ -98,10 +84,6 @@ This application demonstrates a clean architecture approach to mobile developmen
 - Separation of concerns with hexagonal architecture
 - Dependency injection for services and repositories
 - Clean interfaces between different layers
-
-## License
-
-MIT
 
 ## Deploy on Iphone
 
@@ -116,3 +98,7 @@ Prebuild & deploy
 ```bash
 npx expo prebuild && npx expo run:ios --device "00XXXXXX-XXXXXXXXXXXX1E" --configuration Release
 ```
+
+## License
+
+MIT

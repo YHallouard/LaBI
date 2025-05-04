@@ -33,14 +33,15 @@ jest.mock("@mistralai/mistralai", () => {
   };
 });
 
-// Mock global fetch
 global.fetch = jest.fn() as jest.Mock;
 global.atob = jest.fn().mockImplementation((str) => str);
 // Define FormData mock
 const mockFormData = {
   append: jest.fn(),
 };
-// @ts-expect-error - Ignore the FormData TypeScript error for testing
+
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-ignore
 global.FormData = jest.fn().mockImplementation(() => mockFormData);
 
 describe("MistralOcrService", () => {
@@ -50,10 +51,8 @@ describe("MistralOcrService", () => {
   const mockBase64Content = "base64-encoded-content";
 
   beforeEach(() => {
-    // Reset all mocks
     jest.clearAllMocks();
 
-    // Setup default mocks
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValue(
       mockBase64Content
     );
@@ -63,11 +62,9 @@ describe("MistralOcrService", () => {
       json: jest.fn().mockResolvedValue({ id: "mock-file-id" }),
     });
 
-    // Setup console spies
     consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
 
-    // Create service instance
     service = new MistralOcrService(mockApiKey);
   });
 

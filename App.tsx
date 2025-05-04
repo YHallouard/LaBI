@@ -1,30 +1,63 @@
-import './cryptoPolyfill';
-import './streamPolyfill';
+import "./cryptoPolyfill";
+import "./streamPolyfill";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { NavigationContainer, Route, useNavigation } from '@react-navigation/native';
-import { createBottomTabNavigator, BottomTabNavigationOptions, BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
-import { createStackNavigator, StackNavigationProp, StackScreenProps } from '@react-navigation/stack';
-import { ChartScreen } from './src/presentation/screens/ChartScreen';
-import { HomeScreen } from './src/presentation/screens/HomeScreen';
-import { UploadScreen } from './src/presentation/screens/UploadScreen';
-import { SettingsScreen } from './src/presentation/screens/SettingsScreen';
-import { GetAnalysesUseCase, GetAnalysisByIdUseCase, GetLabTestDataUseCase } from './src/application/usecases/GetAnalysesUseCase';
-import { AnalyzePdfUseCase } from './src/application/usecases/AnalyzePdfUseCase';
-import { SQLiteBiologicalAnalysisRepository } from './src/adapters/repositories/SQLiteBiologicalAnalysisRepository';
-import { MistralOcrService } from './src/adapters/services/MistralOcrService';
-import { initializeDatabase } from './src/infrastructure/database/DatabaseInitializer';
-import { Ionicons } from '@expo/vector-icons';
-import { UpdateAnalysisUseCase } from './src/application/usecases/UpdateAnalysisUseCase';
-import { DeleteAnalysisUseCase } from './src/application/usecases/DeleteAnalysisUseCase';
-import { Text, View, StyleSheet, ActivityIndicator, TouchableOpacity, Image, Animated } from 'react-native';
-import AnalysisDetailsScreen from './src/presentation/screens/AnalysisDetailsScreen';
-import { SaveApiKeyUseCase } from './src/application/usecases/SaveApiKeyUseCase';
-import { LoadApiKeyUseCase } from './src/application/usecases/LoadApiKeyUseCase';
-import { DeleteApiKeyUseCase } from './src/application/usecases/DeleteApiKeyUseCase';
-import { HemeaLogo } from './src/presentation/components';
-import { CalculateStatisticsUseCase } from './src/application/usecases/CalculateStatisticsUseCase';
-import { HomeStackParamList, ChartStackParamList, UploadStackParamList, RootTabParamList } from './src/types/navigation';
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import {
+  NavigationContainer,
+  Route,
+  useNavigation,
+} from "@react-navigation/native";
+import {
+  createBottomTabNavigator,
+  BottomTabNavigationOptions,
+  BottomTabBarButtonProps,
+} from "@react-navigation/bottom-tabs";
+import {
+  createStackNavigator,
+  StackNavigationProp,
+  StackScreenProps,
+} from "@react-navigation/stack";
+import { ChartScreen } from "./src/presentation/screens/ChartScreen";
+import { HomeScreen } from "./src/presentation/screens/HomeScreen";
+import { UploadScreen } from "./src/presentation/screens/UploadScreen";
+import { SettingsScreen } from "./src/presentation/screens/SettingsScreen";
+import {
+  GetAnalysesUseCase,
+  GetAnalysisByIdUseCase,
+  GetLabTestDataUseCase,
+} from "./src/application/usecases/GetAnalysesUseCase";
+import { AnalyzePdfUseCase } from "./src/application/usecases/AnalyzePdfUseCase";
+import { SQLiteBiologicalAnalysisRepository } from "./src/adapters/repositories/SQLiteBiologicalAnalysisRepository";
+import { MistralOcrService } from "./src/adapters/services/MistralOcrService";
+import { initializeDatabase } from "./src/infrastructure/database/DatabaseInitializer";
+import { Ionicons } from "@expo/vector-icons";
+import { UpdateAnalysisUseCase } from "./src/application/usecases/UpdateAnalysisUseCase";
+import { DeleteAnalysisUseCase } from "./src/application/usecases/DeleteAnalysisUseCase";
+import {
+  Text,
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  Easing,
+} from "react-native";
+import AnalysisDetailsScreen from "./src/presentation/screens/AnalysisDetailsScreen";
+import { SaveApiKeyUseCase } from "./src/application/usecases/SaveApiKeyUseCase";
+import { LoadApiKeyUseCase } from "./src/application/usecases/LoadApiKeyUseCase";
+import { DeleteApiKeyUseCase } from "./src/application/usecases/DeleteApiKeyUseCase";
+import { HemeaLogo } from "./src/presentation/components";
+import { CalculateStatisticsUseCase } from "./src/application/usecases/CalculateStatisticsUseCase";
+import {
+  HomeStackParamList,
+  ChartStackParamList,
+  UploadStackParamList,
+  RootTabParamList,
+} from "./src/types/navigation";
+import { HelpCenterScreen } from "./src/presentation/screens/HelpCenterScreen";
+import { PrivacySecurityScreen } from "./src/presentation/screens/PrivacySecurityScreen";
+import { AboutScreen } from "./src/presentation/screens/AboutScreen";
+import { Svg, Circle } from "react-native-svg";
+import { AppImage } from "./src/presentation/components/AppImage";
 
 const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
 const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
@@ -34,12 +67,18 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 
 const MIN_LOADING_TIME = 1500;
 const FADE_DURATION = 800;
+const CIRCLE_ANIMATION_DURATION = MIN_LOADING_TIME + FADE_DURATION - 100;
+const SAFETY_TIMEOUT_DURATION = 8000;
+const ANIMATION_START_DELAY = 300;
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 const SettingsButton = () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const navigation = useNavigation<StackNavigationProp<any>>();
   return (
-    <TouchableOpacity 
-      onPress={() => navigation.navigate('Home', { screen: 'SettingsScreen' })} 
+    <TouchableOpacity
+      onPress={() => navigation.navigate("Home", { screen: "SettingsScreen" })}
       style={styles.headerButton}
     >
       <Ionicons name="settings-outline" size={24} color="#2c7be5" />
@@ -48,53 +87,117 @@ const SettingsButton = () => {
 };
 
 export default function App() {
-  const [analyzePdfUseCase, setAnalyzePdfUseCase] = useState<AnalyzePdfUseCase | null>(null);
-  const [getAnalysesUseCase, setGetAnalysesUseCase] = useState<GetAnalysesUseCase | null>(null);
-  const [getAnalysisByIdUseCase, setGetAnalysisByIdUseCase] = useState<GetAnalysisByIdUseCase | null>(null);
-  const [updateAnalysisUseCase, setUpdateAnalysisUseCase] = useState<UpdateAnalysisUseCase | null>(null);
-  const [deleteAnalysisUseCase, setDeleteAnalysisUseCase] = useState<DeleteAnalysisUseCase | null>(null);
-  const [saveApiKeyUseCase, setSaveApiKeyUseCase] = useState<SaveApiKeyUseCase | null>(null);
-  const [loadApiKeyUseCase, setLoadApiKeyUseCase] = useState<LoadApiKeyUseCase | null>(null);
-  const [deleteApiKeyUseCase, setDeleteApiKeyUseCase] = useState<DeleteApiKeyUseCase | null>(null);
-  const [getLabTestDataUseCase, setGetLabTestDataUseCase] = useState<GetLabTestDataUseCase | null>(null);
-  const [calculateStatisticsUseCase, setCalculateStatisticsUseCase] = useState<CalculateStatisticsUseCase | null>(null);
+  const [analyzePdfUseCase, setAnalyzePdfUseCase] =
+    useState<AnalyzePdfUseCase | null>(null);
+  const [getAnalysesUseCase, setGetAnalysesUseCase] =
+    useState<GetAnalysesUseCase | null>(null);
+  const [getAnalysisByIdUseCase, setGetAnalysisByIdUseCase] =
+    useState<GetAnalysisByIdUseCase | null>(null);
+  const [updateAnalysisUseCase, setUpdateAnalysisUseCase] =
+    useState<UpdateAnalysisUseCase | null>(null);
+  const [deleteAnalysisUseCase, setDeleteAnalysisUseCase] =
+    useState<DeleteAnalysisUseCase | null>(null);
+  const [saveApiKeyUseCase, setSaveApiKeyUseCase] =
+    useState<SaveApiKeyUseCase | null>(null);
+  const [loadApiKeyUseCase, setLoadApiKeyUseCase] =
+    useState<LoadApiKeyUseCase | null>(null);
+  const [deleteApiKeyUseCase, setDeleteApiKeyUseCase] =
+    useState<DeleteApiKeyUseCase | null>(null);
+  const [getLabTestDataUseCase, setGetLabTestDataUseCase] =
+    useState<GetLabTestDataUseCase | null>(null);
+  const [calculateStatisticsUseCase, setCalculateStatisticsUseCase] =
+    useState<CalculateStatisticsUseCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
   const [forceReload, setForceReload] = useState(0);
-  
-  // Animation de fondu
+  const [appInitialized, setAppInitialized] = useState(false);
+
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const circleProgress = useRef(new Animated.Value(0)).current;
+  const [isTransitioning, setIsTransitioning] = useState(true);
+  const [circleAnimationComplete, setCircleAnimationComplete] = useState(false);
 
   useEffect(() => {
+    resetAppState();
+    startCircleAnimation();
     initializeApplication();
+    configureSafetyTimeout();
   }, [forceReload]);
-  
+
   useEffect(() => {
-    if (!isLoading && !appError) {
-      // Déclencher la transition de fondu
-      setIsTransitioning(true);
+    if (shouldStartFadeOutAnimation()) {
+      startFadeOutAnimation();
+    }
+  }, [isLoading, appInitialized, circleAnimationComplete]);
+
+  const resetAppState = () => {
+    setIsLoading(true);
+    setAppInitialized(false);
+    setIsTransitioning(true);
+    setCircleAnimationComplete(false);
+    fadeAnim.setValue(1);
+    circleProgress.setValue(0);
+  };
+
+  const startCircleAnimation = () => {
+    setTimeout(() => {
+      Animated.timing(circleProgress, {
+        toValue: 1,
+        duration: CIRCLE_ANIMATION_DURATION,
+        easing: Easing.inOut(Easing.exp),
+        useNativeDriver: true,
+      }).start(({ finished }) => {
+        if (finished) {
+          setCircleAnimationComplete(true);
+        }
+      });
+    }, ANIMATION_START_DELAY);
+  };
+
+  const configureSafetyTimeout = () => {
+    const safetyTimer = setTimeout(() => {
+      forceCompleteLoading();
+    }, SAFETY_TIMEOUT_DURATION);
+
+    return () => clearTimeout(safetyTimer);
+  };
+
+  const forceCompleteLoading = () => {
+    setIsLoading(false);
+    setAppInitialized(true);
+    setCircleAnimationComplete(true);
+  };
+
+  const shouldStartFadeOutAnimation = () => {
+    return (!isLoading && appInitialized) || circleAnimationComplete;
+  };
+
+  const startFadeOutAnimation = () => {
+    setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: FADE_DURATION,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
-      }).start(() => {
-        setIsTransitioning(false);
+      }).start(({ finished }) => {
+        if (finished) {
+          setIsTransitioning(false);
+        }
       });
-    }
-  }, [isLoading, appError]);
+    }, 300);
+  };
 
   const handleManualReload = () => {
-    setForceReload(prev => prev + 1);
+    setForceReload((prev) => prev + 1);
   };
 
   const checkAndLoadApiKey = async (): Promise<void> => {
     if (!loadApiKeyUseCase) return;
-    
+
     try {
       const loadedApiKey = await loadApiKeyUseCase.execute();
-      
+
       if (loadedApiKey) {
         setApiKeyError(null);
         createOcrService(loadedApiKey);
@@ -107,7 +210,7 @@ export default function App() {
   };
 
   const handleApiKeyDeleted = () => {
-    setApiKeyError('API key not set. Please configure it in Settings.');
+    setApiKeyError("API key not set. Please configure it in Settings.");
     setAnalyzePdfUseCase(null);
   };
 
@@ -121,27 +224,45 @@ export default function App() {
     try {
       await initializeDatabase();
       const repository = createRepository();
-      const loadApiKeyUseCase = createBasicUseCases(repository);
+      await initializeUseCases(repository);
+
       await checkAndLoadApiKey();
+      await preloadAnalysesData();
+      setAppInitialized(true);
     } catch (error) {
       handleInitializationError(error);
+      setAppInitialized(true);
     } finally {
-      const elapsedTime = Date.now() - startTime;
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
-      
-      if (remainingTime > 0) {
-        await new Promise(resolve => setTimeout(resolve, remainingTime));
+      scheduleLoadingCompletion(startTime);
+    }
+  };
+
+  const preloadAnalysesData = async () => {
+    if (getAnalysesUseCase) {
+      try {
+        await getAnalysesUseCase.execute();
+      } catch (error) {
+        console.error("Error preloading analyses data:", error);
       }
-      
+    }
+  };
+
+  const scheduleLoadingCompletion = (startTime: number) => {
+    const elapsedTime = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
+
+    if (remainingTime > 0) {
+      setTimeout(() => {
+        setIsLoading(false);
+      }, remainingTime);
+    } else {
       setIsLoading(false);
     }
   };
 
-  const createRepository = () => {
-    return new SQLiteBiologicalAnalysisRepository();
-  };
-
-  const createBasicUseCases = (repository: SQLiteBiologicalAnalysisRepository): LoadApiKeyUseCase => {
+  const initializeUseCases = async (
+    repository: SQLiteBiologicalAnalysisRepository
+  ) => {
     const newGetAnalysesUseCase = new GetAnalysesUseCase(repository);
     const newGetAnalysisByIdUseCase = new GetAnalysisByIdUseCase(repository);
     const newUpdateAnalysisUseCase = new UpdateAnalysisUseCase(repository);
@@ -151,7 +272,7 @@ export default function App() {
     const newLoadApiKeyUseCase = new LoadApiKeyUseCase();
     const newDeleteApiKeyUseCase = new DeleteApiKeyUseCase();
     const newCalculateStatisticsUseCase = new CalculateStatisticsUseCase();
-    
+
     setGetAnalysesUseCase(newGetAnalysesUseCase);
     setGetAnalysisByIdUseCase(newGetAnalysisByIdUseCase);
     setUpdateAnalysisUseCase(newUpdateAnalysisUseCase);
@@ -161,8 +282,12 @@ export default function App() {
     setLoadApiKeyUseCase(newLoadApiKeyUseCase);
     setDeleteApiKeyUseCase(newDeleteApiKeyUseCase);
     setCalculateStatisticsUseCase(newCalculateStatisticsUseCase);
-    
+
     return newLoadApiKeyUseCase;
+  };
+
+  const createRepository = () => {
+    return new SQLiteBiologicalAnalysisRepository();
   };
 
   const createOcrService = (apiKey: string) => {
@@ -172,43 +297,47 @@ export default function App() {
   };
 
   const handleMissingApiKey = () => {
-    setApiKeyError('API key not set. Please configure it in Settings.');
+    setApiKeyError("API key not set. Please configure it in Settings.");
     setAnalyzePdfUseCase(null);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
   const handleApiKeyLoadError = (error: any) => {
-    setApiKeyError('Failed to load API key configuration.');
+    setApiKeyError("Failed to load API key configuration.");
     setAnalyzePdfUseCase(null);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
   const handleInitializationError = (error: any) => {
-    setAppError('Failed to initialize application. Please restart the app.');
+    setAppError("Failed to initialize application. Please restart the app.");
   };
 
-  function HomeStack() {
-    return (
+  const HomeStack = React.useMemo(() => {
+    const HomeStackComponent = () => (
       <HomeStackNavigator.Navigator
-         screenOptions={{ 
-           headerShown: true, 
-           headerBackTitle: ' ',
-           headerLeftContainerStyle: { paddingLeft: 10 },
-         }}
+        screenOptions={{
+          headerShown: true,
+          headerBackTitle: " ",
+          headerLeftContainerStyle: { paddingLeft: 10 },
+          headerTitleAlign: "center",
+        }}
       >
         <HomeStackNavigator.Screen
           name="HomeScreen"
-          options={{ 
+          options={{
             headerTitle: () => <HemeaLogo />,
-            headerRight: () => <SettingsButton />, 
+            headerRight: () => <SettingsButton />,
           }}
         >
-          {(props: StackScreenProps<HomeStackParamList, 'HomeScreen'>) => {
+          {(props: StackScreenProps<HomeStackParamList, "HomeScreen">) => {
             if (!getAnalysesUseCase || !deleteAnalysisUseCase) {
-              return <ErrorView errorMessage="Application is not properly initialized" />;
+              return (
+                <ErrorView errorMessage="Application is not properly initialized" />
+              );
             }
-            
             return (
-              <HomeScreen 
-                {...props} 
+              <HomeScreen
+                {...props}
                 getAnalysesUseCase={getAnalysesUseCase}
                 deleteAnalysisUseCase={deleteAnalysisUseCase}
               />
@@ -217,17 +346,18 @@ export default function App() {
         </HomeStackNavigator.Screen>
         <HomeStackNavigator.Screen
           name="AnalysisDetails"
-          options={{ 
-            headerTitle: 'Analysis Details',
-            headerBackTitle: ' ',
+          options={{
+            headerTitle: "Analysis Details",
+            headerBackTitle: " ",
             headerLeftContainerStyle: { paddingLeft: 10 },
           }}
         >
-          {(props: StackScreenProps<HomeStackParamList, 'AnalysisDetails'>) => {
+          {(props: StackScreenProps<HomeStackParamList, "AnalysisDetails">) => {
             if (!getAnalysisByIdUseCase || !updateAnalysisUseCase) {
-              return <ErrorView errorMessage="Application is not properly initialized" />;
+              return (
+                <ErrorView errorMessage="Application is not properly initialized" />
+              );
             }
-            
             return (
               <AnalysisDetailsScreen
                 {...props}
@@ -239,22 +369,27 @@ export default function App() {
         </HomeStackNavigator.Screen>
         <HomeStackNavigator.Screen
           name="SettingsScreen"
-          options={{ 
-            headerTitle: 'Settings',
-            headerBackTitle: ' ',
+          options={{
+            headerTitle: "Settings",
+            headerBackTitle: " ",
             headerLeftContainerStyle: { paddingLeft: 10 },
           }}
         >
-          {(props: StackScreenProps<HomeStackParamList, 'SettingsScreen'>) => {
-            if (!saveApiKeyUseCase || !loadApiKeyUseCase || !deleteApiKeyUseCase) {
-              return <ErrorView errorMessage="Application is not properly initialized" />;
+          {(props: StackScreenProps<HomeStackParamList, "SettingsScreen">) => {
+            if (
+              !saveApiKeyUseCase ||
+              !loadApiKeyUseCase ||
+              !deleteApiKeyUseCase
+            ) {
+              return (
+                <ErrorView errorMessage="Application is not properly initialized" />
+              );
             }
-            
             return (
-              <SettingsScreen 
-                {...props} 
-                saveApiKeyUseCase={saveApiKeyUseCase} 
-                loadApiKeyUseCase={loadApiKeyUseCase} 
+              <SettingsScreen
+                {...props}
+                saveApiKeyUseCase={saveApiKeyUseCase}
+                loadApiKeyUseCase={loadApiKeyUseCase}
                 deleteApiKeyUseCase={deleteApiKeyUseCase}
                 onApiKeyDeleted={handleApiKeyDeleted}
                 onApiKeySaved={handleApiKeySaved}
@@ -263,36 +398,78 @@ export default function App() {
             );
           }}
         </HomeStackNavigator.Screen>
+        <HomeStackNavigator.Screen
+          name="HelpCenterScreen"
+          options={{
+            headerTitle: "Help Center",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+          component={HelpCenterScreen}
+        />
+        <HomeStackNavigator.Screen
+          name="PrivacySecurityScreen"
+          options={{
+            headerTitle: "Privacy & Security",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+          component={PrivacySecurityScreen}
+        />
+        <HomeStackNavigator.Screen
+          name="AboutScreen"
+          options={{
+            headerTitle: "About",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+          component={AboutScreen}
+        />
       </HomeStackNavigator.Navigator>
     );
-  }
+    HomeStackComponent.displayName = "HomeStackComponent";
+    return HomeStackComponent;
+  }, [
+    getAnalysesUseCase,
+    deleteAnalysisUseCase,
+    getAnalysisByIdUseCase,
+    updateAnalysisUseCase,
+    saveApiKeyUseCase,
+    loadApiKeyUseCase,
+    deleteApiKeyUseCase,
+  ]);
 
-  function ChartStack() {
-    return (
-      <ChartStackNavigator.Navigator 
+  const ChartStack = React.useMemo(() => {
+    const ChartStackComponent = () => (
+      <ChartStackNavigator.Navigator
         screenOptions={{
           headerShown: true,
-          headerBackTitle: ' ',
+          headerBackTitle: " ",
           headerLeftContainerStyle: { paddingLeft: 10 },
-          headerTitleAlign: 'center',
+          headerTitleAlign: "center",
         }}
       >
         <ChartStackNavigator.Screen
           name="ChartScreen"
-          options={{ 
+          options={{
             headerTitle: () => <HemeaLogo />,
-            headerRight: () => <SettingsButton />
+            headerRight: () => <SettingsButton />,
           }}
         >
-          {(props: StackScreenProps<ChartStackParamList, 'ChartScreen'>) => {
-            if (!getAnalysesUseCase || !getLabTestDataUseCase || !calculateStatisticsUseCase) {
-              return <ErrorView errorMessage="Application is not properly initialized" />;
+          {(props: StackScreenProps<ChartStackParamList, "ChartScreen">) => {
+            if (
+              !getAnalysesUseCase ||
+              !getLabTestDataUseCase ||
+              !calculateStatisticsUseCase
+            ) {
+              return (
+                <ErrorView errorMessage="Application is not properly initialized" />
+              );
             }
-            
             return (
-              <ChartScreen 
-                {...props} 
-                getAnalysesUseCase={getAnalysesUseCase} 
+              <ChartScreen
+                {...props}
+                getAnalysesUseCase={getAnalysesUseCase}
                 getLabTestDataUseCase={getLabTestDataUseCase}
                 calculateStatisticsUseCase={calculateStatisticsUseCase}
               />
@@ -301,26 +478,28 @@ export default function App() {
         </ChartStackNavigator.Screen>
       </ChartStackNavigator.Navigator>
     );
-  }
+    ChartStackComponent.displayName = "ChartStackComponent";
+    return ChartStackComponent;
+  }, [getAnalysesUseCase, getLabTestDataUseCase, calculateStatisticsUseCase]);
 
-  function UploadStack() {
-    return (
+  const UploadStack = React.useMemo(() => {
+    const UploadStackComponent = () => (
       <UploadStackNavigator.Navigator
         screenOptions={{
           headerShown: true,
-          headerBackTitle: ' ',
+          headerBackTitle: " ",
           headerLeftContainerStyle: { paddingLeft: 10 },
-          headerTitleAlign: 'center',
+          headerTitleAlign: "center",
         }}
       >
         <UploadStackNavigator.Screen
           name="UploadScreen"
-          options={{ 
+          options={{
             headerTitle: () => <HemeaLogo />,
-            headerRight: () => <SettingsButton />
+            headerRight: () => <SettingsButton />,
           }}
         >
-          {(props: StackScreenProps<UploadStackParamList, 'UploadScreen'>) => (
+          {(props: StackScreenProps<UploadStackParamList, "UploadScreen">) => (
             <UploadScreen
               {...props}
               analyzePdfUseCase={analyzePdfUseCase}
@@ -332,53 +511,100 @@ export default function App() {
         </UploadStackNavigator.Screen>
       </UploadStackNavigator.Navigator>
     );
-  }
+    UploadStackComponent.displayName = "UploadStackComponent";
+    return UploadStackComponent;
+  }, [analyzePdfUseCase, isLoading, apiKeyError]);
+
+  const renderCircularProgressIndicator = () => {
+    const circumference = 2 * Math.PI * 88;
+
+    const strokeDashoffset = circleProgress.interpolate({
+      inputRange: [0, 1],
+      outputRange: [circumference, 0],
+    });
+
+    return (
+      <Svg width={180} height={180} style={styles.progressCircle}>
+        <Circle
+          cx={90}
+          cy={90}
+          r={88}
+          stroke="#f0f0f0"
+          strokeWidth={4}
+          fill="none"
+        />
+        <AnimatedCircle
+          cx={90}
+          cy={90}
+          r={88}
+          stroke="#e63757"
+          strokeWidth={4}
+          fill="none"
+          strokeDasharray={`${circumference}`}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          transform="rotate(-90, 90, 90)"
+        />
+      </Svg>
+    );
+  };
+
+  const LoadingScreen = useMemo(() => {
+    return (
+      <View style={styles.logoContainer}>
+        {renderCircularProgressIndicator()}
+        <AppImage
+          imagePath="adaptive-icon"
+          style={styles.loadingImage}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }, [circleProgress]);
+
+  const shouldShowOverlay = isLoading || isTransitioning;
 
   const appContent = appError ? (
     <ErrorView errorMessage={appError} />
   ) : (
-    <MainNavigationContainer 
-      homeStack={HomeStack} 
-      uploadStack={UploadStack} 
-      chartStack={ChartStack} 
+    <MainNavigationContainer
+      homeStack={HomeStack}
+      uploadStack={UploadStack}
+      chartStack={ChartStack}
     />
   );
 
-  // Si l'application est en cours de chargement ou en transition
-  if (isLoading || isTransitioning) {
+  if (!appInitialized && shouldShowOverlay) {
     return (
-      <View style={{ flex: 1 }}>
-        {!isLoading && appContent}
-        
-        <Animated.View 
-          style={[
-            StyleSheet.absoluteFill, 
-            styles.centeredLoader,
-            { opacity: fadeAnim }
-          ]}
-        >
-          <Image 
-            source={require('./assets/adaptive-icon.png')} 
-            style={styles.loadingImage}
-            resizeMode="contain"
-          />
-        </Animated.View>
-      </View>
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          styles.centeredLoader,
+          { opacity: fadeAnim },
+        ]}
+      >
+        {LoadingScreen}
+      </Animated.View>
     );
   }
 
-  return appContent;
+  return (
+    <View style={{ flex: 1 }}>
+      {appContent}
+      {shouldShowOverlay && (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            styles.centeredLoader,
+            { opacity: fadeAnim },
+          ]}
+        >
+          {LoadingScreen}
+        </Animated.View>
+      )}
+    </View>
+  );
 }
-
-const LoadingView = () => (
-  <View style={styles.centeredLoader}>
-    <Image 
-      source={require('./assets/adaptive-icon.png')} 
-      style={styles.loadingImage}
-      resizeMode="contain"
-    />
-  </View>
-);
 
 const ErrorView = ({ errorMessage }: { errorMessage: string }) => (
   <View style={styles.centeredLoader}>
@@ -392,52 +618,67 @@ interface MainNavigationContainerProps {
   chartStack: () => React.ReactElement;
 }
 
-const MainNavigationContainer = ({ 
-  homeStack, 
-  uploadStack, 
-  chartStack 
+const MainNavigationContainer = ({
+  homeStack,
+  uploadStack,
+  chartStack,
 }: MainNavigationContainerProps) => (
   <NavigationContainer>
-    <Tab.Navigator
-      screenOptions={configureTabScreenOptions}
-    >
+    <Tab.Navigator screenOptions={configureTabScreenOptions}>
       <Tab.Screen name="Home" component={homeStack} />
-      <Tab.Screen 
-        name="Upload" 
+      <Tab.Screen
+        name="Upload"
         component={uploadStack}
         options={{
-           tabBarLabel: ' ',
-           tabBarIcon: ({ color }: { color: string }) => (
-             <Ionicons name="add-circle-outline" size={30} color={color} /> 
+          tabBarLabel: " ",
+          tabBarIcon: ({ color }: { color: string }) => (
+            <Ionicons name="add-circle-outline" size={30} color={color} />
           ),
-           tabBarButton: createUploadTabButton,
-        }} 
+          tabBarButton: createUploadTabButton,
+        }}
       />
       <Tab.Screen name="Charts" component={chartStack} />
     </Tab.Navigator>
   </NavigationContainer>
 );
 
-const configureTabScreenOptions = ({ route }: { route: Route<keyof RootTabParamList> }): BottomTabNavigationOptions => ({
-  tabBarActiveTintColor: '#2c7be5',
-  tabBarInactiveTintColor: 'gray',
+const configureTabScreenOptions = ({
+  route,
+}: {
+  route: Route<keyof RootTabParamList>;
+}): BottomTabNavigationOptions => ({
+  tabBarActiveTintColor: "#2c7be5",
+  tabBarInactiveTintColor: "gray",
   headerShown: false,
   tabBarShowLabel: true,
   tabBarStyle: styles.tabBar,
-  tabBarIcon: ({ focused, color, size }: { focused: boolean; color: string; size: number }) => {
+  tabBarIcon: ({
+    focused,
+    color,
+    size,
+  }: {
+    focused: boolean;
+    color: string;
+    size: number;
+  }) => {
     return createTabBarIcon(route.name, focused, color, size);
   },
 });
 
-const createTabBarIcon = (routeName: string, focused: boolean, color: string, size: number) => {
+const createTabBarIcon = (
+  routeName: string,
+  focused: boolean,
+  color: string,
+  size: number
+) => {
   let iconName: keyof typeof Ionicons.glyphMap | undefined;
 
-  if (routeName === 'Home') {
-    iconName = focused ? 'home' : 'home-outline';
-  } else if (routeName === 'Charts') {
-    iconName = focused ? 'bar-chart' : 'bar-chart-outline';
-  } 
-  
+  if (routeName === "Home") {
+    iconName = focused ? "home" : "home-outline";
+  } else if (routeName === "Charts") {
+    iconName = focused ? "bar-chart" : "bar-chart-outline";
+  }
+
   if (!iconName) return null;
 
   return <Ionicons name={iconName} size={size} color={color} />;
@@ -445,50 +686,69 @@ const createTabBarIcon = (routeName: string, focused: boolean, color: string, si
 
 const createUploadTabButton = (props: BottomTabBarButtonProps) => (
   <TouchableOpacity
-    {...props as any}
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    {...(props as any)}
     style={styles.uploadTabButton}
     activeOpacity={0.8}
   >
-    <View style={styles.uploadTabButtonInner}> 
-       <Ionicons name="add" size={32} color="white" />
-     </View>
+    <View style={styles.uploadTabButtonInner}>
+      <Ionicons name="add" size={32} color="white" />
+    </View>
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   subtitle: {
     fontSize: 16,
-    color: 'gray',
+    color: "gray",
   },
   centeredLoader: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f5f7fb',
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f5f7fb",
   },
-  loadingImage: {
+  logoContainer: {
+    position: "relative",
     width: 200,
     height: 200,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  progressCircle: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    zIndex: 10,
+  },
+  loadingImage: {
+    width: 160,
+    height: 160,
+    borderRadius: 100,
+    zIndex: 5,
+  },
+  loadingIndicator: {
+    marginTop: 20,
   },
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#5a7184',
+    color: "#5a7184",
   },
   errorText: {
     marginTop: 10,
     fontSize: 16,
-    color: '#e63757',
-    textAlign: 'center',
+    color: "#e63757",
+    textAlign: "center",
     padding: 20,
   },
   headerButton: {
@@ -499,32 +759,32 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     paddingTop: 5,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: 'white',
+    borderTopColor: "#eee",
+    backgroundColor: "white",
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: -1 },
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
   uploadTabButton: {
     top: -20,
-    alignSelf: 'center',
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignSelf: "center",
+    justifyContent: "center",
+    alignItems: "center",
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#2c7be5',
+    backgroundColor: "#2c7be5",
     elevation: 6,
-    shadowColor: '#2c7be5',
+    shadowColor: "#2c7be5",
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
     zIndex: 1,
   },
   uploadTabButtonInner: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

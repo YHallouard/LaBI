@@ -1,42 +1,58 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, StyleSheet, Alert, ActivityIndicator, Keyboard, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  StyleSheet,
+  Alert,
+  ActivityIndicator,
+  Keyboard,
+  TouchableOpacity,
+} from "react-native";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { HomeStackParamList } from "../../types/navigation";
 
-import { SaveApiKeyUseCase } from '../../application/usecases/SaveApiKeyUseCase';
-import { LoadApiKeyUseCase } from '../../application/usecases/LoadApiKeyUseCase';
-import { DeleteApiKeyUseCase } from '../../application/usecases/DeleteApiKeyUseCase';
-import * as SecureStore from 'expo-secure-store';
-import * as FileSystem from 'expo-file-system';
-import { Ionicons } from '@expo/vector-icons';
-import { ScreenLayout } from '../components/ScreenLayout';
+import { SaveApiKeyUseCase } from "../../application/usecases/SaveApiKeyUseCase";
+import { LoadApiKeyUseCase } from "../../application/usecases/LoadApiKeyUseCase";
+import { DeleteApiKeyUseCase } from "../../application/usecases/DeleteApiKeyUseCase";
+import * as FileSystem from "expo-file-system";
+import { Ionicons } from "@expo/vector-icons";
+import { ScreenLayout } from "../components/ScreenLayout";
 
 // Define Props for the screen, including the use cases
 type SettingsScreenProps = {
+  navigation: StackNavigationProp<HomeStackParamList, "SettingsScreen">;
   saveApiKeyUseCase: SaveApiKeyUseCase;
   loadApiKeyUseCase: LoadApiKeyUseCase;
   deleteApiKeyUseCase: DeleteApiKeyUseCase;
   onApiKeyDeleted: () => void;
+
   onApiKeySaved: (apiKey: string) => Promise<void>;
   onManualReload: () => void;
 };
 
-type SettingsTab = 'api' | 'database';
+type SettingsTab = "api" | "database" | "support";
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({ 
-  saveApiKeyUseCase, 
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({
+  navigation,
+  saveApiKeyUseCase,
   loadApiKeyUseCase,
   deleteApiKeyUseCase,
   onApiKeyDeleted,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onApiKeySaved,
-  onManualReload
+  onManualReload,
 }) => {
-  const [apiKeyInput, setApiKeyInput] = useState<string>('');
-  const [savedApiKey, setSavedApiKey] = useState<string>('');
+  const [apiKeyInput, setApiKeyInput] = useState<string>("");
+  const [savedApiKey, setSavedApiKey] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<SettingsTab>('api');
+  const [activeTab, setActiveTab] = useState<SettingsTab>("api");
   const [isResetting, setIsResetting] = useState<boolean>(false);
   const [isDeletingApiKey, setIsDeletingApiKey] = useState<boolean>(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isReloading, setIsReloading] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [infoMessage, setInfoMessage] = useState<string | null>(null);
@@ -56,8 +72,9 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       } else {
         setIsEditing(true);
       }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
-      Alert.alert('Error', 'Could not load API key.');
+      Alert.alert("Error", "Could not load API key.");
       setIsEditing(true);
     } finally {
       setIsLoading(false);
@@ -68,46 +85,47 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     if (!validateApiKey()) {
       return;
     }
-    
+
     Keyboard.dismiss();
     setIsSaving(true);
-    
+
     try {
       const success = await saveApiKeyUseCase.execute(apiKeyInput);
       if (success) {
         handleSuccessfulKeySave();
       } else {
-        Alert.alert('Error', 'Could not save API key.');
+        Alert.alert("Error", "Could not save API key.");
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Could not save API key.'); 
+      Alert.alert("Error", error.message || "Could not save API key.");
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   const validateApiKey = (): boolean => {
     if (!apiKeyInput.trim()) {
-      Alert.alert('Error', 'API Key cannot be empty.');
+      Alert.alert("Error", "API Key cannot be empty.");
       return false;
     }
     return true;
   };
-  
+
   const handleSuccessfulKeySave = () => {
     setSavedApiKey(apiKeyInput);
     setIsEditing(false);
-    setSuccessMessage('API Key saved securely.');
+    setSuccessMessage("API Key saved securely.");
     setTimeout(() => setSuccessMessage(null), 3000);
-    
-    triggerReload('API key saved, reloading app...');
+
+    triggerReload("API key saved, reloading app...");
   };
 
   const handleEdit = () => {
     setApiKeyInput(savedApiKey);
     setIsEditing(true);
   };
-  
+
   const handleCancel = () => {
     setApiKeyInput(savedApiKey);
     setIsEditing(false);
@@ -116,7 +134,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const triggerReload = (message: string) => {
     setInfoMessage(message);
     setIsReloading(true);
-    
+
     setTimeout(() => {
       onManualReload();
       setTimeout(() => {
@@ -127,8 +145,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   };
 
   const maskApiKey = (key: string): string => {
-    if (!key) return '';
-    return key.length > 8 ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}` : '********';
+    if (!key) return "";
+    return key.length > 8
+      ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}`
+      : "********";
   };
 
   const resetDatabase = async () => {
@@ -137,51 +157,55 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       const result = await attemptDatabaseReset();
       displayDatabaseResetResult(result);
     } catch (error) {
-      Alert.alert('Error', 'Failed to reset database: ' + error);
+      Alert.alert("Error", "Failed to reset database: " + error);
     } finally {
       setIsResetting(false);
     }
   };
-  
-  const attemptDatabaseReset = async (): Promise<'reset' | 'no_file' | 'no_dir'> => {
-    const dbName = 'biological_analyses.db';
+
+  const attemptDatabaseReset = async (): Promise<
+    "reset" | "no_file" | "no_dir"
+  > => {
+    const dbName = "biological_analyses.db";
     const dbDirectory = `${FileSystem.documentDirectory}SQLite`;
     const dbPath = `${dbDirectory}/${dbName}`;
-    
+
     const dirInfo = await FileSystem.getInfoAsync(dbDirectory);
     if (!dirInfo.exists) {
-      return 'no_dir';
+      return "no_dir";
     }
-    
+
     const fileInfo = await FileSystem.getInfoAsync(dbPath);
     if (!fileInfo.exists) {
-      return 'no_file';
+      return "no_file";
     }
-    
+
     await FileSystem.deleteAsync(dbPath);
-    return 'reset';
+    return "reset";
   };
-  
-  const displayDatabaseResetResult = (result: 'reset' | 'no_file' | 'no_dir') => {
-    if (result === 'reset') {
-      setSuccessMessage('Database reset completed. Please restart the app.');
+
+  const displayDatabaseResetResult = (
+    result: "reset" | "no_file" | "no_dir"
+  ) => {
+    if (result === "reset") {
+      setSuccessMessage("Database reset completed. Please restart the app.");
       setTimeout(() => setSuccessMessage(null), 3000);
-    } else if (result === 'no_file') {
-      setInfoMessage('Database file does not exist.');
+    } else if (result === "no_file") {
+      setInfoMessage("Database file does not exist.");
       setTimeout(() => setInfoMessage(null), 3000);
     } else {
-      setInfoMessage('SQLite directory does not exist. No database to reset.');
+      setInfoMessage("SQLite directory does not exist. No database to reset.");
       setTimeout(() => setInfoMessage(null), 3000);
     }
   };
 
   const confirmDatabaseReset = () => {
     Alert.alert(
-      'Confirm Reset',
-      'This will delete all your analyses. This action cannot be undone. Are you sure?',
+      "Confirm Reset",
+      "This will delete all your analyses. This action cannot be undone. Are you sure?",
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Reset', style: 'destructive', onPress: resetDatabase }
+        { text: "Cancel", style: "cancel" },
+        { text: "Reset", style: "destructive", onPress: resetDatabase },
       ]
     );
   };
@@ -193,36 +217,47 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       if (success) {
         handleSuccessfulKeyDeletion();
       } else {
-        Alert.alert('Error', 'Could not delete API key.');
+        Alert.alert("Error", "Could not delete API key.");
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Could not delete API key.');
+      Alert.alert("Error", error.message || "Could not delete API key.");
     } finally {
       setIsDeletingApiKey(false);
     }
   };
 
   const handleSuccessfulKeyDeletion = () => {
-    setSavedApiKey('');
-    setApiKeyInput('');
+    setSavedApiKey("");
+    setApiKeyInput("");
     setIsEditing(true);
-    setSuccessMessage('API Key deleted successfully.');
+    setSuccessMessage("API Key deleted successfully.");
     setTimeout(() => setSuccessMessage(null), 3000);
-    
+
     onApiKeyDeleted();
-    
-    triggerReload('API key deleted, reloading app...');
+
+    triggerReload("API key deleted, reloading app...");
   };
 
   const confirmApiKeyDeletion = () => {
     Alert.alert(
-      'Confirm Deletion',
-      'This will delete your API key. You will need to enter it again to use OCR features. Are you sure?',
+      "Confirm Deletion",
+      "This will delete your API key. You will need to enter it again to use OCR features. Are you sure?",
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: deleteApiKey }
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteApiKey },
       ]
     );
+  };
+
+  const handleSupportOptionPress = (option: string) => {
+    if (option === "Help Center") {
+      navigation.navigate("HelpCenterScreen");
+    } else if (option === "Privacy & Security") {
+      navigation.navigate("PrivacySecurityScreen");
+    } else if (option === "About") {
+      navigation.navigate("AboutScreen");
+    }
   };
 
   if (isLoading) {
@@ -239,29 +274,36 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
     <ScreenLayout>
       <View style={styles.contentWrapper}>
         <Text style={styles.title}>Settings</Text>
-        
-        <TabNavigation 
-          activeTab={activeTab} 
-          onTabChange={setActiveTab} 
-        />
-        
+
+        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+
         <View style={styles.contentContainer}>
           {successMessage && (
             <View style={styles.successContainer}>
-              <Ionicons name="checkmark-circle-outline" size={24} color="#00d97e" style={styles.messageIcon} />
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={24}
+                color="#00d97e"
+                style={styles.messageIcon}
+              />
               <Text style={styles.successText}>{successMessage}</Text>
             </View>
           )}
-          
+
           {infoMessage && (
             <View style={styles.infoContainer}>
-              <Ionicons name="information-circle-outline" size={24} color="#2c7be5" style={styles.messageIcon} />
+              <Ionicons
+                name="information-circle-outline"
+                size={24}
+                color="#2c7be5"
+                style={styles.messageIcon}
+              />
               <Text style={styles.infoText}>{infoMessage}</Text>
             </View>
           )}
-        
-          {activeTab === 'api' ? (
-            <ApiKeySettings 
+
+          {activeTab === "api" ? (
+            <ApiKeySettings
               isEditing={isEditing}
               apiKeyInput={apiKeyInput}
               setApiKeyInput={setApiKeyInput}
@@ -274,11 +316,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               confirmApiKeyDeletion={confirmApiKeyDeletion}
               maskApiKey={maskApiKey}
             />
-          ) : (
-            <DatabaseSettings 
+          ) : activeTab === "database" ? (
+            <DatabaseSettings
               isResetting={isResetting}
               confirmDatabaseReset={confirmDatabaseReset}
             />
+          ) : (
+            <SupportSettings onOptionPress={handleSupportOptionPress} />
           )}
         </View>
       </View>
@@ -291,34 +335,72 @@ type TabNavigationProps = {
   onTabChange: (tab: SettingsTab) => void;
 };
 
-const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange }) => (
+const TabNavigation: React.FC<TabNavigationProps> = ({
+  activeTab,
+  onTabChange,
+}) => (
   <View style={styles.tabContainer}>
     <TouchableOpacity
-      style={[styles.tabButton, activeTab === 'api' && styles.activeTabButton]}
-      onPress={() => onTabChange('api')}
+      style={[styles.tabButton, activeTab === "api" && styles.activeTabButton]}
+      onPress={() => onTabChange("api")}
     >
-      <Ionicons 
-        name="key-outline" 
-        size={20} 
-        color={activeTab === 'api' ? '#2c7be5' : '#95aac9'} 
-        style={styles.tabIcon} 
+      <Ionicons
+        name="key-outline"
+        size={20}
+        color={activeTab === "api" ? "#2c7be5" : "#95aac9"}
+        style={styles.tabIcon}
       />
-      <Text style={[styles.tabButtonText, activeTab === 'api' && styles.activeTabButtonText]}>
+      <Text
+        style={[
+          styles.tabButtonText,
+          activeTab === "api" && styles.activeTabButtonText,
+        ]}
+      >
         API Key
       </Text>
     </TouchableOpacity>
     <TouchableOpacity
-      style={[styles.tabButton, activeTab === 'database' && styles.activeTabButton]}
-      onPress={() => onTabChange('database')}
+      style={[
+        styles.tabButton,
+        activeTab === "database" && styles.activeTabButton,
+      ]}
+      onPress={() => onTabChange("database")}
     >
-      <Ionicons 
-        name="server-outline" 
-        size={20} 
-        color={activeTab === 'database' ? '#2c7be5' : '#95aac9'} 
-        style={styles.tabIcon} 
+      <Ionicons
+        name="server-outline"
+        size={20}
+        color={activeTab === "database" ? "#2c7be5" : "#95aac9"}
+        style={styles.tabIcon}
       />
-      <Text style={[styles.tabButtonText, activeTab === 'database' && styles.activeTabButtonText]}>
+      <Text
+        style={[
+          styles.tabButtonText,
+          activeTab === "database" && styles.activeTabButtonText,
+        ]}
+      >
         Database
+      </Text>
+    </TouchableOpacity>
+    <TouchableOpacity
+      style={[
+        styles.tabButton,
+        activeTab === "support" && styles.activeTabButton,
+      ]}
+      onPress={() => onTabChange("support")}
+    >
+      <Ionicons
+        name="help-buoy-outline"
+        size={20}
+        color={activeTab === "support" ? "#2c7be5" : "#95aac9"}
+        style={styles.tabIcon}
+      />
+      <Text
+        style={[
+          styles.tabButtonText,
+          activeTab === "support" && styles.activeTabButtonText,
+        ]}
+      >
+        Support
       </Text>
     </TouchableOpacity>
   </View>
@@ -349,14 +431,15 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
   isSaving,
   isDeletingApiKey,
   confirmApiKeyDeletion,
-  maskApiKey
+  maskApiKey,
 }) => (
   <View>
     <Text style={styles.sectionTitle}>Mistral API Key</Text>
     <Text style={styles.description}>
-      Enter your Mistral API key to enable OCR features. The key is stored securely on your device.
+      Enter your Mistral API key to enable OCR features. The key is stored
+      securely on your device.
     </Text>
-    
+
     {isEditing ? (
       <View>
         <TextInput
@@ -368,18 +451,14 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
           autoCapitalize="none"
         />
         <View style={styles.buttonContainer}>
-          <Button 
-            title={isSaving ? "Saving..." : "Save API Key"} 
-            onPress={handleSave} 
+          <Button
+            title={isSaving ? "Saving..." : "Save API Key"}
+            onPress={handleSave}
             disabled={isSaving}
             color="#2c7be5"
           />
           {savedApiKey && (
-            <Button 
-              title="Cancel" 
-              onPress={handleCancel} 
-              color="gray"
-            />
+            <Button title="Cancel" onPress={handleCancel} color="gray" />
           )}
         </View>
       </View>
@@ -389,21 +468,27 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
           <Text style={styles.savedKeyText}>{maskApiKey(savedApiKey)}</Text>
           <Button title="Edit" onPress={handleEdit} color="#2c7be5" />
         </View>
-        
+
         {savedApiKey && (
           <View style={styles.warningContainer}>
-            <Ionicons name="warning-outline" size={24} color="#e63757" style={styles.warningIcon} />
+            <Ionicons
+              name="warning-outline"
+              size={24}
+              color="#e63757"
+              style={styles.warningIcon}
+            />
             <Text style={styles.warningText}>
-              Deleting your API key will disable OCR features until a new key is provided.
+              Deleting your API key will disable OCR features until a new key is
+              provided.
             </Text>
           </View>
         )}
-        
+
         {savedApiKey && (
           <View style={styles.dangerButtonContainer}>
-            <Button 
-              title={isDeletingApiKey ? "Deleting..." : "Delete API Key"} 
-              onPress={confirmApiKeyDeletion} 
+            <Button
+              title={isDeletingApiKey ? "Deleting..." : "Delete API Key"}
+              onPress={confirmApiKeyDeletion}
               color="#e63757"
               disabled={isDeletingApiKey}
             />
@@ -421,27 +506,91 @@ type DatabaseSettingsProps = {
 
 const DatabaseSettings: React.FC<DatabaseSettingsProps> = ({
   isResetting,
-  confirmDatabaseReset
+  confirmDatabaseReset,
 }) => (
   <View>
     <Text style={styles.sectionTitle}>Database Management</Text>
     <Text style={styles.description}>
       Reset the database to remove all analyses. This action cannot be undone.
     </Text>
-    
+
     <View style={styles.warningContainer}>
-      <Ionicons name="warning-outline" size={24} color="#e63757" style={styles.warningIcon} />
+      <Ionicons
+        name="warning-outline"
+        size={24}
+        color="#e63757"
+        style={styles.warningIcon}
+      />
       <Text style={styles.warningText}>
-        Resetting the database will permanently delete all your analyses and reports.
+        Resetting the database will permanently delete all your analyses and
+        reports.
       </Text>
     </View>
-    
-    <Button 
-      title={isResetting ? "Resetting..." : "Reset Database"} 
-      onPress={confirmDatabaseReset} 
+
+    <Button
+      title={isResetting ? "Resetting..." : "Reset Database"}
+      onPress={confirmDatabaseReset}
       color="#e63757"
       disabled={isResetting}
     />
+  </View>
+);
+
+type SupportSettingsProps = {
+  onOptionPress: (option: string) => void;
+};
+
+const SupportSettings: React.FC<SupportSettingsProps> = ({ onOptionPress }) => (
+  <View>
+    <Text style={styles.sectionTitle}>Support</Text>
+    <Text style={styles.description}>
+      Get help, learn about our privacy policies, and find out more about the
+      app.
+    </Text>
+
+    <View style={styles.supportOptionsContainer}>
+      <TouchableOpacity
+        style={styles.supportOption}
+        onPress={() => onOptionPress("Help Center")}
+      >
+        <Ionicons
+          name="help-circle-outline"
+          size={24}
+          color="#2c7be5"
+          style={styles.supportOptionIcon}
+        />
+        <Text style={styles.supportOptionText}>Help Center</Text>
+        <Ionicons name="chevron-forward" size={20} color="#95aac9" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.supportOption}
+        onPress={() => onOptionPress("Privacy & Security")}
+      >
+        <Ionicons
+          name="shield-outline"
+          size={24}
+          color="#2c7be5"
+          style={styles.supportOptionIcon}
+        />
+        <Text style={styles.supportOptionText}>Privacy & Security</Text>
+        <Ionicons name="chevron-forward" size={20} color="#95aac9" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.supportOption}
+        onPress={() => onOptionPress("About")}
+      >
+        <Ionicons
+          name="information-circle-outline"
+          size={24}
+          color="#2c7be5"
+          style={styles.supportOptionIcon}
+        />
+        <Text style={styles.supportOptionText}>About</Text>
+        <Ionicons name="chevron-forward" size={20} color="#95aac9" />
+      </TouchableOpacity>
+    </View>
   </View>
 );
 
@@ -452,33 +601,33 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 20,
-    color: '#12263f',
+    color: "#12263f",
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 10,
-    color: '#12263f',
+    color: "#12263f",
   },
   description: {
     fontSize: 14,
     marginBottom: 20,
-    color: '#5a7184',
+    color: "#5a7184",
     lineHeight: 20,
   },
   tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f5f7fb',
+    flexDirection: "row",
+    backgroundColor: "#f5f7fb",
     borderRadius: 8,
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -487,15 +636,15 @@ const styles = StyleSheet.create({
   },
   tabButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 12,
     borderRadius: 6,
   },
   activeTabButton: {
-    backgroundColor: 'white',
-    shadowColor: '#000',
+    backgroundColor: "white",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -503,22 +652,22 @@ const styles = StyleSheet.create({
   },
   tabButtonText: {
     fontSize: 14,
-    color: '#95aac9',
-    fontWeight: '500',
+    color: "#95aac9",
+    fontWeight: "500",
   },
   activeTabButtonText: {
-    color: '#2c7be5',
-    fontWeight: 'bold',
+    color: "#2c7be5",
+    fontWeight: "bold",
   },
   tabIcon: {
     marginRight: 6,
   },
   contentContainer: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 8,
     padding: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -526,72 +675,72 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e3ebf6',
+    borderColor: "#e3ebf6",
     borderRadius: 4,
     padding: 12,
     fontSize: 16,
     marginBottom: 15,
   },
   buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 20,
   },
   savedKeyContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 20,
     paddingVertical: 10,
     paddingHorizontal: 15,
-    backgroundColor: '#f1f4f8',
+    backgroundColor: "#f1f4f8",
     borderRadius: 4,
   },
   savedKeyText: {
     fontSize: 16,
-    color: '#12263f',
-    fontFamily: 'monospace',
+    color: "#12263f",
+    fontFamily: "monospace",
   },
   warningContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(230, 55, 87, 0.1)',
+    flexDirection: "row",
+    backgroundColor: "rgba(230, 55, 87, 0.1)",
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    alignItems: 'flex-start',
+    alignItems: "flex-start",
   },
   warningIcon: {
     marginRight: 10,
   },
   warningText: {
     flex: 1,
-    color: '#e63757',
+    color: "#e63757",
     fontSize: 14,
     lineHeight: 20,
   },
   successContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(0, 217, 126, 0.1)',
+    flexDirection: "row",
+    backgroundColor: "rgba(0, 217, 126, 0.1)",
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   successText: {
-    color: '#00d97e',
+    color: "#00d97e",
     flex: 1,
     fontSize: 14,
   },
   infoContainer: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(44, 123, 229, 0.1)',
+    flexDirection: "row",
+    backgroundColor: "rgba(44, 123, 229, 0.1)",
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
-    alignItems: 'center',
+    alignItems: "center",
   },
   infoText: {
-    color: '#2c7be5',
+    color: "#2c7be5",
     flex: 1,
     fontSize: 14,
   },
@@ -604,15 +753,38 @@ const styles = StyleSheet.create({
   reloadButtonContainer: {
     marginTop: 25,
     padding: 15,
-    backgroundColor: 'rgba(44, 123, 229, 0.1)',
-    borderColor: '#2c7be5',
+    backgroundColor: "rgba(44, 123, 229, 0.1)",
+    borderColor: "#2c7be5",
     borderWidth: 1,
     borderRadius: 8,
   },
   reloadText: {
-    color: '#2c7be5',
+    color: "#2c7be5",
     fontSize: 14,
     marginBottom: 10,
-    textAlign: 'center',
+    textAlign: "center",
+  },
+  supportOptionsContainer: {
+    marginTop: 10,
+    backgroundColor: "#f9fbfd",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  supportOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 15,
+    backgroundColor: "white",
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f4f8",
+  },
+  supportOptionIcon: {
+    marginRight: 16,
+  },
+  supportOptionText: {
+    flex: 1,
+    fontSize: 16,
+    color: "#12263f",
   },
 });

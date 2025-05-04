@@ -2,6 +2,9 @@ export type HomeStackParamList = {
   HomeScreen: undefined;
   AnalysisDetails: { analysisId: string };
   SettingsScreen: undefined;
+  HelpCenterScreen: undefined;
+  PrivacySecurityScreen: undefined;
+  AboutScreen: undefined;
 };
 
 export type ChartStackParamList = {
@@ -23,4 +26,4 @@ export type RootStackParamList = {
   Home: undefined;
   UploadPdf: undefined;
   AnalysisDetails: { analysisId: string };
-}; 
+};
