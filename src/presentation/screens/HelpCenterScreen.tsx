@@ -41,7 +41,7 @@ export const HelpCenterScreen: React.FC = () => {
             color="#2c7be5"
             style={styles.emailIcon}
           />
-          <Text style={styles.emailText}>hemea@gmail.com</Text>
+          <Text style={styles.emailText}>contact.hemea@gmail.com</Text>
         </TouchableOpacity>
 
         <Text style={styles.responseText}>

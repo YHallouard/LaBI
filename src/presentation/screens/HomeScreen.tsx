@@ -96,7 +96,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const closeSwipeableItem = (itemId: string): void => {
     if (swipeableRefs.current[itemId]) {
-      swipeableRefs.current[itemId]?.close();
+      swipeableRefs.current[itemId].close();
     }
   };
 

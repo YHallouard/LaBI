@@ -1,0 +1,27 @@
+name: Deploy Héméa Privacy Policy
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'privacy-policy/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to privacy-policy branch
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: privacy-policy
+          branch: privacy-policy
+          clean: true
+          single-commit: true
