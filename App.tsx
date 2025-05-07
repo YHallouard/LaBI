@@ -1,5 +1,4 @@
-import "./cryptoPolyfill";
-import "./streamPolyfill";
+import "./src/infrastructure/polyfills";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
@@ -29,7 +28,10 @@ import {
 import { AnalyzePdfUseCase } from "./src/application/usecases/AnalyzePdfUseCase";
 import { SQLiteBiologicalAnalysisRepository } from "./src/adapters/repositories/SQLiteBiologicalAnalysisRepository";
 import { MistralOcrService } from "./src/adapters/services/MistralOcrService";
-import { initializeDatabase } from "./src/infrastructure/database/DatabaseInitializer";
+import {
+  initializeDatabase,
+  getDatabaseStorage,
+} from "./src/infrastructure/database/DatabaseInitializer";
 import { Ionicons } from "@expo/vector-icons";
 import { UpdateAnalysisUseCase } from "./src/application/usecases/UpdateAnalysisUseCase";
 import { DeleteAnalysisUseCase } from "./src/application/usecases/DeleteAnalysisUseCase";
@@ -40,6 +42,7 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
+  Platform,
 } from "react-native";
 import AnalysisDetailsScreen from "./src/presentation/screens/AnalysisDetailsScreen";
 import { SaveApiKeyUseCase } from "./src/application/usecases/SaveApiKeyUseCase";
@@ -58,6 +61,12 @@ import { PrivacySecurityScreen } from "./src/presentation/screens/PrivacySecurit
 import { AboutScreen } from "./src/presentation/screens/AboutScreen";
 import { Svg, Circle } from "react-native-svg";
 import { AppImage } from "./src/presentation/components/AppImage";
+import { PrivacyPolicyWebViewScreen } from "./src/presentation/screens/PrivacyPolicyWebViewScreen";
+import { ResetDatabaseUseCase } from "./src/application/usecases/ResetDatabaseUseCase";
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
 const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
@@ -107,6 +116,8 @@ export default function App() {
     useState<GetLabTestDataUseCase | null>(null);
   const [calculateStatisticsUseCase, setCalculateStatisticsUseCase] =
     useState<CalculateStatisticsUseCase | null>(null);
+  const [resetDatabaseUseCase, setResetDatabaseUseCase] =
+    useState<ResetDatabaseUseCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
@@ -272,6 +283,9 @@ export default function App() {
     const newLoadApiKeyUseCase = new LoadApiKeyUseCase();
     const newDeleteApiKeyUseCase = new DeleteApiKeyUseCase();
     const newCalculateStatisticsUseCase = new CalculateStatisticsUseCase();
+    const newResetDatabaseUseCase = new ResetDatabaseUseCase(
+      getDatabaseStorage()
+    );
 
     setGetAnalysesUseCase(newGetAnalysesUseCase);
     setGetAnalysisByIdUseCase(newGetAnalysisByIdUseCase);
@@ -282,6 +296,7 @@ export default function App() {
     setLoadApiKeyUseCase(newLoadApiKeyUseCase);
     setDeleteApiKeyUseCase(newDeleteApiKeyUseCase);
     setCalculateStatisticsUseCase(newCalculateStatisticsUseCase);
+    setResetDatabaseUseCase(newResetDatabaseUseCase);
 
     return newLoadApiKeyUseCase;
   };
@@ -379,7 +394,8 @@ export default function App() {
             if (
               !saveApiKeyUseCase ||
               !loadApiKeyUseCase ||
-              !deleteApiKeyUseCase
+              !deleteApiKeyUseCase ||
+              !resetDatabaseUseCase
             ) {
               return (
                 <ErrorView errorMessage="Application is not properly initialized" />
@@ -391,6 +407,7 @@ export default function App() {
                 saveApiKeyUseCase={saveApiKeyUseCase}
                 loadApiKeyUseCase={loadApiKeyUseCase}
                 deleteApiKeyUseCase={deleteApiKeyUseCase}
+                resetDatabaseUseCase={resetDatabaseUseCase}
                 onApiKeyDeleted={handleApiKeyDeleted}
                 onApiKeySaved={handleApiKeySaved}
                 onManualReload={handleManualReload}
@@ -425,6 +442,15 @@ export default function App() {
           }}
           component={AboutScreen}
         />
+        <HomeStackNavigator.Screen
+          name="PrivacyPolicyWebView"
+          options={{
+            headerTitle: "Privacy Policy",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+          component={PrivacyPolicyWebViewScreen}
+        />
       </HomeStackNavigator.Navigator>
     );
     HomeStackComponent.displayName = "HomeStackComponent";
@@ -437,6 +463,7 @@ export default function App() {
     saveApiKeyUseCase,
     loadApiKeyUseCase,
     deleteApiKeyUseCase,
+    resetDatabaseUseCase,
   ]);
 
   const ChartStack = React.useMemo(() => {
@@ -622,9 +649,33 @@ const MainNavigationContainer = ({
   homeStack,
   uploadStack,
   chartStack,
-}: MainNavigationContainerProps) => (
-  <NavigationContainer>
-    <Tab.Navigator screenOptions={configureTabScreenOptions}>
+}: MainNavigationContainerProps) => {
+  return (
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <TabNavigator
+          homeStack={homeStack}
+          uploadStack={uploadStack}
+          chartStack={chartStack}
+        />
+      </NavigationContainer>
+    </SafeAreaProvider>
+  );
+};
+
+const TabNavigator = ({
+  homeStack,
+  uploadStack,
+  chartStack,
+}: MainNavigationContainerProps) => {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) =>
+        configureTabScreenOptions({ route, insets })
+      }
+    >
       <Tab.Screen name="Home" component={homeStack} />
       <Tab.Screen
         name="Upload"
@@ -634,24 +685,30 @@ const MainNavigationContainer = ({
           tabBarIcon: ({ color }: { color: string }) => (
             <Ionicons name="add-circle-outline" size={30} color={color} />
           ),
-          tabBarButton: createUploadTabButton,
+          tabBarButton: (props) => createUploadTabButton(props, insets),
         }}
       />
       <Tab.Screen name="Charts" component={chartStack} />
     </Tab.Navigator>
-  </NavigationContainer>
-);
+  );
+};
 
 const configureTabScreenOptions = ({
   route,
+  insets,
 }: {
   route: Route<keyof RootTabParamList>;
+  insets: { bottom: number; top: number; left: number; right: number };
 }): BottomTabNavigationOptions => ({
   tabBarActiveTintColor: "#2c7be5",
   tabBarInactiveTintColor: "gray",
   headerShown: false,
   tabBarShowLabel: true,
-  tabBarStyle: styles.tabBar,
+  tabBarStyle: {
+    ...styles.tabBar,
+    height: Platform.OS === "android" ? 65 + insets.bottom : 65,
+    paddingBottom: Platform.OS === "android" ? 5 + insets.bottom : 5,
+  },
   tabBarIcon: ({
     focused,
     color,
@@ -684,11 +741,22 @@ const createTabBarIcon = (
   return <Ionicons name={iconName} size={size} color={color} />;
 };
 
-const createUploadTabButton = (props: BottomTabBarButtonProps) => (
+const createUploadTabButton = (
+  props: BottomTabBarButtonProps,
+  insets: { bottom: number; top: number; left: number; right: number }
+) => (
   <TouchableOpacity
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     {...(props as any)}
-    style={styles.uploadTabButton}
+    style={[
+      styles.uploadTabButton,
+      Platform.OS === "android" && insets.bottom > 0
+        ? {
+            position: "absolute",
+            top: -20,
+          }
+        : null,
+    ]}
     activeOpacity={0.8}
   >
     <View style={styles.uploadTabButtonInner}>

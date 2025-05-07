@@ -4,6 +4,7 @@ export type HomeStackParamList = {
   SettingsScreen: undefined;
   HelpCenterScreen: undefined;
   PrivacySecurityScreen: undefined;
+  PrivacyPolicyWebView: undefined;
   AboutScreen: undefined;
 };
 

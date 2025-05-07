@@ -1,9 +1,21 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { HomeStackParamList } from "../../types/navigation";
 
-export const PrivacySecurityScreen: React.FC = () => {
+type PrivacySecurityScreenProps = {
+  navigation: StackNavigationProp<HomeStackParamList, "PrivacySecurityScreen">;
+};
+
+export const PrivacySecurityScreen: React.FC<PrivacySecurityScreenProps> = ({
+  navigation,
+}) => {
+  const openPrivacyPolicy = () => {
+    navigation.navigate("PrivacyPolicyWebView");
+  };
+
   return (
     <ScreenLayout scrollable={true}>
       <View style={styles.container}>
@@ -66,6 +78,19 @@ export const PrivacySecurityScreen: React.FC = () => {
             your health data private and secure.
           </Text>
         </View>
+
+        <TouchableOpacity
+          style={styles.privacyButton}
+          onPress={openPrivacyPolicy}
+        >
+          <Ionicons
+            name="document-text"
+            size={20}
+            color="#fff"
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.buttonText}>View Privacy Policy</Text>
+        </TouchableOpacity>
       </View>
     </ScreenLayout>
   );
@@ -124,5 +149,24 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 22,
     fontWeight: "500",
+  },
+  privacyButton: {
+    backgroundColor: "#2c7be5",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginVertical: 15,
+    width: "100%",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
 });

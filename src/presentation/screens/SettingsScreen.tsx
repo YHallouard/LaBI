@@ -16,7 +16,7 @@ import { HomeStackParamList } from "../../types/navigation";
 import { SaveApiKeyUseCase } from "../../application/usecases/SaveApiKeyUseCase";
 import { LoadApiKeyUseCase } from "../../application/usecases/LoadApiKeyUseCase";
 import { DeleteApiKeyUseCase } from "../../application/usecases/DeleteApiKeyUseCase";
-import * as FileSystem from "expo-file-system";
+import { ResetDatabaseUseCase } from "../../application/usecases/ResetDatabaseUseCase";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../components/ScreenLayout";
 
@@ -26,6 +26,7 @@ type SettingsScreenProps = {
   saveApiKeyUseCase: SaveApiKeyUseCase;
   loadApiKeyUseCase: LoadApiKeyUseCase;
   deleteApiKeyUseCase: DeleteApiKeyUseCase;
+  resetDatabaseUseCase: ResetDatabaseUseCase;
   onApiKeyDeleted: () => void;
 
   onApiKeySaved: (apiKey: string) => Promise<void>;
@@ -39,6 +40,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   saveApiKeyUseCase,
   loadApiKeyUseCase,
   deleteApiKeyUseCase,
+  resetDatabaseUseCase,
   onApiKeyDeleted,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onApiKeySaved,
@@ -154,48 +156,15 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const resetDatabase = async () => {
     setIsResetting(true);
     try {
-      const result = await attemptDatabaseReset();
-      displayDatabaseResetResult(result);
+      await resetDatabaseUseCase.execute();
+      setSuccessMessage("Database reset completed.");
+      setTimeout(() => setSuccessMessage(null), 3000);
+      triggerReload("Database reseted, reloading app...");
+      /* eslint-disable @typescript-eslint/no-unused-vars */
     } catch (error) {
-      Alert.alert("Error", "Failed to reset database: " + error);
+      Alert.alert("Error", "Failed to reset database. Please try again.");
     } finally {
       setIsResetting(false);
-    }
-  };
-
-  const attemptDatabaseReset = async (): Promise<
-    "reset" | "no_file" | "no_dir"
-  > => {
-    const dbName = "biological_analyses.db";
-    const dbDirectory = `${FileSystem.documentDirectory}SQLite`;
-    const dbPath = `${dbDirectory}/${dbName}`;
-
-    const dirInfo = await FileSystem.getInfoAsync(dbDirectory);
-    if (!dirInfo.exists) {
-      return "no_dir";
-    }
-
-    const fileInfo = await FileSystem.getInfoAsync(dbPath);
-    if (!fileInfo.exists) {
-      return "no_file";
-    }
-
-    await FileSystem.deleteAsync(dbPath);
-    return "reset";
-  };
-
-  const displayDatabaseResetResult = (
-    result: "reset" | "no_file" | "no_dir"
-  ) => {
-    if (result === "reset") {
-      setSuccessMessage("Database reset completed. Please restart the app.");
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } else if (result === "no_file") {
-      setInfoMessage("Database file does not exist.");
-      setTimeout(() => setInfoMessage(null), 3000);
-    } else {
-      setInfoMessage("SQLite directory does not exist. No database to reset.");
-      setTimeout(() => setInfoMessage(null), 3000);
     }
   };
 

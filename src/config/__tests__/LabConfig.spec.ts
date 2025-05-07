@@ -9,7 +9,7 @@ describe("LabConfig", () => {
     it("should contain the correct number of lab value keys", () => {
       // Given/When - importing the keys
       // Then
-      expect(LAB_VALUE_KEYS.length).toBe(16);
+      expect(LAB_VALUE_KEYS.length).toBe(26);
     });
 
     it("should contain all expected lab value keys", () => {
@@ -31,6 +31,16 @@ describe("LabConfig", () => {
         "Proteine C Reactive",
         "Vitamine B9",
         "Vitamine B12",
+        "Glycémie",
+        "Hémoglobine Glyquée",
+        "Cholesterol HDL",
+        "Cholesterol LDL",
+        "Triglycérides",
+        "Transaminases TGO",
+        "Transaminases TGP",
+        "Gamma GT",
+        "Score de fibrose hépatique",
+        "TSH",
       ];
 
       // When/Then
@@ -44,7 +54,7 @@ describe("LabConfig", () => {
       const unitKeys = Object.keys(LAB_VALUE_UNITS);
 
       // Then
-      expect(unitKeys.length).toBe(16);
+      expect(unitKeys.length).toBe(26);
     });
 
     it("should contain units for all lab values", () => {
@@ -75,6 +85,16 @@ describe("LabConfig", () => {
       expect(LAB_VALUE_UNITS["Proteine C Reactive"]).toBe("mg/L");
       expect(LAB_VALUE_UNITS["Vitamine B9"]).toBe("ng/mL");
       expect(LAB_VALUE_UNITS["Vitamine B12"]).toBe("pg/mL");
+      expect(LAB_VALUE_UNITS["Glycémie"]).toBe("g/l");
+      expect(LAB_VALUE_UNITS["Hémoglobine Glyquée"]).toBe("%");
+      expect(LAB_VALUE_UNITS["Cholesterol HDL"]).toBe("g/l");
+      expect(LAB_VALUE_UNITS["Cholesterol LDL"]).toBe("g/l");
+      expect(LAB_VALUE_UNITS["Triglycérides"]).toBe("g/l");
+      expect(LAB_VALUE_UNITS["Transaminases TGO"]).toBe("U/L");
+      expect(LAB_VALUE_UNITS["Transaminases TGP"]).toBe("U/L");
+      expect(LAB_VALUE_UNITS["Gamma GT"]).toBe("U/L");
+      expect(LAB_VALUE_UNITS["Score de fibrose hépatique"]).toBe("%");
+      expect(LAB_VALUE_UNITS["TSH"]).toBe("mUI/L");
     });
   });
 
@@ -84,7 +104,7 @@ describe("LabConfig", () => {
       const rangeKeys = Object.keys(LAB_VALUE_REFERENCE_RANGES);
 
       // Then
-      expect(rangeKeys.length).toBe(16);
+      expect(rangeKeys.length).toBe(26);
     });
 
     it("should contain reference ranges for all lab values", () => {
@@ -172,6 +192,46 @@ describe("LabConfig", () => {
       expect(LAB_VALUE_REFERENCE_RANGES["Vitamine B12"]).toEqual({
         min: 197.0,
         max: 771.0,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Glycémie"]).toEqual({
+        min: 0.74,
+        max: 1.06,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Hémoglobine Glyquée"]).toEqual({
+        min: 4.0,
+        max: 6.0,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Cholesterol HDL"]).toEqual({
+        min: 0.4,
+        max: 10.0,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Cholesterol LDL"]).toEqual({
+        min: 0.0,
+        max: 1.6,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Triglycérides"]).toEqual({
+        min: 0.0,
+        max: 1.5,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Transaminases TGO"]).toEqual({
+        min: 0.0,
+        max: 40.0,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Transaminases TGP"]).toEqual({
+        min: 0.0,
+        max: 40.0,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Gamma GT"]).toEqual({
+        min: 0.0,
+        max: 38.0,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Score de fibrose hépatique"]).toEqual({
+        min: 0.0,
+        max: 2.67,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["TSH"]).toEqual({
+        min: 0.55,
+        max: 4.78,
       });
     });
   });

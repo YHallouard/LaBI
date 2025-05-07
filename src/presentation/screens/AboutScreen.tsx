@@ -79,7 +79,7 @@ export const AboutScreen: React.FC = () => {
             </Text>
           </View>
 
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>Version 1.0.2</Text>
         </View>
       </ScrollView>
     </ScreenLayout>
