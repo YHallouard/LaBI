@@ -8,10 +8,22 @@ import {
 } from "react-native";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
+import { StackNavigationProp } from "@react-navigation/stack";
+import { HomeStackParamList } from "../../types/navigation";
 
-export const HelpCenterScreen: React.FC = () => {
+type HelpCenterScreenProps = {
+  navigation: StackNavigationProp<HomeStackParamList, "HelpCenterScreen">;
+};
+
+export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({
+  navigation,
+}) => {
   const handleEmailPress = () => {
     Linking.openURL("mailto:hemea@gmail.com");
+  };
+
+  const openMistralApiKeyTutorial = () => {
+    navigation.navigate("MistralApiKeyTutorial");
   };
 
   return (
@@ -30,6 +42,19 @@ export const HelpCenterScreen: React.FC = () => {
           If you have any questions or issues with the app, please feel free to
           contact our support team.
         </Text>
+
+        <TouchableOpacity
+          style={styles.tutorialButton}
+          onPress={openMistralApiKeyTutorial}
+        >
+          <Ionicons
+            name="key-outline"
+            size={24}
+            color="#fff"
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.buttonText}>Mistral API Key Tutorial</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.emailContainer}
@@ -75,6 +100,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 30,
     lineHeight: 22,
+  },
+  tutorialButton: {
+    backgroundColor: "#2c7be5",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginBottom: 30,
+    width: "100%",
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   emailContainer: {
     flexDirection: "row",

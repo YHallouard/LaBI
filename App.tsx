@@ -62,6 +62,7 @@ import { AboutScreen } from "./src/presentation/screens/AboutScreen";
 import { Svg, Circle } from "react-native-svg";
 import { AppImage } from "./src/presentation/components/AppImage";
 import { PrivacyPolicyWebViewScreen } from "./src/presentation/screens/PrivacyPolicyWebViewScreen";
+import { MistralApiKeyTutorialScreen } from "./src/presentation/screens/MistralApiKeyTutorialScreen";
 import { ResetDatabaseUseCase } from "./src/application/usecases/ResetDatabaseUseCase";
 import {
   SafeAreaProvider,
@@ -450,6 +451,15 @@ export default function App() {
             headerLeftContainerStyle: { paddingLeft: 10 },
           }}
           component={PrivacyPolicyWebViewScreen}
+        />
+        <HomeStackNavigator.Screen
+          name="MistralApiKeyTutorial"
+          options={{
+            headerTitle: "API Key Tutorial",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+          component={MistralApiKeyTutorialScreen}
         />
       </HomeStackNavigator.Navigator>
     );

@@ -5,6 +5,7 @@ export type HomeStackParamList = {
   HelpCenterScreen: undefined;
   PrivacySecurityScreen: undefined;
   PrivacyPolicyWebView: undefined;
+  MistralApiKeyTutorial: undefined;
   AboutScreen: undefined;
 };
 

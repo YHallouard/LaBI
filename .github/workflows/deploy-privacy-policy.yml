@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'privacy-policy/**'
+      - 'doc/**'
   workflow_dispatch:
 
 permissions:
@@ -18,10 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to privacy-policy branch
+      - name: Deploy to docs branch
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: privacy-policy
-          branch: privacy-policy
+          folder: docs
+          branch: docs
           clean: true
           single-commit: true
