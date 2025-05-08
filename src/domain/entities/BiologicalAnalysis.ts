@@ -1,5 +1,5 @@
 export interface LabValue {
-  value: number;
+  value: number | null;
   unit: string;
 }
 

@@ -793,7 +793,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
 
   // Prepare chart data for FlatList
   const chartData = useMemo<ChartData[]>(() => {
-    return LAB_VALUE_KEYS.map((labKey) => {
+    const result = LAB_VALUE_KEYS.map((labKey) => {
       const allData = getLabTestData(labKey);
       const filteredData = getFilteredDataByTimeRange(allData);
       const unit = LAB_VALUE_UNITS[labKey] || "";
@@ -809,6 +809,8 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         refRange,
       };
     }).filter((item) => item.filteredData.length >= 2);
+
+    return result;
   }, [analyses, selectedTimeRange, getLabTestData, getFilteredDataByTimeRange]);
 
   const renderChartItem = useCallback(
@@ -864,11 +866,27 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     );
   }
 
-  // Calculate rotation interpolation for the main button
-  const rotate = animations.rotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "45deg"],
-  });
+  const timeRangeFloatingMenu = (
+    <TimeRangeFloatingMenu
+      isOpen={isTimeRangeMenuOpen}
+      selectedTimeRange={selectedTimeRange}
+      animations={animations}
+      onSelectTimeRange={selectTimeRange}
+      onToggleMenu={toggleTimeRangeMenu}
+    />
+  );
+
+  if (chartData.length === 0) {
+    return (
+      <>
+        <ScreenLayout>
+          <NoDataEmptyState selectedTimeRange={selectedTimeRange} />
+        </ScreenLayout>
+
+        {timeRangeFloatingMenu}
+      </>
+    );
+  }
 
   return (
     <>
@@ -895,217 +913,168 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         />
       </ScreenLayout>
 
-      {/* Floating Action Button and Time Range Menu - outside ScreenLayout */}
-      <View style={styles.fabContainer}>
-        {/* Menu Items */}
-        {/* 1 year button - closest to main button */}
-        <Animated.View
-          style={[
-            styles.fabMenuItem,
-            {
-              transform: [
-                {
-                  translateX: animations.menuItem4.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 0],
-                  }),
-                },
-                {
-                  translateY: animations.menuItem4.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -60],
-                  }),
-                },
-                {
-                  scale: animations.menuItem4.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.5, 1],
-                  }),
-                },
-              ],
-              opacity: animations.menuItem4.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 1],
-              }),
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.fabMenuButton,
-              selectedTimeRange === "1y" && styles.fabMenuButtonActive,
-            ]}
-            onPress={() => selectTimeRange("1y")}
-          >
-            <Text
-              style={[
-                styles.fabMenuButtonText,
-                selectedTimeRange === "1y" && styles.fabMenuButtonTextActive,
-              ]}
-            >
-              1y
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* 3 years button - second position */}
-        <Animated.View
-          style={[
-            styles.fabMenuItem,
-            {
-              transform: [
-                {
-                  translateX: animations.menuItem3.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 0],
-                  }),
-                },
-                {
-                  translateY: animations.menuItem3.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -120],
-                  }),
-                },
-                {
-                  scale: animations.menuItem3.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.5, 1],
-                  }),
-                },
-              ],
-              opacity: animations.menuItem3.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 1],
-              }),
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.fabMenuButton,
-              selectedTimeRange === "3y" && styles.fabMenuButtonActive,
-            ]}
-            onPress={() => selectTimeRange("3y")}
-          >
-            <Text
-              style={[
-                styles.fabMenuButtonText,
-                selectedTimeRange === "3y" && styles.fabMenuButtonTextActive,
-              ]}
-            >
-              3y
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* 5 years button - third position */}
-        <Animated.View
-          style={[
-            styles.fabMenuItem,
-            {
-              transform: [
-                {
-                  translateX: animations.menuItem2.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 0],
-                  }),
-                },
-                {
-                  translateY: animations.menuItem2.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -180],
-                  }),
-                },
-                {
-                  scale: animations.menuItem2.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.5, 1],
-                  }),
-                },
-              ],
-              opacity: animations.menuItem2.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 1],
-              }),
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.fabMenuButton,
-              selectedTimeRange === "5y" && styles.fabMenuButtonActive,
-            ]}
-            onPress={() => selectTimeRange("5y")}
-          >
-            <Text
-              style={[
-                styles.fabMenuButtonText,
-                selectedTimeRange === "5y" && styles.fabMenuButtonTextActive,
-              ]}
-            >
-              5y
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Max button - furthest up */}
-        <Animated.View
-          style={[
-            styles.fabMenuItem,
-            {
-              transform: [
-                {
-                  translateX: animations.menuItem1.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 0],
-                  }),
-                },
-                {
-                  translateY: animations.menuItem1.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, -240],
-                  }),
-                },
-                {
-                  scale: animations.menuItem1.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.5, 1],
-                  }),
-                },
-              ],
-              opacity: animations.menuItem1.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 1],
-              }),
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.fabMenuButton,
-              selectedTimeRange === "Max" && styles.fabMenuButtonActive,
-            ]}
-            onPress={() => selectTimeRange("Max")}
-          >
-            <Text
-              style={[
-                styles.fabMenuButtonText,
-                selectedTimeRange === "Max" && styles.fabMenuButtonTextActive,
-              ]}
-            >
-              Max
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-
-        {/* Main FAB button */}
-        <TouchableOpacity style={styles.fab} onPress={toggleTimeRangeMenu}>
-          <Animated.View style={{ transform: [{ rotate }] }}>
-            <Ionicons name="time-outline" size={24} color="white" />
-          </Animated.View>
-        </TouchableOpacity>
-      </View>
+      {timeRangeFloatingMenu}
     </>
+  );
+};
+
+type NoDataEmptyStateProps = {
+  selectedTimeRange: TimeRangeOption;
+};
+
+const NoDataEmptyState: React.FC<NoDataEmptyStateProps> = ({
+  selectedTimeRange,
+}) => (
+  <View style={styles.emptyStateContainer}>
+    <View style={styles.emptyStateContent}>
+      <View style={styles.emptyStateIconContainer}>
+        <Ionicons name="time-outline" size={60} color="#ffffff" />
+      </View>
+      <Text style={styles.emptyStateTitle}>No Data Available</Text>
+      <Text style={styles.emptyStateDescription}>
+        There are no charts to display for the selected time period.
+      </Text>
+      <View style={styles.timeRangeInfo}>
+        <Text style={styles.currentTimeRangeLabel}>
+          Current time range:{" "}
+          <Text style={styles.currentTimeRangeValue}>{selectedTimeRange}</Text>
+        </Text>
+      </View>
+      <View style={styles.emptyStateActionContainer}>
+        <Text style={styles.emptyStateActionLabel}>
+          Try selecting a different time range.
+        </Text>
+      </View>
+    </View>
+  </View>
+);
+
+type TimeRangeButtonProps = {
+  label: string;
+  isActive: boolean;
+  onPress: () => void;
+  animation: Animated.Value;
+  yOffset: number;
+};
+
+const TimeRangeButton: React.FC<TimeRangeButtonProps> = ({
+  label,
+  isActive,
+  onPress,
+  animation,
+  yOffset,
+}) => (
+  <Animated.View
+    style={[
+      styles.fabMenuItem,
+      {
+        transform: [
+          {
+            translateX: animation.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0],
+            }),
+          },
+          {
+            translateY: animation.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, yOffset],
+            }),
+          },
+          {
+            scale: animation.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.5, 1],
+            }),
+          },
+        ],
+        opacity: animation.interpolate({
+          inputRange: [0, 1],
+          outputRange: [0, 1],
+        }),
+      },
+    ]}
+  >
+    <TouchableOpacity
+      style={[styles.fabMenuButton, isActive && styles.fabMenuButtonActive]}
+      onPress={onPress}
+    >
+      <Text
+        style={[
+          styles.fabMenuButtonText,
+          isActive && styles.fabMenuButtonTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  </Animated.View>
+);
+
+type TimeRangeFloatingMenuProps = {
+  selectedTimeRange: TimeRangeOption;
+  animations: {
+    rotation: Animated.Value;
+    menuItem1: Animated.Value;
+    menuItem2: Animated.Value;
+    menuItem3: Animated.Value;
+    menuItem4: Animated.Value;
+  };
+  onSelectTimeRange: (range: TimeRangeOption) => void;
+  onToggleMenu: () => void;
+};
+
+const TimeRangeFloatingMenu: React.FC<TimeRangeFloatingMenuProps> = ({
+  selectedTimeRange,
+  animations,
+  onSelectTimeRange,
+  onToggleMenu,
+}) => {
+  const rotate = animations.rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "45deg"],
+  });
+
+  return (
+    <View style={styles.fabContainer}>
+      <TimeRangeButton
+        label="1y"
+        isActive={selectedTimeRange === "1y"}
+        onPress={() => onSelectTimeRange("1y")}
+        animation={animations.menuItem4}
+        yOffset={-60}
+      />
+
+      <TimeRangeButton
+        label="3y"
+        isActive={selectedTimeRange === "3y"}
+        onPress={() => onSelectTimeRange("3y")}
+        animation={animations.menuItem3}
+        yOffset={-120}
+      />
+
+      <TimeRangeButton
+        label="5y"
+        isActive={selectedTimeRange === "5y"}
+        onPress={() => onSelectTimeRange("5y")}
+        animation={animations.menuItem2}
+        yOffset={-180}
+      />
+
+      <TimeRangeButton
+        label="Max"
+        isActive={selectedTimeRange === "Max"}
+        onPress={() => onSelectTimeRange("Max")}
+        animation={animations.menuItem1}
+        yOffset={-240}
+      />
+
+      <TouchableOpacity style={styles.fab} onPress={onToggleMenu}>
+        <Animated.View style={{ transform: [{ rotate }] }}>
+          <Ionicons name="time-outline" size={24} color="white" />
+        </Animated.View>
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -1300,5 +1269,55 @@ const styles = StyleSheet.create({
   },
   fabMenuButtonTextActive: {
     color: "white",
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyStateContent: {
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 20,
+    alignItems: "center",
+  },
+  emptyStateIconContainer: {
+    backgroundColor: "#2c7be5",
+    borderRadius: 28,
+    padding: 12,
+    marginBottom: 16,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#12263f",
+    marginBottom: 8,
+  },
+  emptyStateDescription: {
+    fontSize: 16,
+    color: "#95aac9",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  timeRangeInfo: {
+    marginBottom: 20,
+  },
+  currentTimeRangeLabel: {
+    fontSize: 14,
+    color: "#12263f",
+  },
+  currentTimeRangeValue: {
+    fontWeight: "bold",
+    color: "#2c7be5",
+  },
+  emptyStateActionContainer: {
+    alignItems: "center",
+    width: "100%",
+  },
+  emptyStateActionLabel: {
+    fontSize: 14,
+    color: "#95aac9",
+    marginBottom: 12,
   },
 });
