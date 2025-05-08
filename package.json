@@ -1,6 +1,6 @@
 {
   "name": "hemea",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
@@ -16,7 +16,9 @@
     "test:coverage": "jest --collect-coverage",
     "mutation": "npx stryker run",
     "mutation:file": "npx stryker run --mutate",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "sync-version": "node scripts/sync-version.js",
+    "prebuild": "npm run sync-version"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

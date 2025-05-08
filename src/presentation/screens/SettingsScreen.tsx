@@ -19,6 +19,7 @@ import { DeleteApiKeyUseCase } from "../../application/usecases/DeleteApiKeyUseC
 import { ResetDatabaseUseCase } from "../../application/usecases/ResetDatabaseUseCase";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../components/ScreenLayout";
+import { APP_VERSION } from "../../utils/appVersion";
 
 // Define Props for the screen, including the use cases
 type SettingsScreenProps = {
@@ -284,6 +285,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
               isDeletingApiKey={isDeletingApiKey}
               confirmApiKeyDeletion={confirmApiKeyDeletion}
               maskApiKey={maskApiKey}
+              navigation={navigation}
             />
           ) : activeTab === "database" ? (
             <DatabaseSettings
@@ -294,6 +296,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <SupportSettings onOptionPress={handleSupportOptionPress} />
           )}
         </View>
+
+        <Text style={styles.versionText}>Version {APP_VERSION}</Text>
       </View>
     </ScreenLayout>
   );
@@ -387,6 +391,7 @@ type ApiKeySettingsProps = {
   isDeletingApiKey: boolean;
   confirmApiKeyDeletion: () => void;
   maskApiKey: (key: string) => string;
+  navigation: StackNavigationProp<HomeStackParamList, "SettingsScreen">;
 };
 
 const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
@@ -401,6 +406,7 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
   isDeletingApiKey,
   confirmApiKeyDeletion,
   maskApiKey,
+  navigation,
 }) => (
   <View>
     <Text style={styles.sectionTitle}>Mistral API Key</Text>
@@ -430,6 +436,21 @@ const ApiKeySettings: React.FC<ApiKeySettingsProps> = ({
             <Button title="Cancel" onPress={handleCancel} color="gray" />
           )}
         </View>
+
+        <TouchableOpacity
+          style={styles.tutorialLink}
+          onPress={() => navigation.navigate("MistralApiKeyTutorial")}
+        >
+          <Ionicons
+            name="help-circle-outline"
+            size={18}
+            color="#2c7be5"
+            style={styles.tutorialIcon}
+          />
+          <Text style={styles.tutorialText}>
+            Need help? View Mistral API Key tutorial
+          </Text>
+        </TouchableOpacity>
       </View>
     ) : (
       <View>
@@ -755,5 +776,26 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: "#12263f",
+  },
+  tutorialLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    backgroundColor: "rgba(44, 123, 229, 0.1)",
+    borderRadius: 4,
+    marginTop: 15,
+  },
+  tutorialIcon: {
+    marginRight: 10,
+  },
+  tutorialText: {
+    color: "#2c7be5",
+    fontSize: 14,
+  },
+  versionText: {
+    color: "#5a7184",
+    fontSize: 12,
+    marginTop: 20,
+    textAlign: "center",
   },
 });

@@ -44,19 +44,6 @@ export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({
         </Text>
 
         <TouchableOpacity
-          style={styles.tutorialButton}
-          onPress={openMistralApiKeyTutorial}
-        >
-          <Ionicons
-            name="key-outline"
-            size={24}
-            color="#fff"
-            style={styles.buttonIcon}
-          />
-          <Text style={styles.buttonText}>Mistral API Key Tutorial</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
           style={styles.emailContainer}
           onPress={handleEmailPress}
         >
@@ -72,6 +59,21 @@ export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({
         <Text style={styles.responseText}>
           We&apos;ll get back to you as soon as possible.
         </Text>
+
+        <Text style={styles.title}>Tutorials</Text>
+
+        <TouchableOpacity
+          style={styles.tutorialButton}
+          onPress={openMistralApiKeyTutorial}
+        >
+          <Ionicons
+            name="key-outline"
+            size={24}
+            color="#fff"
+            style={styles.buttonIcon}
+          />
+          <Text style={styles.buttonText}>Mistral API Key Tutorial</Text>
+        </TouchableOpacity>
       </View>
     </ScreenLayout>
   );
@@ -140,5 +142,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#95aac9",
     textAlign: "center",
+    marginBottom: 20,
   },
 });

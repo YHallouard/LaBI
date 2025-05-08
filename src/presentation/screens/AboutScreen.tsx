@@ -10,6 +10,7 @@ import {
 import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { AppImage } from "../components/AppImage";
+import { APP_VERSION } from "../../utils/appVersion";
 
 export const AboutScreen: React.FC = () => {
   const handleLinkedInPress = () => {
@@ -79,7 +80,7 @@ export const AboutScreen: React.FC = () => {
             </Text>
           </View>
 
-          <Text style={styles.versionText}>Version 1.0.2</Text>
+          <Text style={styles.versionText}>Version {APP_VERSION}</Text>
         </View>
       </ScrollView>
     </ScreenLayout>
