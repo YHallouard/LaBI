@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutoriel : Créer une clé API Mistral - Héméa</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c7be5;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #2c7be5;
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
+        p, ul, ol {
+            margin-bottom: 15px;
+        }
+        ol {
+            padding-left: 20px;
+        }
+        .step {
+            margin-bottom: 40px;
+            border: 1px solid #eee;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background-color: #2c7be5;
+            color: white;
+            text-align: center;
+            line-height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .step-title {
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #2c7be5;
+            margin-bottom: 15px;
+        }
+        .screenshot {
+            max-width: 100%;
+            height: auto;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .important-note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .lang-selector {
+            text-align: right;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+        .lang-selector a {
+            display: inline-block;
+            padding: 5px 10px;
+            color: #666;
+            text-decoration: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+        .lang-selector a.active {
+            background-color: #2c7be5;
+            color: white;
+            border-color: #2c7be5;
+        }
+        .lang-selector a:hover:not(.active) {
+            background-color: #f5f5f5;
+        }
+        .lang-content {
+            display: none;
+        }
+        .lang-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="lang-selector">
+        <a href="#" class="lang-btn active" data-lang="fr">Fra</a>
+        <a href="#" class="lang-btn" data-lang="en">Eng</a>
+    </div>
+
+    <div id="content-fr" class="lang-content active">
+        <h1>Tutoriel : Créer une clé API Mistral</h1>
+        
+        <p>Ce tutoriel vous guidera pas à pas pour créer une clé API Mistral nécessaire au fonctionnement d'Héméa.</p>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">1</span> Se connecter à Mistral AI</div>
+            <p>Rendez-vous sur la page de connexion de Mistral AI :</p>
+            <p><a href="https://auth.mistral.ai/ui/login" target="_blank">https://auth.mistral.ai/ui/login</a></p>
+            <p>Connectez-vous à votre compte ou créez-en un si ce n'est pas déjà fait.</p>
+            <img src="./assets/mistral-login.png" alt="Page de connexion Mistral AI" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">2</span> Accéder à la section API et choisir un plan</div>
+            <p>Une fois connecté, accédez à la section API et choisissez votre plan :</p>
+            <img src="./assets/create-key.png" alt="Choix du plan Mistral AI" class="screenshot">
+            <ul>
+                <li><strong>Free</strong> : Plan gratuit avec des limitations</li>
+                <li><strong>Pay as you go</strong> : Paiement à l'usage</li>
+            </ul>
+            <p>Nous recommandons le plan <strong>Pay as you go</strong> car dans le plan gratuit, Mistral peut utiliser vos données. Une analyse de rapport de laboratoire coûte environ 2 centimes.</p>
+            <img src="./assets/mistral-plan.png" alt="Choix du plan Mistral AI" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">3</span> Créer une nouvelle clé API</div>
+            <p>Cliquez sur le bouton pour créer une nouvelle clé API.</p>
+            <img src="./assets/mistral-create-key-1.png" alt="Création d'une clé API - Étape 1" class="screenshot">
+            <p>Entrez un nom pour votre clé (par exemple "Héméa") et définissez une date d'expiration si nécessaire.</p>
+            <img src="./assets/mistral-create-key-2.png" alt="Création d'une clé API - Étape 2" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">4</span> Copier la clé API</div>
+            <p>Une fois la clé créée, copiez-la immédiatement. <strong>Attention</strong> : elle ne sera affichée qu'une seule fois.</p>
+            <div class="important-note">
+                <strong>Important :</strong> Ne partagez JAMAIS votre clé API avec quelqu'un d'autre. Elle donne accès à votre compte Mistral et peut engendrer des frais.
+            </div>
+            <img src="./assets/mistral-copy-key.png" alt="Copie de la clé API" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">5</span> Utiliser la clé dans Héméa</div>
+            <p>Lancez l'application Héméa et collez votre clé API dans le champ prévu à cet effet.</p>
+            <img src="./assets/hemea-paste-key.png" alt="Coller la clé API dans Héméa" class="screenshot">
+        </div>
+        
+        <div class="important-note">
+            <p><strong>Rappel de sécurité :</strong> Votre clé API sera stockée de manière sécurisée sur votre appareil uniquement. Elle n'est jamais partagée avec des tiers et n'est utilisée que pour communiquer avec l'API Mistral pour l'analyse de vos documents.</p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2025 Héméa - Tous droits réservés</p>
+        </div>
+    </div>
+
+    <div id="content-en" class="lang-content">
+        <h1>Tutorial: Creating a Mistral API Key</h1>
+        
+        <p>This tutorial will guide you step by step to create a Mistral API key needed for Héméa to function.</p>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">1</span> Log in to Mistral AI</div>
+            <p>Go to the Mistral AI login page:</p>
+            <p><a href="https://auth.mistral.ai/ui/login" target="_blank">https://auth.mistral.ai/ui/login</a></p>
+            <p>Log in to your account or create one if you haven't already.</p>
+            <img src="./assets/mistral-login.png" alt="Mistral AI Login Page" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">2</span> Access the API section and choose a plan</div>
+            <p>Once logged in, go to the API section and choose your plan:</p>
+            <img src="./assets/create-key.png" alt="Mistral AI Plan Selection" class="screenshot">
+            <ul>
+                <li><strong>Free</strong>: Free plan with limitations</li>
+                <li><strong>Pay as you go</strong>: Pay per usage</li>
+            </ul>
+            <p>We recommend the <strong>Pay as you go</strong> plan because in the free tier, Mistral may use your data. A lab report analysis costs about 2 cents.</p>
+            <img src="./assets/mistral-plan.png" alt="Mistral AI Plan Selection" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">3</span> Create a new API key</div>
+            <p>Click on the button to create a new API key.</p>
+            <img src="./assets/mistral-create-key-1.png" alt="API Key Creation - Step 1" class="screenshot">
+            <p>Enter a name for your key (for example "Héméa") and set an expiration date if needed.</p>
+            <img src="./assets/mistral-create-key-2.png" alt="API Key Creation - Step 2" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">4</span> Copy the API key</div>
+            <p>Once the key is created, copy it immediately. <strong>Important</strong>: it will only be displayed once.</p>
+            <div class="important-note">
+                <strong>Important:</strong> NEVER share your API key with anyone else. It gives access to your Mistral account and can incur charges.
+            </div>
+            <img src="./assets/mistral-copy-key.png" alt="Copying the API Key" class="screenshot">
+        </div>
+        
+        <div class="step">
+            <div class="step-title"><span class="step-number">5</span> Use the key in Héméa</div>
+            <p>Open the Héméa app and paste your API key in the designated field.</p>
+            <img src="./assets/hemea-paste-key.png" alt="Pasting API Key in Héméa" class="screenshot">
+        </div>
+        
+        <div class="important-note">
+            <p><strong>Security reminder:</strong> Your API key will be stored securely on your device only. It is never shared with third parties and is only used to communicate with the Mistral API for analyzing your documents.</p>
+        </div>
+        
+        <div class="footer">
+            <p>© 2025 Héméa - All rights reserved </p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const langButtons = document.querySelectorAll('.lang-btn');
+            const langContents = document.querySelectorAll('.lang-content');
+            
+            langButtons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const lang = this.getAttribute('data-lang');
+                    
+                    // Update buttons
+                    langButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update content
+                    langContents.forEach(content => content.classList.remove('active'));
+                    document.getElementById(`content-${lang}`).classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html> 
