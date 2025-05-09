@@ -2,34 +2,42 @@
  * Configuration centralisée pour les valeurs de laboratoire
  */
 
-export const LAB_VALUE_KEYS = [
-  "Hematies",
-  "Hémoglobine",
-  "Hématocrite",
-  "VGM",
-  "TCMH",
-  "CCMH",
-  "Leucocytes",
-  "Polynucléaires neutrophiles",
-  "Polynucléaires éosinophiles",
-  "Polynucléaires basophiles",
-  "Lymphocytes",
-  "Monocytes",
-  "Plaquettes",
-  "Proteine C Reactive",
-  "Vitamine B9",
-  "Vitamine B12",
-  "Glycémie",
-  "Hémoglobine Glyquée",
-  "Cholesterol HDL",
-  "Cholesterol LDL",
-  "Triglycérides",
-  "Transaminases TGO",
-  "Transaminases TGP",
-  "Gamma GT",
-  "Score de fibrose hépatique",
-  "TSH",
-];
+export const LAB_VALUE_CATEGORIES = {
+  Hématologie: [
+    "Hematies",
+    "Hémoglobine",
+    "Hématocrite",
+    "VGM",
+    "TCMH",
+    "CCMH",
+    "Leucocytes",
+    "Polynucléaires neutrophiles",
+    "Polynucléaires éosinophiles",
+    "Polynucléaires basophiles",
+    "Lymphocytes",
+    "Monocytes",
+    "Plaquettes",
+  ],
+  "Biochimie & Enzymologie": [
+    "Transaminases TGO",
+    "Transaminases TGP",
+    "Proteine C Reactive",
+    "Ferritine",
+  ],
+  Vitamines: ["Vitamine B9", "Vitamine B12"],
+  "Autres Marqueurs": [
+    "Glycémie",
+    "Hémoglobine Glyquée",
+    "Cholesterol HDL",
+    "Cholesterol LDL",
+    "Triglycérides",
+    "Gamma GT",
+    "Score de fibrose hépatique",
+    "TSH",
+  ],
+};
+
+export const LAB_VALUE_KEYS = Object.values(LAB_VALUE_CATEGORIES).flat();
 
 export const LAB_VALUE_UNITS: Record<string, string> = {
   Hematies: "T/L",
@@ -46,6 +54,7 @@ export const LAB_VALUE_UNITS: Record<string, string> = {
   Monocytes: "giga/L",
   Plaquettes: "giga/L",
   "Proteine C Reactive": "mg/L",
+  Ferritine: "μg/L",
   "Vitamine B9": "ng/mL",
   "Vitamine B12": "pg/mL",
   Glycémie: "g/l",
@@ -79,6 +88,7 @@ export const LAB_VALUE_REFERENCE_RANGES: Record<
   Monocytes: { min: 0.18, max: 1.0 },
   Plaquettes: { min: 150.0, max: 400.0 },
   "Proteine C Reactive": { min: 0.0, max: 5.0 },
+  Ferritine: { min: 22.0, max: 322.0 },
   "Vitamine B9": { min: 3.89, max: 26.8 },
   "Vitamine B12": { min: 197.0, max: 771.0 },
   Glycémie: { min: 0.74, max: 1.06 },

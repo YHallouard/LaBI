@@ -19,9 +19,7 @@ import { DeleteApiKeyUseCase } from "../../application/usecases/DeleteApiKeyUseC
 import { ResetDatabaseUseCase } from "../../application/usecases/ResetDatabaseUseCase";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../components/ScreenLayout";
-import { APP_VERSION } from "../../utils/appVersion";
 
-// Define Props for the screen, including the use cases
 type SettingsScreenProps = {
   navigation: StackNavigationProp<HomeStackParamList, "SettingsScreen">;
   saveApiKeyUseCase: SaveApiKeyUseCase;
@@ -296,8 +294,6 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
             <SupportSettings onOptionPress={handleSupportOptionPress} />
           )}
         </View>
-
-        <Text style={styles.versionText}>Version {APP_VERSION}</Text>
       </View>
     </ScreenLayout>
   );

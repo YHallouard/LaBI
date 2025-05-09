@@ -11,8 +11,10 @@ import * as DocumentPicker from "expo-document-picker";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { UploadStackParamList } from "../../types/navigation";
 import { AnalyzePdfUseCase } from "../../application/usecases/AnalyzePdfUseCase";
+import { ProcessingStepCallback } from "../../ports/services/ProgressProcessor";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
+import { LAB_VALUE_CATEGORIES } from "../../config/LabConfig";
 
 type UploadScreenProps = {
   navigation: StackNavigationProp<UploadStackParamList, "UploadScreen">;
@@ -34,6 +36,8 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const hasCheckedApiKey = useRef<boolean>(false);
+  const [processingStep, setProcessingStep] = useState<string | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isLoadingApiKey && !hasCheckedApiKey.current && !analyzePdfUseCase) {
@@ -75,7 +79,6 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
 
       if (analyzePdfUseCase) {
         await analyzePdfDocument(pdfUri, analyzePdfUseCase);
-        displaySuccessMessage();
       }
     } catch (err) {
       handleDocumentProcessingError(err);
@@ -101,12 +104,32 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
     pdfUri: string,
     useCase: AnalyzePdfUseCase
   ): Promise<void> => {
-    await useCase.execute(pdfUri);
-  };
+    const onProcessingStepStarted: ProcessingStepCallback = (step: string) => {
+      console.log(`Step started: ${step}`);
+      setProcessingStep(step);
+    };
 
-  const displaySuccessMessage = (): void => {
-    setSuccessMessage("Analysis extracted and saved successfully");
-    setTimeout(() => setSuccessMessage(null), 3000);
+    const onProcessingStepCompleted: ProcessingStepCallback = (
+      step: string
+    ) => {
+      console.log(`Step completed: ${step}`);
+      setCompletedSteps((prev) => [...prev, step]);
+      setProcessingStep(null);
+    };
+
+    setCompletedSteps([]);
+
+    try {
+      useCase.onProcessingStepStarted(onProcessingStepStarted);
+      useCase.onProcessingStepCompleted(onProcessingStepCompleted);
+
+      await useCase.execute(pdfUri);
+
+      setSuccessMessage("Analysis extracted and saved successfully");
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } finally {
+      useCase.removeProcessingListeners();
+    }
   };
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -171,9 +194,16 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
 
         <Text style={styles.infoText}>
           {isAnalyzing
-            ? "Processing your document... please wait."
+            ? "Please wait while we process your document."
             : "Tap the button above to select and process your PDF report."}
         </Text>
+
+        {isAnalyzing && (
+          <ProcessingStepsIndicator
+            processingStep={processingStep}
+            completedSteps={completedSteps}
+          />
+        )}
       </View>
     </ScreenLayout>
   );
@@ -215,6 +245,53 @@ const LoadingView = () => (
     </View>
   </ScreenLayout>
 );
+
+const ProcessingStepsIndicator = ({
+  processingStep,
+  completedSteps,
+}: {
+  processingStep: string | null;
+  completedSteps: string[];
+}) => {
+  const allSteps = [
+    "Uploading document",
+    "Extracting date",
+    ...Object.keys(LAB_VALUE_CATEGORIES).map(
+      (category) => `Analyzing ${category}`
+    ),
+    "Saving analysis",
+  ];
+
+  return (
+    <View style={styles.processingStepsContainer}>
+      {allSteps.map((step) => {
+        const isCompleted = completedSteps.includes(step);
+        const isInProgress = processingStep === step;
+
+        return (
+          <View key={step} style={styles.processingStepRow}>
+            {isCompleted ? (
+              <Ionicons name="checkmark-circle" size={24} color="#00d97e" />
+            ) : isInProgress ? (
+              <ActivityIndicator size="small" color="#2c7be5" />
+            ) : (
+              <Ionicons name="ellipse-outline" size={24} color="#95aac9" />
+            )}
+            <Text
+              style={[
+                styles.processingStepText,
+                isCompleted && styles.completedStepText,
+                isInProgress && styles.activeStepText,
+              ]}
+            >
+              {step}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   containerCentered: {
@@ -342,5 +419,35 @@ const styles = StyleSheet.create({
   },
   settingsIcon: {
     marginRight: 8,
+  },
+  processingStepsContainer: {
+    marginTop: 20,
+    width: "100%",
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  processingStepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 6,
+  },
+  processingStepText: {
+    marginLeft: 10,
+    fontSize: 14,
+    color: "#95aac9",
+  },
+  completedStepText: {
+    color: "#00d97e",
+    fontWeight: "500",
+  },
+  activeStepText: {
+    color: "#2c7be5",
+    fontWeight: "bold",
   },
 });

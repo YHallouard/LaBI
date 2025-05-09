@@ -61,6 +61,10 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
 
         console.log("Database table created/verified successfully");
 
+        // Insert test analyses
+        // await db.runAsync(`INSERT OR REPLACE INTO biological_analyses (id, date, pdf_source, lab_values) VALUES (?, ?, ?, ?)`, ['1', '2023-10-01T00:00:00.000Z', 'source1.pdf', '{"Hématocrite": {"value": 42.0, "unit": "%"}, "Hematies": {"value": 4.5, "unit": "T/L"}, "Hémoglobine": {"value": 13.5, "unit": "g/dL"}, "Vitamine B9": {"value": 12.0, "unit": "ng/mL"}, "TSH": {"value": 2.7, "unit": "mIU/L"}}']);
+        // await db.runAsync(`INSERT OR REPLACE INTO biological_analyses (id, date, pdf_source, lab_values) VALUES (?, ?, ?, ?)`, ['2', '2023-10-02T00:00:00.000Z', 'source2.pdf', '{"Hématocrite": {"value": 40.0, "unit": "%"}, "Hematies": {"value": 4.2, "unit": "T/L"}, "VGM": {"value": 90.0, "unit": "fl"}, "Vitamine B9": {"value": 10.0, "unit": "ng/mL"}, "TSH": {"value": 2.5, "unit": "mIU/L"}}']);
+
         // Store the instance and return it
         this.dbInstance = db;
         return db;

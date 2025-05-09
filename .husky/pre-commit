@@ -1,6 +1,9 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
+# Run prebuild
+npm run prebuild
+
 # Run lint-staged first
 npx lint-staged
 

@@ -24,6 +24,7 @@ import {
   LAB_VALUE_KEYS,
   LAB_VALUE_UNITS,
   LAB_VALUE_REFERENCE_RANGES,
+  LAB_VALUE_CATEGORIES,
 } from "../../config/LabConfig";
 import { ScreenLayout } from "../components/ScreenLayout";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -358,8 +359,6 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
     ? editedDate.toLocaleDateString("fr-FR")
     : analysis.date.toLocaleDateString("fr-FR");
 
-  const allLabKeys = LAB_VALUE_KEYS;
-
   return (
     <ScreenLayout>
       <KeyboardAvoidingView
@@ -411,7 +410,15 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.scrollViewContent}
           >
-            {allLabKeys.map((key) => renderLabValueField(key))}
+            {Object.entries(LAB_VALUE_CATEGORIES).map(([category, labKeys]) => (
+              <View key={category} style={styles.categorySection}>
+                <View style={styles.sectionHeaderContainer}>
+                  <Text style={styles.sectionHeaderTitle}>{category}</Text>
+                  <View style={styles.sectionHeaderLine} />
+                </View>
+                {labKeys.map((key) => renderLabValueField(key))}
+              </View>
+            ))}
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
@@ -874,6 +881,29 @@ const styles = StyleSheet.create({
     color: "#00d97e",
     fontSize: 14,
     textAlign: "center",
+  },
+  categorySection: {
+    marginBottom: 24,
+  },
+  sectionHeaderContainer: {
+    marginTop: 8,
+    marginBottom: 16,
+    paddingHorizontal: 8,
+    alignItems: "center",
+  },
+  sectionHeaderTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#12263f",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  sectionHeaderLine: {
+    height: 3,
+    width: 80,
+    backgroundColor: "#2c7be5",
+    borderRadius: 3,
   },
 });
 

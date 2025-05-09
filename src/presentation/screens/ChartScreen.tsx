@@ -7,9 +7,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Animated,
-  FlatList,
-  ListRenderItemInfo,
   RefreshControl,
+  SectionList,
 } from "react-native";
 import Svg, {
   Line,
@@ -28,9 +27,9 @@ import {
 } from "../../application/usecases/GetAnalysesUseCase";
 import { CalculateStatisticsUseCase } from "../../application/usecases/CalculateStatisticsUseCase";
 import {
-  LAB_VALUE_KEYS,
   LAB_VALUE_UNITS,
   LAB_VALUE_REFERENCE_RANGES,
+  LAB_VALUE_CATEGORIES,
 } from "../../config/LabConfig";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { useFocusEffect } from "@react-navigation/native";
@@ -792,42 +791,69 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   }, []);
 
   // Prepare chart data for FlatList
-  const chartData = useMemo<ChartData[]>(() => {
-    const result = LAB_VALUE_KEYS.map((labKey) => {
-      const allData = getLabTestData(labKey);
-      const filteredData = getFilteredDataByTimeRange(allData);
-      const unit = LAB_VALUE_UNITS[labKey] || "";
-      const refRange = LAB_VALUE_REFERENCE_RANGES[labKey] || {
-        min: 0,
-        max: 0,
-      };
+  const chartDataByCategory = useMemo(() => {
+    const categorizedData: Record<string, ChartData[]> = {};
 
-      return {
-        labKey,
-        filteredData,
-        unit,
-        refRange,
-      };
-    }).filter((item) => item.filteredData.length >= 2);
+    Object.entries(LAB_VALUE_CATEGORIES).forEach(([category, keys]) => {
+      const categoryData = keys
+        .map((labKey) => {
+          const allData = getLabTestData(labKey);
+          const filteredData = getFilteredDataByTimeRange(allData);
+          const unit = LAB_VALUE_UNITS[labKey] || "";
+          const refRange = LAB_VALUE_REFERENCE_RANGES[labKey] || {
+            min: 0,
+            max: 0,
+          };
 
-    return result;
+          return {
+            labKey,
+            filteredData,
+            unit,
+            refRange,
+          };
+        })
+        .filter((item) => item.filteredData.length >= 2);
+
+      if (categoryData.length > 0) {
+        categorizedData[category] = categoryData;
+      }
+    });
+
+    return categorizedData;
   }, [analyses, selectedTimeRange, getLabTestData, getFilteredDataByTimeRange]);
 
-  const renderChartItem = useCallback(
-    ({ item }: ListRenderItemInfo<ChartData>) => {
-      return (
-        <ChartItem
-          labKey={item.labKey}
-          data={item.filteredData}
-          unit={item.unit}
-          refRange={item.refRange}
-          calculateStatisticsUseCase={calculateStatisticsUseCase}
-          chartDimensions={chartDimensions}
-          formatDate={formatDate}
-        />
-      );
-    },
+  const renderSectionHeader = useCallback(
+    ({ section: { title } }: { section: { title: string } }) => (
+      <View style={styles.sectionHeaderContainer}>
+        <Text style={styles.sectionHeaderTitle}>{title}</Text>
+        <View style={styles.sectionHeaderLine} />
+      </View>
+    ),
+    []
+  );
+
+  const renderSectionItem = useCallback(
+    ({ item }: { item: ChartData }) => (
+      <ChartItem
+        labKey={item.labKey}
+        data={item.filteredData}
+        unit={item.unit}
+        refRange={item.refRange}
+        calculateStatisticsUseCase={calculateStatisticsUseCase}
+        chartDimensions={chartDimensions}
+        formatDate={formatDate}
+      />
+    ),
     [calculateStatisticsUseCase, chartDimensions, formatDate]
+  );
+
+  const sections = useMemo(
+    () =>
+      Object.entries(chartDataByCategory).map(([category, data]) => ({
+        title: category,
+        data,
+      })),
+    [chartDataByCategory]
   );
 
   const keyExtractor = useCallback((item: ChartData) => item.labKey, []);
@@ -856,7 +882,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     return (
       <ScreenLayout>
         <EmptyState
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          /* eslint-disable @typescript-eslint/no-explicit-any */
           navigation={navigation as any}
           message="Insufficient Data"
           subMessage="Upload at least 2 reports to see a chart"
@@ -868,7 +894,6 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
 
   const timeRangeFloatingMenu = (
     <TimeRangeFloatingMenu
-      isOpen={isTimeRangeMenuOpen}
       selectedTimeRange={selectedTimeRange}
       animations={animations}
       onSelectTimeRange={selectTimeRange}
@@ -876,7 +901,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     />
   );
 
-  if (chartData.length === 0) {
+  if (Object.keys(chartDataByCategory).length === 0) {
     return (
       <>
         <ScreenLayout>
@@ -889,32 +914,32 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   }
 
   return (
-    <>
-      <ScreenLayout>
-        <FlatList
-          data={chartData}
-          renderItem={renderChartItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.chartsContainer}
-          showsVerticalScrollIndicator={false}
-          initialNumToRender={3}
-          maxToRenderPerBatch={3}
-          windowSize={6}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#2c7be5"]}
-              tintColor="#2c7be5"
-              title="Pull to refresh..."
-              titleColor="#95aac9"
-            />
-          }
-        />
-      </ScreenLayout>
+    <ScreenLayout>
+      <SectionList
+        sections={sections}
+        renderSectionHeader={renderSectionHeader}
+        renderItem={renderSectionItem}
+        keyExtractor={keyExtractor}
+        contentContainerStyle={styles.chartsContainer}
+        showsVerticalScrollIndicator={false}
+        initialNumToRender={3}
+        maxToRenderPerBatch={3}
+        windowSize={6}
+        stickySectionHeadersEnabled={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#2c7be5"]}
+            tintColor="#2c7be5"
+            title="Pull to refresh..."
+            titleColor="#95aac9"
+          />
+        }
+      />
 
       {timeRangeFloatingMenu}
-    </>
+    </ScreenLayout>
   );
 };
 
@@ -1174,10 +1199,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 1,
+    borderWidth: 0,
+    overflow: "hidden",
   },
   statCardAlert: {
     backgroundColor: "rgba(230, 55, 87, 0.1)",
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   statLabel: {
     fontSize: 12,
@@ -1319,5 +1351,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#95aac9",
     marginBottom: 12,
+  },
+  categoryContainer: {
+    marginBottom: 20,
+  },
+  categoryTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#12263f",
+    textAlign: "center",
+  },
+  sectionHeaderContainer: {
+    marginTop: 24,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    alignItems: "center",
+  },
+  sectionHeaderTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    color: "#12263f",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  sectionHeaderLine: {
+    height: 3,
+    width: 80,
+    backgroundColor: "#2c7be5",
+    borderRadius: 3,
   },
 });

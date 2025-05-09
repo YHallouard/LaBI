@@ -9,7 +9,7 @@ describe("LabConfig", () => {
     it("should contain the correct number of lab value keys", () => {
       // Given/When - importing the keys
       // Then
-      expect(LAB_VALUE_KEYS.length).toBe(26);
+      expect(LAB_VALUE_KEYS.length).toBe(27);
     });
 
     it("should contain all expected lab value keys", () => {
@@ -28,7 +28,10 @@ describe("LabConfig", () => {
         "Lymphocytes",
         "Monocytes",
         "Plaquettes",
+        "Transaminases TGO",
+        "Transaminases TGP",
         "Proteine C Reactive",
+        "Ferritine",
         "Vitamine B9",
         "Vitamine B12",
         "Glycémie",
@@ -36,8 +39,6 @@ describe("LabConfig", () => {
         "Cholesterol HDL",
         "Cholesterol LDL",
         "Triglycérides",
-        "Transaminases TGO",
-        "Transaminases TGP",
         "Gamma GT",
         "Score de fibrose hépatique",
         "TSH",
@@ -54,7 +55,7 @@ describe("LabConfig", () => {
       const unitKeys = Object.keys(LAB_VALUE_UNITS);
 
       // Then
-      expect(unitKeys.length).toBe(26);
+      expect(unitKeys.length).toBe(27);
     });
 
     it("should contain units for all lab values", () => {
@@ -83,6 +84,7 @@ describe("LabConfig", () => {
       expect(LAB_VALUE_UNITS["Monocytes"]).toBe("giga/L");
       expect(LAB_VALUE_UNITS["Plaquettes"]).toBe("giga/L");
       expect(LAB_VALUE_UNITS["Proteine C Reactive"]).toBe("mg/L");
+      expect(LAB_VALUE_UNITS["Ferritine"]).toBe("μg/L");
       expect(LAB_VALUE_UNITS["Vitamine B9"]).toBe("ng/mL");
       expect(LAB_VALUE_UNITS["Vitamine B12"]).toBe("pg/mL");
       expect(LAB_VALUE_UNITS["Glycémie"]).toBe("g/l");
@@ -104,7 +106,7 @@ describe("LabConfig", () => {
       const rangeKeys = Object.keys(LAB_VALUE_REFERENCE_RANGES);
 
       // Then
-      expect(rangeKeys.length).toBe(26);
+      expect(rangeKeys.length).toBe(27);
     });
 
     it("should contain reference ranges for all lab values", () => {
@@ -184,6 +186,10 @@ describe("LabConfig", () => {
       expect(LAB_VALUE_REFERENCE_RANGES["Proteine C Reactive"]).toEqual({
         min: 0.0,
         max: 5.0,
+      });
+      expect(LAB_VALUE_REFERENCE_RANGES["Ferritine"]).toEqual({
+        min: 22.0,
+        max: 322.0,
       });
       expect(LAB_VALUE_REFERENCE_RANGES["Vitamine B9"]).toEqual({
         min: 3.89,

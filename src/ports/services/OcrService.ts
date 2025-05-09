@@ -1,4 +1,5 @@
 import { LabValue } from "../../domain/entities/BiologicalAnalysis";
+import { ProgressProcessor } from "./ProgressProcessor";
 
 export interface OcrResult {
   extractedDate: Date;
@@ -6,5 +7,8 @@ export interface OcrResult {
 }
 
 export interface OcrService {
-  extractDataFromPdf(pdfPath: string): Promise<OcrResult>;
+  extractDataFromPdf(
+    pdfPath: string,
+    progressProcessor?: ProgressProcessor
+  ): Promise<OcrResult>;
 }

@@ -1,5 +1,5 @@
-import { OcrResult, OcrService } from '../../ports/services/OcrService';
-import { LabValue } from '../../domain/entities/BiologicalAnalysis';
+import { OcrResult, OcrService } from "../../ports/services/OcrService";
+import { ProgressProcessor } from "../../ports/services/ProgressProcessor";
 
 export class InMemoryOcrService implements OcrService {
   private defaultResults: Partial<OcrResult>;
@@ -11,8 +11,8 @@ export class InMemoryOcrService implements OcrService {
   private createDefaultOcrResults(): Partial<OcrResult> {
     return {
       extractedDate: new Date(),
-      Hematies: { value: 4.5, unit: 'T/L' },
-      'Proteine C Reactive': { value: 5.2, unit: 'mg/L' }
+      Hematies: { value: 4.5, unit: "T/L" },
+      "Proteine C Reactive": { value: 5.2, unit: "mg/L" },
     };
   }
 
@@ -20,9 +20,19 @@ export class InMemoryOcrService implements OcrService {
     this.defaultResults = { ...this.defaultResults, ...results };
   }
 
-  async extractDataFromPdf(pdfPath: string): Promise<OcrResult> {
+  async extractDataFromPdf(
+    pdfPath: string,
+    progressProcessor?: ProgressProcessor
+  ): Promise<OcrResult> {
     this.logExtractionAttempt(pdfPath);
-    return this.buildOcrResult();
+    if (progressProcessor) {
+      progressProcessor.onStepStarted("Mock extraction");
+    }
+    const result = this.buildOcrResult();
+    if (progressProcessor) {
+      progressProcessor.onStepCompleted("Mock extraction");
+    }
+    return result;
   }
 
   private logExtractionAttempt(pdfPath: string): void {
@@ -33,15 +43,16 @@ export class InMemoryOcrService implements OcrService {
     const result: OcrResult = {
       extractedDate: this.defaultResults.extractedDate || new Date(),
     };
-    
+
     this.addLabValuesToResult(result);
-    
+
     return result;
   }
 
   private addLabValuesToResult(result: OcrResult): void {
     Object.entries(this.defaultResults).forEach(([key, value]) => {
-      if (key !== 'extractedDate') {
+      if (key !== "extractedDate") {
+        /* eslint-disable @typescript-eslint/no-explicit-any */
         (result as any)[key] = value;
       }
     });

@@ -7,11 +7,15 @@ import {
 } from "../../../domain/entities/BiologicalAnalysis";
 import { OcrResult } from "../../../ports/services/OcrService";
 import { LAB_VALUE_KEYS } from "../../../config/LabConfig";
+import { AnalysisProgressAdapter } from "../../../adapters/services/AnalysisProgressAdapter";
 
 // Mock uuid
 jest.mock("uuid", () => ({
   v4: jest.fn().mockReturnValue("mocked-uuid"),
 }));
+
+// Mock setTimeout
+jest.useFakeTimers();
 
 describe("AnalyzePdfUseCase", () => {
   let repository: InMemoryBiologicalAnalysisRepository;
@@ -66,8 +70,11 @@ describe("AnalyzePdfUseCase", () => {
         "Proteine C Reactive": { value: 5.2, unit: "mg/L" },
       });
 
-      // Verify OCR service was called with correct path
-      expect(ocrService.extractDataFromPdf).toHaveBeenCalledWith(mockPdfPath);
+      // Verify OCR service was called with correct path and progress processor
+      expect(ocrService.extractDataFromPdf).toHaveBeenCalledWith(
+        mockPdfPath,
+        expect.any(AnalysisProgressAdapter)
+      );
       expect(ocrService.extractDataFromPdf).toHaveBeenCalledTimes(1);
 
       // Verify repository was called with correct analysis
@@ -84,6 +91,68 @@ describe("AnalyzePdfUseCase", () => {
       // Verify analysis was saved to repository
       const savedAnalysis = await repository.getById("mocked-uuid");
       expect(savedAnalysis).toEqual(result);
+    });
+
+    it("should process progress events correctly", async () => {
+      // Given
+      const onStepStartedMock = jest.fn();
+      const onStepCompletedMock = jest.fn();
+
+      useCase.onProcessingStepStarted(onStepStartedMock);
+      useCase.onProcessingStepCompleted(onStepCompletedMock);
+
+      // Configure the InMemoryOcrService to use ProgressProcessor
+      jest
+        .spyOn(ocrService, "extractDataFromPdf")
+        .mockImplementation(async (path, processor) => {
+          if (processor) {
+            processor.onStepStarted("Mock extraction");
+            processor.onStepCompleted("Mock extraction");
+          }
+          return mockOcrResult as OcrResult;
+        });
+
+      // When
+      await useCase.execute(mockPdfPath);
+
+      // Run the timers to process the setTimeout for "Uploading document" completion
+      jest.runAllTimers();
+
+      // Then - verify the progress callbacks were called
+      // Uploading document step
+      expect(onStepStartedMock).toHaveBeenCalledWith("Uploading document");
+      expect(onStepCompletedMock).toHaveBeenCalledWith("Uploading document");
+
+      // Mock extraction step
+      expect(onStepStartedMock).toHaveBeenCalledWith("Mock extraction");
+      expect(onStepCompletedMock).toHaveBeenCalledWith("Mock extraction");
+
+      // Saving analysis step
+      expect(onStepStartedMock).toHaveBeenCalledWith("Saving analysis");
+      expect(onStepCompletedMock).toHaveBeenCalledWith("Saving analysis");
+
+      // Verify call counts - 3 steps, each with start and complete
+      expect(onStepStartedMock).toHaveBeenCalledTimes(3);
+      expect(onStepCompletedMock).toHaveBeenCalledTimes(3);
+    });
+
+    it("should not notify steps when callbacks are not provided", async () => {
+      // Given
+      // Reset callbacks using removeProcessingListeners
+      useCase.removeProcessingListeners();
+
+      // When
+      await useCase.execute(mockPdfPath);
+
+      // Then
+      // The OCR service should have been called with a progress processor
+      expect(ocrService.extractDataFromPdf).toHaveBeenCalledWith(
+        mockPdfPath,
+        expect.any(AnalysisProgressAdapter)
+      );
+
+      // The repository save should have been called
+      expect(repository.save).toHaveBeenCalledTimes(1);
     });
 
     it("should add only defined lab values to the analysis", async () => {
@@ -255,7 +324,8 @@ describe("AnalyzePdfUseCase", () => {
       // Then
       expect(result.pdfSource).toBe(differentPdfPath);
       expect(ocrService.extractDataFromPdf).toHaveBeenCalledWith(
-        differentPdfPath
+        differentPdfPath,
+        expect.any(AnalysisProgressAdapter)
       );
     });
 
@@ -286,6 +356,51 @@ describe("AnalyzePdfUseCase", () => {
         value: "" as unknown as number,
         unit: "g/dL",
       }); // Empty string added
+    });
+  });
+
+  describe("progress callbacks", () => {
+    it("should register and call step callbacks", () => {
+      // Given
+      const onStepStartedMock = jest.fn();
+      const onStepCompletedMock = jest.fn();
+
+      // When registering callbacks
+      useCase.onProcessingStepStarted(onStepStartedMock);
+      useCase.onProcessingStepCompleted(onStepCompletedMock);
+
+      // Then calling private notify methods should trigger callbacks
+      // @ts-expect-error - accessing private method for testing
+      useCase.notifyStepStarted("Test step");
+      // @ts-expect-error - accessing private method for testing
+      useCase.notifyStepCompleted("Test step");
+
+      // Verify callbacks were called
+      expect(onStepStartedMock).toHaveBeenCalledWith("Test step");
+      expect(onStepCompletedMock).toHaveBeenCalledWith("Test step");
+    });
+
+    it("should not call callbacks after removeProcessingListeners", () => {
+      // Given
+      const onStepStartedMock = jest.fn();
+      const onStepCompletedMock = jest.fn();
+
+      // Register callbacks
+      useCase.onProcessingStepStarted(onStepStartedMock);
+      useCase.onProcessingStepCompleted(onStepCompletedMock);
+
+      // When removing listeners
+      useCase.removeProcessingListeners();
+
+      // Then calling private notify methods should not trigger callbacks
+      // @ts-expect-error - accessing private method for testing
+      useCase.notifyStepStarted("Test step");
+      // @ts-expect-error - accessing private method for testing
+      useCase.notifyStepCompleted("Test step");
+
+      // Verify callbacks were not called
+      expect(onStepStartedMock).not.toHaveBeenCalled();
+      expect(onStepCompletedMock).not.toHaveBeenCalled();
     });
   });
 

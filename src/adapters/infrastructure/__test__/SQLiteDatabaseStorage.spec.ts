@@ -25,6 +25,7 @@ describe("SQLiteDatabaseStorage", () => {
   const mockDb = {
     execSync: jest.fn(),
     getAllSync: jest.fn(),
+    runAsync: jest.fn().mockResolvedValue({ rowsAffected: 1 }),
   } as unknown as Database;
 
   beforeEach(() => {
@@ -35,6 +36,7 @@ describe("SQLiteDatabaseStorage", () => {
     (mockDb.getAllSync as jest.Mock).mockReturnValue([
       { name: "biological_analyses" },
     ]);
+    (mockDb.runAsync as jest.Mock).mockResolvedValue({ rowsAffected: 1 });
 
     // Clear mock calls between tests
     jest.clearAllMocks();
@@ -57,6 +59,41 @@ describe("SQLiteDatabaseStorage", () => {
       expect(result).toBe(mockDb);
     });
 
+    test("should insert test analyses data", async () => {
+      // Given
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+      });
+
+      // When
+      await storage.initializeDatabase();
+
+      // Then
+      expect(mockDb.runAsync).toHaveBeenCalledTimes(2);
+
+      // Verify first test analysis insert
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT OR REPLACE INTO biological_analyses"),
+        expect.arrayContaining([
+          "1",
+          expect.any(String),
+          "source1.pdf",
+          expect.any(String),
+        ])
+      );
+
+      // Verify second test analysis insert
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT OR REPLACE INTO biological_analyses"),
+        expect.arrayContaining([
+          "2",
+          expect.any(String),
+          "source2.pdf",
+          expect.any(String),
+        ])
+      );
+    });
+
     test("should throw error if table creation fails", async () => {
       // Given
       (mockDb.getAllSync as jest.Mock).mockReturnValueOnce([]);
@@ -67,6 +104,30 @@ describe("SQLiteDatabaseStorage", () => {
       );
       expect(SQLite.openDatabaseSync).toHaveBeenCalledWith(mockDbName);
       expect(mockDb.execSync).toHaveBeenCalled();
+    });
+
+    test("should handle errors when inserting test data", async () => {
+      // Given
+      (FileSystem.getInfoAsync as jest.Mock).mockResolvedValue({
+        exists: true,
+      });
+      (mockDb.runAsync as jest.Mock).mockRejectedValueOnce(
+        new Error("Insert error")
+      );
+
+      // When/Then
+      await expect(storage.initializeDatabase()).rejects.toThrow(
+        "Insert error"
+      );
+      expect(mockDb.runAsync).toHaveBeenCalledWith(
+        expect.stringContaining("INSERT OR REPLACE INTO biological_analyses"),
+        expect.arrayContaining([
+          "1",
+          expect.any(String),
+          "source1.pdf",
+          expect.any(String),
+        ])
+      );
     });
   });
 
