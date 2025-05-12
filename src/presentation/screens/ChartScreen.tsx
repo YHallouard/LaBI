@@ -26,11 +26,8 @@ import {
   DataPoint,
 } from "../../application/usecases/GetAnalysesUseCase";
 import { CalculateStatisticsUseCase } from "../../application/usecases/CalculateStatisticsUseCase";
-import {
-  LAB_VALUE_UNITS,
-  LAB_VALUE_REFERENCE_RANGES,
-  LAB_VALUE_CATEGORIES,
-} from "../../config/LabConfig";
+import { LAB_VALUE_UNITS, LAB_VALUE_CATEGORIES } from "../../config/LabConfig";
+import { ReferenceRangeService } from "../../application/services/ReferenceRangeService";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,6 +39,7 @@ type ChartScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
   getLabTestDataUseCase: GetLabTestDataUseCase;
   calculateStatisticsUseCase: CalculateStatisticsUseCase;
+  referenceRangeService: ReferenceRangeService;
   navigation: StackNavigationProp<ChartStackParamList, "ChartScreen">;
 };
 
@@ -60,50 +58,116 @@ type ChartItemProps = {
   labKey: string;
   data: DataPoint[];
   unit: string;
-  refRange: { min: number; max: number };
+  referenceRangeService: ReferenceRangeService;
   calculateStatisticsUseCase: CalculateStatisticsUseCase;
   chartDimensions: ChartDimensions;
   formatDate: (date: Date) => string;
+};
+
+type DynamicReferenceRangePoint = {
+  timestamp: number;
+  min: number;
+  max: number;
 };
 
 type ChartData = {
   labKey: string;
   filteredData: DataPoint[];
   unit: string;
-  refRange: { min: number; max: number };
 };
 
 const ChartItem: React.FC<ChartItemProps> = ({
   labKey,
   data,
   unit,
-  refRange,
+  referenceRangeService,
   calculateStatisticsUseCase,
   chartDimensions,
   formatDate,
 }) => {
-  // Skip if no data or not enough data points for a meaningful graph
   if (data.length < 2) return null;
 
-  // Calculate time range (x-axis)
-  const timestamps = data.map((d) => d.timestamp);
-  const minTime = Math.min(...timestamps);
-  const maxTime = Math.max(...timestamps);
+  const generateChartDatapoints = () => {
+    const timestamps = data.map((d) => d.timestamp);
+    const minTime = Math.min(...timestamps);
+    const maxTime = Math.max(...timestamps);
+    return { minTime, maxTime };
+  };
 
-  // Calculate value range (y-axis) with padding
-  const values = data.map((d) => d.value ?? 0);
-  const dataMin = Math.min(...values);
-  const dataMax = Math.max(...values);
+  const generateReferenceRanges = () => {
+    const { minTime, maxTime } = generateChartDatapoints();
 
-  // Ensure min/max include reference ranges
-  const minValue = Math.min(dataMin, refRange.min) * 0.95;
-  const maxValue = Math.max(dataMax, refRange.max) * 1.05;
+    // Get the latest data point to determine the user's current age
+    const latestDate = new Date(Math.max(...data.map((d) => d.date.getTime())));
 
-  // Calculate statistics
+    // Create a list of intermediate points across the x-axis (yearly intervals)
+    const referenceRangesByDate: DynamicReferenceRangePoint[] = [];
+
+    // Calculate yearSpan in milliseconds
+    const yearSpan = maxTime - minTime;
+    const numberOfYearPoints = Math.max(
+      5,
+      Math.ceil(yearSpan / (365 * 24 * 60 * 60 * 1000))
+    );
+
+    // Create reference range points for each year in the time range
+    for (let i = 0; i <= numberOfYearPoints; i++) {
+      const timestamp = minTime + (i / numberOfYearPoints) * yearSpan;
+      const currentDate = new Date(timestamp);
+
+      // Get reference range based on the date (which determines the age)
+      const refRange = referenceRangeService.getReferenceRange(
+        labKey,
+        currentDate
+      );
+
+      referenceRangesByDate.push({
+        timestamp,
+        min: refRange.min,
+        max: refRange.max,
+      });
+    }
+
+    // Get the latest reference range for statistics
+    const latestRefRange = referenceRangeService.getReferenceRange(
+      labKey,
+      latestDate
+    );
+
+    return { referenceRangesByDate, latestRefRange };
+  };
+
+  const calculateValueRange = (
+    referenceRangesByDate: DynamicReferenceRangePoint[]
+  ) => {
+    const values = data.map((d) => d.value ?? 0);
+    const refMinValues = referenceRangesByDate.map(
+      (r: DynamicReferenceRangePoint) => r.min
+    );
+    const refMaxValues = referenceRangesByDate.map(
+      (r: DynamicReferenceRangePoint) => r.max
+    );
+
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const rangeMin = Math.min(...refMinValues);
+    const rangeMax = Math.max(...refMaxValues);
+
+    const minValue = Math.min(dataMin, rangeMin) * 0.95;
+    const maxValue = Math.max(dataMax, rangeMax) * 1.05;
+
+    return { values, minValue, maxValue };
+  };
+
+  const { minTime, maxTime } = generateChartDatapoints();
+  const { referenceRangesByDate, latestRefRange } = generateReferenceRanges();
+  const { values, minValue, maxValue } = calculateValueRange(
+    referenceRangesByDate
+  );
+
   const { latestValue, averageValue, maxPointValue } =
-    calculateStatisticsUseCase.execute(data, refRange);
+    calculateStatisticsUseCase.execute(data, latestRefRange);
 
-  // Create paths
   const linePath = createLinePath(
     data,
     minTime,
@@ -112,15 +176,62 @@ const ChartItem: React.FC<ChartItemProps> = ({
     maxValue,
     chartDimensions
   );
-  const referenceAreaPath = createReferenceAreaPath(
+
+  const referenceAreaPaths = createDynamicReferenceAreaPaths(
+    referenceRangesByDate,
     minTime,
     maxTime,
-    refRange.min,
-    refRange.max,
     minValue,
     maxValue,
     chartDimensions
   );
+
+  const renderChartGradient = () => (
+    <Defs>
+      <LinearGradient
+        id={`referenceGradient-${labKey}`}
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="1"
+      >
+        <Stop offset="0" stopColor="#00c800" stopOpacity="0.2" />
+        <Stop offset="1" stopColor="#00c800" stopOpacity="0.05" />
+      </LinearGradient>
+    </Defs>
+  );
+
+  const renderReferenceAreaPaths = () =>
+    referenceAreaPaths.map((path: string, index: number) => (
+      <Path
+        key={`ref-area-${index}`}
+        d={path}
+        fill={`url(#referenceGradient-${labKey})`}
+        stroke="#00c800"
+        strokeWidth={1}
+        opacity={0.6}
+      />
+    ));
+
+  const renderStatCard = (label: string, value: number, date?: Date) => {
+    const isOutOfRange =
+      value < latestRefRange.min || value > latestRefRange.max;
+
+    return (
+      <View style={[styles.statCard, isOutOfRange ? styles.statCardAlert : {}]}>
+        <Text style={styles.statLabel}>{label}</Text>
+        <Text
+          style={[styles.statValue, isOutOfRange ? styles.statValueAlert : {}]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.8}
+        >
+          {value.toFixed(1)} {unit}
+        </Text>
+        {date && <Text style={styles.statDate}>{formatDate(date)}</Text>}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.chartSection}>
@@ -128,30 +239,9 @@ const ChartItem: React.FC<ChartItemProps> = ({
 
       <View style={styles.chartContainer}>
         <Svg width={chartDimensions.width} height={chartDimensions.height}>
-          {/* Define gradient for reference area */}
-          <Defs>
-            <LinearGradient
-              id={`referenceGradient-${labKey}`}
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <Stop offset="0" stopColor="#00c800" stopOpacity="0.2" />
-              <Stop offset="1" stopColor="#00c800" stopOpacity="0.05" />
-            </LinearGradient>
-          </Defs>
+          {renderChartGradient()}
+          {renderReferenceAreaPaths()}
 
-          {/* Reference range area */}
-          <Path
-            d={referenceAreaPath}
-            fill={`url(#referenceGradient-${labKey})`}
-            stroke="#00c800"
-            strokeWidth={1}
-            opacity={0.5}
-          />
-
-          {/* Grid lines */}
           {createVerticalGridLines(
             data,
             minTime,
@@ -161,10 +251,8 @@ const ChartItem: React.FC<ChartItemProps> = ({
           )}
           {createHorizontalGridLines(minValue, maxValue, chartDimensions, unit)}
 
-          {/* Line chart */}
           <Path d={linePath} fill="none" stroke="#4484B2" strokeWidth={3} />
 
-          {/* Data points */}
           {createDataPoints(
             data,
             minTime,
@@ -172,447 +260,56 @@ const ChartItem: React.FC<ChartItemProps> = ({
             minValue,
             maxValue,
             chartDimensions,
-            refRange
+            referenceRangesByDate
           )}
         </Svg>
 
-        {/* Chart legend */}
-        <View style={styles.referenceLegend}>
-          <View style={styles.legendRow}>
-            <View style={styles.legendItem}>
-              <View
-                style={[styles.legendColor, { backgroundColor: "#4484B2" }]}
-              />
-              <Text style={styles.legendText}>Measured Value</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View
-                style={[styles.legendColor, { backgroundColor: "#00c800" }]}
-              />
-              <Text style={styles.legendText}>Normal Range</Text>
-            </View>
-          </View>
-          <Text style={styles.rangeText}>
-            Normal range: {refRange.min} - {refRange.max} {unit}
-          </Text>
-        </View>
+        <ChartLegend latestRefRange={latestRefRange} unit={unit} />
       </View>
 
-      {/* Statistics cards */}
       <View style={styles.statsContainer}>
-        <View
-          style={[
-            styles.statCard,
-            latestValue < refRange.min || latestValue > refRange.max
-              ? styles.statCardAlert
-              : {},
-          ]}
-        >
-          <Text style={styles.statLabel}>Latest</Text>
-          <Text
-            style={[
-              styles.statValue,
-              latestValue < refRange.min || latestValue > refRange.max
-                ? styles.statValueAlert
-                : {},
-            ]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-          >
-            {latestValue.toFixed(1)} {unit}
-          </Text>
-          <Text style={styles.statDate}>
-            {data.length > 0 ? formatDate(data[data.length - 1].date) : ""}
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.statCard,
-            averageValue < refRange.min || averageValue > refRange.max
-              ? styles.statCardAlert
-              : {},
-          ]}
-        >
-          <Text style={styles.statLabel}>Average</Text>
-          <Text
-            style={[
-              styles.statValue,
-              averageValue < refRange.min || averageValue > refRange.max
-                ? styles.statValueAlert
-                : {},
-            ]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-          >
-            {averageValue.toFixed(1)} {unit}
-          </Text>
-        </View>
-
-        <View
-          style={[
-            styles.statCard,
-            maxPointValue < refRange.min || maxPointValue > refRange.max
-              ? styles.statCardAlert
-              : {},
-          ]}
-        >
-          <Text style={styles.statLabel}>Max</Text>
-          <Text
-            style={[
-              styles.statValue,
-              maxPointValue < refRange.min || maxPointValue > refRange.max
-                ? styles.statValueAlert
-                : {},
-            ]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.8}
-          >
-            {maxPointValue.toFixed(1)} {unit}
-          </Text>
-          <Text style={styles.statDate}>
-            {data.length > 0
-              ? formatDate(data[values.indexOf(maxPointValue)].date)
-              : ""}
-          </Text>
-        </View>
+        {renderStatCard("Latest", latestValue, data[data.length - 1].date)}
+        {renderStatCard("Average", averageValue)}
+        {renderStatCard(
+          "Max",
+          maxPointValue,
+          data[values.indexOf(maxPointValue)].date
+        )}
       </View>
     </View>
   );
 };
 
-// Creates SVG path for a line chart with smoothed polynomial interpolation
-const createLinePath = (
-  dataPoints: DataPoint[],
-  minTime: number,
-  maxTime: number,
-  minValue: number,
-  maxValue: number,
-  dimensions: ChartDimensions
-): string => {
-  if (dataPoints.length === 0) return "";
-  if (dataPoints.length === 1) {
-    const {
-      width,
-      height,
-      paddingLeft,
-      paddingTop,
-      paddingBottom,
-      paddingRight,
-    } = dimensions;
-    const point = dataPoints[0];
-    const timeRange = maxTime - minTime;
-    const x =
-      paddingLeft +
-      ((point.timestamp - minTime) / timeRange) *
-        (width - paddingLeft - paddingRight);
-    const valueRange = maxValue - minValue;
-    const y =
-      height -
-      paddingBottom -
-      (((point.value ?? 0) - minValue) / valueRange) *
-        (height - paddingTop - paddingBottom);
-    return `M ${x} ${y}`;
-  }
-
-  const {
-    width,
-    height,
-    paddingLeft,
-    paddingTop,
-    paddingBottom,
-    paddingRight,
-  } = dimensions;
-  const graphWidth = width - paddingLeft - paddingRight;
-  const graphHeight = height - paddingTop - paddingBottom;
-
-  // Calculate coordinates for each data point
-  const points = dataPoints.map((point) => {
-    const timeRange = maxTime - minTime;
-    const x =
-      paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
-    const valueRange = maxValue - minValue;
-    const y =
-      height -
-      paddingBottom -
-      (((point.value ?? 0) - minValue) / valueRange) * graphHeight;
-    return { x, y, timestamp: point.timestamp };
-  });
-
-  // If we have just 2 points, create a simple quadratic Bézier curve
-  if (points.length === 2) {
-    const mx = (points[0].x + points[1].x) / 2;
-    const my = (points[0].y + points[1].y) / 2;
-    return `M ${points[0].x} ${points[0].y} Q ${mx} ${my}, ${points[1].x} ${points[1].y}`;
-  }
-
-  // First point
-  let path = `M ${points[0].x} ${points[0].y}`;
-
-  // Use a modified Catmull-Rom spline approach (smoother than polynomial interpolation)
-  // with tension control to make it even smoother
-  const tension = 0.33; // Lower values make the curve smoother (range: 0 to 1)
-  const numIntermediatePoints = 12; // More points = smoother curve
-
-  // For each segment between points
-  for (let i = 0; i < points.length - 1; i++) {
-    // Get four points for calculating the curve segment (p0, p1, p2, p3)
-    const p0 = i === 0 ? points[0] : points[i - 1]; // If first point, duplicate it
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = i === points.length - 2 ? points[i + 1] : points[i + 2]; // If last point, duplicate it
-
-    // Generate intermediate points along the curve
-    for (let t = 1; t <= numIntermediatePoints; t++) {
-      const t1 = t / (numIntermediatePoints + 1);
-
-      // Cardinal spline with tension control
-      // Catmull-Rom is a special case of Cardinal spline with tension = 0.5
-      // Applying a modified approach with custom tension for smoother results
-
-      // Calculate control points with tension parameter
-      const t2 = t1 * t1;
-      const t3 = t2 * t1;
-
-      // Cardinal spline basis functions with tension parameter
-      const h1 = 2 * t3 - 3 * t2 + 1; // Hermite basis function for p1
-      const h2 = -2 * t3 + 3 * t2; // Hermite basis function for p2
-      const h3 = t3 - 2 * t2 + t1; // Hermite basis function for tangent at p1
-      const h4 = t3 - t2; // Hermite basis function for tangent at p2
-
-      // Tangent vectors scaled by tension
-      const tx1 = tension * (p2.x - p0.x);
-      const ty1 = tension * (p2.y - p0.y);
-      const tx2 = tension * (p3.x - p1.x);
-      const ty2 = tension * (p3.y - p1.y);
-
-      // Calculate position at parameter t
-      const x = h1 * p1.x + h2 * p2.x + h3 * tx1 + h4 * tx2;
-      const y = h1 * p1.y + h2 * p2.y + h3 * ty1 + h4 * ty2;
-
-      // Add point to path
-      path += ` L ${x} ${y}`;
-    }
-  }
-
-  // Add the last point
-  path += ` L ${points[points.length - 1].x} ${points[points.length - 1].y}`;
-
-  return path;
-};
-
-// Creates SVG path for the area between min and max reference values
-const createReferenceAreaPath = (
-  minTime: number,
-  maxTime: number,
-  minRefValue: number,
-  maxRefValue: number,
-  minValue: number,
-  maxValue: number,
-  dimensions: ChartDimensions
-): string => {
-  const {
-    width,
-    height,
-    paddingLeft,
-    paddingTop,
-    paddingBottom,
-    paddingRight,
-  } = dimensions;
-  const graphWidth = width - paddingLeft - paddingRight;
-  const graphHeight = height - paddingTop - paddingBottom;
-
-  const valueRange = maxValue - minValue;
-
-  // Calculate y coordinates for min and max reference values
-  const minRefY =
-    height -
-    paddingBottom -
-    ((minRefValue - minValue) / valueRange) * graphHeight;
-  const maxRefY =
-    height -
-    paddingBottom -
-    ((maxRefValue - minValue) / valueRange) * graphHeight;
-
-  // Create path: start at bottom-left of the reference area, go to top-left,
-  // then to top-right, then to bottom-right, and close the path
-  return `
-    M ${paddingLeft} ${minRefY}
-    L ${paddingLeft} ${maxRefY}
-    L ${paddingLeft + graphWidth} ${maxRefY}
-    L ${paddingLeft + graphWidth} ${minRefY}
-    Z
-  `;
-};
-
-// Create vertical grid lines based on dates
-const createVerticalGridLines = (
-  dataPoints: DataPoint[],
-  minTime: number,
-  maxTime: number,
-  dimensions: ChartDimensions,
-  formatDate: (date: Date) => string
-) => {
-  const {
-    width,
-    height,
-    paddingLeft,
-    paddingTop,
-    paddingBottom,
-    paddingRight,
-  } = dimensions;
-  const graphWidth = width - paddingLeft - paddingRight;
-
-  const pointsToShow =
-    dataPoints.length <= 6
-      ? dataPoints
-      : [
-          dataPoints[0],
-          ...dataPoints.filter(
-            (_, i) =>
-              i > 0 &&
-              i < dataPoints.length - 1 &&
-              i % Math.ceil(dataPoints.length / 5) === 0
-          ),
-          dataPoints[dataPoints.length - 1],
-        ];
-
-  return pointsToShow.map((point, index) => {
-    const timeRange = maxTime - minTime;
-    const x =
-      paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
-
-    return (
-      <React.Fragment key={`grid-${index}`}>
-        <Line
-          x1={x}
-          y1={paddingTop}
-          x2={x}
-          y2={height - paddingBottom}
-          stroke="#ECECEC"
-          strokeWidth={1}
-        />
-        <SvgText
-          x={x}
-          y={height - paddingBottom + 20}
-          fill="#95aac9"
-          fontSize="9"
-          textAnchor="middle"
-          transform={`rotate(-45, ${x}, ${height - paddingBottom + 20})`}
-        >
-          {formatDate(point.date)}
-        </SvgText>
-      </React.Fragment>
-    );
-  });
-};
-
-// Create horizontal grid lines and value labels
-const createHorizontalGridLines = (
-  minValue: number,
-  maxValue: number,
-  dimensions: ChartDimensions,
-  unit: string
-) => {
-  const {
-    width,
-    height,
-    paddingLeft,
-    paddingTop,
-    paddingBottom,
-    paddingRight,
-  } = dimensions;
-  const graphHeight = height - paddingTop - paddingBottom;
-
-  // Create about 5 horizontal lines
-  const valueRange = maxValue - minValue;
-  const step = valueRange / 4;
-
-  return Array.from({ length: 5 }).map((_, index) => {
-    const value = minValue + step * index;
-    const y = height - paddingBottom - (index * graphHeight) / 4;
-
-    return (
-      <React.Fragment key={`h-grid-${index}`}>
-        <Line
-          x1={paddingLeft}
-          y1={y}
-          x2={width - paddingRight}
-          y2={y}
-          stroke="#ECECEC"
-          strokeWidth={1}
-        />
-        <SvgText
-          x={paddingLeft - 5}
-          y={y + 3}
-          fill="#95aac9"
-          fontSize="9"
-          textAnchor="middle"
-        >
-          {`${value.toFixed(1)} ${unit}`}
-        </SvgText>
-      </React.Fragment>
-    );
-  });
-};
-
-// Create data point circles
-const createDataPoints = (
-  dataPoints: DataPoint[],
-  minTime: number,
-  maxTime: number,
-  minValue: number,
-  maxValue: number,
-  dimensions: ChartDimensions,
-  refRange: { min: number; max: number }
-) => {
-  const {
-    width,
-    height,
-    paddingLeft,
-    paddingTop,
-    paddingBottom,
-    paddingRight,
-  } = dimensions;
-  const graphWidth = width - paddingLeft - paddingRight;
-  const graphHeight = height - paddingTop - paddingBottom;
-
-  return dataPoints.map((point, index) => {
-    const timeRange = maxTime - minTime;
-    const x =
-      paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
-
-    const valueRange = maxValue - minValue;
-    const y =
-      height -
-      paddingBottom -
-      (((point.value ?? 0) - minValue) / valueRange) * graphHeight;
-
-    // Determine if the point is outside the reference range
-    const isOutsideRange =
-      (point.value ?? 0) < refRange.min || (point.value ?? 0) > refRange.max;
-
-    return (
-      <Circle
-        key={`point-${index}`}
-        cx={x}
-        cy={y}
-        r={4}
-        fill={isOutsideRange ? "#e63757" : "#4484B2"}
-        stroke="white"
-        strokeWidth={1}
-      />
-    );
-  });
-};
+const ChartLegend = ({
+  latestRefRange,
+  unit,
+}: {
+  latestRefRange: { min: number; max: number };
+  unit: string;
+}) => (
+  <View style={styles.referenceLegend}>
+    <View style={styles.legendRow}>
+      <View style={styles.legendItem}>
+        <View style={[styles.legendColor, { backgroundColor: "#4484B2" }]} />
+        <Text style={styles.legendText}>Measured Value</Text>
+      </View>
+      <View style={styles.legendItem}>
+        <View style={[styles.legendColor, { backgroundColor: "#00c800" }]} />
+        <Text style={styles.legendText}>Normal Range</Text>
+      </View>
+    </View>
+    <Text style={styles.rangeText}>
+      Current normal range: {latestRefRange.min.toFixed(1)} -{" "}
+      {latestRefRange.max.toFixed(1)} {unit}
+    </Text>
+  </View>
+);
 
 export const ChartScreen: React.FC<ChartScreenProps> = ({
   getAnalysesUseCase,
   getLabTestDataUseCase,
   calculateStatisticsUseCase,
+  referenceRangeService,
   navigation,
 }) => {
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
@@ -624,7 +321,6 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   const [isTimeRangeMenuOpen, setIsTimeRangeMenuOpen] =
     useState<boolean>(false);
 
-  // Animation values for each menu item
   const animations = {
     rotation: useState(new Animated.Value(0))[0],
     menuItem1: useState(new Animated.Value(0))[0],
@@ -646,18 +342,18 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     [screenWidth]
   );
 
-  // Debug props on mount
   useEffect(() => {
-    console.log("ChartScreen mounted with props:", {
-      hasGetAnalysesUseCase: !!getAnalysesUseCase,
-      hasGetLabTestDataUseCase: !!getLabTestDataUseCase,
-      hasCalculateStatisticsUseCase: !!calculateStatisticsUseCase,
-    });
+    initializeAndLoadData();
   }, []);
 
-  useEffect(() => {
-    loadAnalyses();
-  }, []);
+  const initializeAndLoadData = async () => {
+    try {
+      await referenceRangeService.initialize();
+      loadAnalyses();
+    } catch {
+      setError("Failed to initialize reference range service");
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -667,15 +363,20 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
 
   const toggleTimeRangeMenu = (): void => {
     const toValue = isTimeRangeMenuOpen ? 0 : 1;
+    rotateMenuButton(toValue);
+    animateMenuItems(toValue);
+    setIsTimeRangeMenuOpen(!isTimeRangeMenuOpen);
+  };
 
-    // Rotate the main button
+  const rotateMenuButton = (toValue: number) => {
     Animated.timing(animations.rotation, {
       toValue,
       duration: 300,
       useNativeDriver: true,
     }).start();
+  };
 
-    // Fan out the menu items
+  const animateMenuItems = (toValue: number) => {
     Animated.stagger(50, [
       Animated.spring(animations.menuItem1, {
         toValue,
@@ -698,13 +399,46 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         useNativeDriver: true,
       }),
     ]).start();
-
-    setIsTimeRangeMenuOpen(!isTimeRangeMenuOpen);
   };
 
   const selectTimeRange = (range: TimeRangeOption): void => {
-    setSelectedTimeRange(range);
-    toggleTimeRangeMenu();
+    // Close menu first with animations and update time range after animation completes
+    const toValue = 0; // Force to 0 to close the menu
+
+    // Animate menu closing
+    Animated.parallel([
+      Animated.timing(animations.rotation, {
+        toValue,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.stagger(50, [
+        Animated.spring(animations.menuItem1, {
+          toValue,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+        Animated.spring(animations.menuItem2, {
+          toValue,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.spring(animations.menuItem3, {
+          toValue,
+          friction: 8,
+          useNativeDriver: true,
+        }),
+        Animated.spring(animations.menuItem4, {
+          toValue,
+          friction: 9,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      // Update state after animation completes
+      setIsTimeRangeMenuOpen(false);
+      setSelectedTimeRange(range);
+    });
   };
 
   const loadAnalyses = async (isRefresh: boolean = false): Promise<void> => {
@@ -713,19 +447,21 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         setLoading(true);
       }
       const result = await getAnalysesUseCase.execute();
-      // Sort by date, oldest first for charts
-      const sortedAnalyses = [...result].sort(
-        (a, b) => a.date.getTime() - b.date.getTime()
-      );
+      const sortedAnalyses = sortAnalysesByDate(result);
       setAnalyses(sortedAnalyses);
       setError(null);
-    } catch (err) {
+    } catch {
       setError("Failed to load analyses");
-      console.error(err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const sortAnalysesByDate = (
+    analyses: BiologicalAnalysis[]
+  ): BiologicalAnalysis[] => {
+    return [...analyses].sort((a, b) => a.date.getTime() - b.date.getTime());
   };
 
   const onRefresh = (): void => {
@@ -733,35 +469,35 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     loadAnalyses(true);
   };
 
-  // Maps data for a specific lab test
   const getLabTestData = useCallback(
     (labKey: string): DataPoint[] => {
       if (!getLabTestDataUseCase) {
-        console.error(
-          "GetLabTestDataUseCase is undefined, using fallback implementation"
-        );
-        // Fallback implementation similar to the original function
-        return analyses
-          .map((analysis) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const labData = (analysis as any)[labKey];
-            const hasValidValue =
-              labData &&
-              typeof labData.value === "number" &&
-              !Number.isNaN(labData.value);
-
-            return {
-              date: new Date(analysis.date),
-              value: hasValidValue ? labData.value : 0, // Default to 0 if value is invalid
-              timestamp: new Date(analysis.date).getTime(),
-            };
-          })
-          .filter((point) => point.value !== null && point.value !== 0);
+        setError("GetLabTestDataUseCase is undefined");
+        return getFallbackLabTestData(labKey);
       }
       return getLabTestDataUseCase.execute(analyses, labKey);
     },
     [analyses, getLabTestDataUseCase]
   );
+
+  const getFallbackLabTestData = (labKey: string): DataPoint[] => {
+    return analyses
+      .map((analysis) => {
+        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+        const labData = (analysis as any)[labKey];
+        const hasValidValue =
+          labData &&
+          typeof labData.value === "number" &&
+          !Number.isNaN(labData.value);
+
+        return {
+          date: new Date(analysis.date),
+          value: hasValidValue ? labData.value : 0,
+          timestamp: new Date(analysis.date).getTime(),
+        };
+      })
+      .filter((point) => point.value !== null && point.value !== 0);
+  };
 
   const getFilteredDataByTimeRange = useCallback(
     (data: DataPoint[]): DataPoint[] => {
@@ -769,20 +505,21 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         return data;
       }
 
-      const currentDate = new Date();
-      const yearsToSubtract =
-        selectedTimeRange === "1y" ? 1 : selectedTimeRange === "3y" ? 3 : 5;
-
-      const cutoffDate = new Date();
-      cutoffDate.setFullYear(currentDate.getFullYear() - yearsToSubtract);
-      const cutoffTimestamp = cutoffDate.getTime();
-
+      const cutoffTimestamp = calculateCutoffTimestamp(selectedTimeRange);
       return data.filter((point) => point.timestamp >= cutoffTimestamp);
     },
     [selectedTimeRange]
   );
 
-  // Format date for display
+  const calculateCutoffTimestamp = (timeRange: TimeRangeOption): number => {
+    const currentDate = new Date();
+    const yearsToSubtract = timeRange === "1y" ? 1 : timeRange === "3y" ? 3 : 5;
+
+    const cutoffDate = new Date();
+    cutoffDate.setFullYear(currentDate.getFullYear() - yearsToSubtract);
+    return cutoffDate.getTime();
+  };
+
   const formatDate = useCallback((date: Date): string => {
     return `${date.getDate()}/${date.getMonth() + 1}/${date
       .getFullYear()
@@ -790,7 +527,6 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
       .slice(2)}`;
   }, []);
 
-  // Prepare chart data for FlatList
   const chartDataByCategory = useMemo(() => {
     const categorizedData: Record<string, ChartData[]> = {};
 
@@ -800,16 +536,11 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
           const allData = getLabTestData(labKey);
           const filteredData = getFilteredDataByTimeRange(allData);
           const unit = LAB_VALUE_UNITS[labKey] || "";
-          const refRange = LAB_VALUE_REFERENCE_RANGES[labKey] || {
-            min: 0,
-            max: 0,
-          };
 
           return {
             labKey,
             filteredData,
             unit,
-            refRange,
           };
         })
         .filter((item) => item.filteredData.length >= 2);
@@ -838,13 +569,18 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         labKey={item.labKey}
         data={item.filteredData}
         unit={item.unit}
-        refRange={item.refRange}
+        referenceRangeService={referenceRangeService}
         calculateStatisticsUseCase={calculateStatisticsUseCase}
         chartDimensions={chartDimensions}
         formatDate={formatDate}
       />
     ),
-    [calculateStatisticsUseCase, chartDimensions, formatDate]
+    [
+      calculateStatisticsUseCase,
+      chartDimensions,
+      formatDate,
+      referenceRangeService,
+    ]
   );
 
   const sections = useMemo(
@@ -859,37 +595,15 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   const keyExtractor = useCallback((item: ChartData) => item.labKey, []);
 
   if (loading && !refreshing) {
-    return (
-      <ScreenLayout>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#2c7be5" />
-        </View>
-      </ScreenLayout>
-    );
+    return renderLoadingScreen();
   }
 
   if (error && !refreshing) {
-    return (
-      <ScreenLayout>
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      </ScreenLayout>
-    );
+    return renderErrorScreen(error);
   }
 
   if (analyses.length < 2 && !refreshing) {
-    return (
-      <ScreenLayout>
-        <EmptyState
-          /* eslint-disable @typescript-eslint/no-explicit-any */
-          navigation={navigation as any}
-          message="Insufficient Data"
-          subMessage="Upload at least 2 reports to see a chart"
-          iconName="stats-chart-outline"
-        />
-      </ScreenLayout>
-    );
+    return renderInsufficientDataScreen();
   }
 
   const timeRangeFloatingMenu = (
@@ -902,45 +616,109 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   );
 
   if (Object.keys(chartDataByCategory).length === 0) {
+    return renderNoDataForTimeRangeScreen(
+      selectedTimeRange,
+      timeRangeFloatingMenu
+    );
+  }
+
+  return renderChartScreen(
+    sections,
+    renderSectionHeader,
+    renderSectionItem,
+    keyExtractor,
+    refreshing,
+    onRefresh,
+    timeRangeFloatingMenu
+  );
+
+  function renderLoadingScreen() {
+    return (
+      <ScreenLayout>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#2c7be5" />
+        </View>
+      </ScreenLayout>
+    );
+  }
+
+  function renderErrorScreen(errorMessage: string) {
+    return (
+      <ScreenLayout>
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      </ScreenLayout>
+    );
+  }
+
+  function renderInsufficientDataScreen() {
+    return (
+      <ScreenLayout>
+        <EmptyState
+          /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+          navigation={navigation as any}
+          message="Insufficient Data"
+          subMessage="Upload at least 2 reports to see a chart"
+          iconName="stats-chart-outline"
+        />
+      </ScreenLayout>
+    );
+  }
+
+  function renderNoDataForTimeRangeScreen(
+    selectedTimeRange: TimeRangeOption,
+    timeRangeFloatingMenu: React.ReactNode
+  ) {
     return (
       <>
         <ScreenLayout>
           <NoDataEmptyState selectedTimeRange={selectedTimeRange} />
         </ScreenLayout>
-
         {timeRangeFloatingMenu}
       </>
     );
   }
 
-  return (
-    <ScreenLayout>
-      <SectionList
-        sections={sections}
-        renderSectionHeader={renderSectionHeader}
-        renderItem={renderSectionItem}
-        keyExtractor={keyExtractor}
-        contentContainerStyle={styles.chartsContainer}
-        showsVerticalScrollIndicator={false}
-        initialNumToRender={3}
-        maxToRenderPerBatch={3}
-        windowSize={6}
-        stickySectionHeadersEnabled={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#2c7be5"]}
-            tintColor="#2c7be5"
-            title="Pull to refresh..."
-            titleColor="#95aac9"
-          />
-        }
-      />
-
-      {timeRangeFloatingMenu}
-    </ScreenLayout>
-  );
+  function renderChartScreen(
+    sections: { title: string; data: ChartData[] }[],
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    renderSectionHeader: any,
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    renderSectionItem: any,
+    keyExtractor: (item: ChartData) => string,
+    refreshing: boolean,
+    onRefresh: () => void,
+    timeRangeFloatingMenu: React.ReactNode
+  ) {
+    return (
+      <ScreenLayout>
+        <SectionList
+          sections={sections}
+          renderSectionHeader={renderSectionHeader}
+          renderItem={renderSectionItem}
+          keyExtractor={keyExtractor}
+          contentContainerStyle={styles.chartsContainer}
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={3}
+          maxToRenderPerBatch={3}
+          windowSize={6}
+          stickySectionHeadersEnabled={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#2c7be5"]}
+              tintColor="#2c7be5"
+              title="Pull to refresh..."
+              titleColor="#95aac9"
+            />
+          }
+        />
+        {timeRangeFloatingMenu}
+      </ScreenLayout>
+    );
+  }
 };
 
 type NoDataEmptyStateProps = {
@@ -1062,46 +840,65 @@ const TimeRangeFloatingMenu: React.FC<TimeRangeFloatingMenuProps> = ({
 
   return (
     <View style={styles.fabContainer}>
-      <TimeRangeButton
-        label="1y"
-        isActive={selectedTimeRange === "1y"}
-        onPress={() => onSelectTimeRange("1y")}
-        animation={animations.menuItem4}
-        yOffset={-60}
-      />
-
-      <TimeRangeButton
-        label="3y"
-        isActive={selectedTimeRange === "3y"}
-        onPress={() => onSelectTimeRange("3y")}
-        animation={animations.menuItem3}
-        yOffset={-120}
-      />
-
-      <TimeRangeButton
-        label="5y"
-        isActive={selectedTimeRange === "5y"}
-        onPress={() => onSelectTimeRange("5y")}
-        animation={animations.menuItem2}
-        yOffset={-180}
-      />
-
-      <TimeRangeButton
-        label="Max"
-        isActive={selectedTimeRange === "Max"}
-        onPress={() => onSelectTimeRange("Max")}
-        animation={animations.menuItem1}
-        yOffset={-240}
-      />
-
-      <TouchableOpacity style={styles.fab} onPress={onToggleMenu}>
-        <Animated.View style={{ transform: [{ rotate }] }}>
-          <Ionicons name="time-outline" size={24} color="white" />
-        </Animated.View>
-      </TouchableOpacity>
+      {renderTimeRangeButtons(selectedTimeRange, animations, onSelectTimeRange)}
+      {renderMainButton(rotate, onToggleMenu)}
     </View>
   );
 };
+
+const renderTimeRangeButtons = (
+  selectedTimeRange: TimeRangeOption,
+  animations: {
+    menuItem1: Animated.Value;
+    menuItem2: Animated.Value;
+    menuItem3: Animated.Value;
+    menuItem4: Animated.Value;
+  },
+  onSelectTimeRange: (range: TimeRangeOption) => void
+) => (
+  <>
+    <TimeRangeButton
+      label="1y"
+      isActive={selectedTimeRange === "1y"}
+      onPress={() => onSelectTimeRange("1y")}
+      animation={animations.menuItem4}
+      yOffset={-60}
+    />
+
+    <TimeRangeButton
+      label="3y"
+      isActive={selectedTimeRange === "3y"}
+      onPress={() => onSelectTimeRange("3y")}
+      animation={animations.menuItem3}
+      yOffset={-120}
+    />
+
+    <TimeRangeButton
+      label="5y"
+      isActive={selectedTimeRange === "5y"}
+      onPress={() => onSelectTimeRange("5y")}
+      animation={animations.menuItem2}
+      yOffset={-180}
+    />
+
+    <TimeRangeButton
+      label="Max"
+      isActive={selectedTimeRange === "Max"}
+      onPress={() => onSelectTimeRange("Max")}
+      animation={animations.menuItem1}
+      yOffset={-240}
+    />
+  </>
+);
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+const renderMainButton = (rotate: any, onToggleMenu: () => void) => (
+  <TouchableOpacity style={styles.fab} onPress={onToggleMenu}>
+    <Animated.View style={{ transform: [{ rotate }] }}>
+      <Ionicons name="time-outline" size={24} color="white" />
+    </Animated.View>
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
   centered: {
@@ -1383,3 +1180,372 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 });
+
+function createLinePath(
+  dataPoints: DataPoint[],
+  minTime: number,
+  maxTime: number,
+  minValue: number,
+  maxValue: number,
+  dimensions: ChartDimensions
+): string {
+  if (dataPoints.length === 0) return "";
+
+  if (dataPoints.length === 1) {
+    const {
+      width,
+      height,
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+    } = dimensions;
+    const point = dataPoints[0];
+    const timeRange = maxTime - minTime;
+    const x =
+      paddingLeft +
+      ((point.timestamp - minTime) / timeRange) *
+        (width - paddingLeft - paddingRight);
+    const valueRange = maxValue - minValue;
+    const y =
+      height -
+      paddingBottom -
+      (((point.value ?? 0) - minValue) / valueRange) *
+        (height - paddingTop - paddingBottom);
+    return `M ${x} ${y}`;
+  }
+
+  const points = dataPoints.map((point) => {
+    const {
+      width,
+      height,
+      paddingLeft,
+      paddingRight,
+      paddingTop,
+      paddingBottom,
+    } = dimensions;
+    const graphWidth = width - paddingLeft - paddingRight;
+    const graphHeight = height - paddingTop - paddingBottom;
+    const timeRange = maxTime - minTime;
+    const valueRange = maxValue - minValue;
+
+    const x =
+      paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
+    const y =
+      height -
+      paddingBottom -
+      (((point.value ?? 0) - minValue) / valueRange) * graphHeight;
+
+    return { x, y, timestamp: point.timestamp };
+  });
+
+  let path = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    path += ` L ${points[i].x} ${points[i].y}`;
+  }
+
+  return path;
+}
+
+function createDynamicReferenceAreaPaths(
+  referenceRanges: DynamicReferenceRangePoint[],
+  minTime: number,
+  maxTime: number,
+  minValue: number,
+  maxValue: number,
+  dimensions: ChartDimensions
+): string[] {
+  const {
+    width,
+    height,
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingBottom,
+  } = dimensions;
+  const graphWidth = width - paddingLeft - paddingRight;
+  const graphHeight = height - paddingTop - paddingBottom;
+  const valueRange = maxValue - minValue;
+  const timeRange = maxTime - minTime;
+
+  // Ensure reference ranges are sorted by timestamp
+  const sortedRanges = [...referenceRanges].sort(
+    (a, b) => a.timestamp - b.timestamp
+  );
+  const paths: string[] = [];
+
+  // Create a single continuous path for the entire reference area
+  if (sortedRanges.length >= 2) {
+    // Start with the top boundary from left to right
+    let path = `M ${paddingLeft} ${
+      height -
+      paddingBottom -
+      ((sortedRanges[0].max - minValue) / valueRange) * graphHeight
+    }`;
+
+    // Add points for the top boundary (max values)
+    for (let i = 0; i < sortedRanges.length; i++) {
+      const x =
+        paddingLeft +
+        ((sortedRanges[i].timestamp - minTime) / timeRange) * graphWidth;
+      const maxY =
+        height -
+        paddingBottom -
+        ((sortedRanges[i].max - minValue) / valueRange) * graphHeight;
+      path += ` L ${x} ${maxY}`;
+    }
+
+    // Continue to the right edge at max level
+    path += ` L ${width - paddingRight} ${
+      height -
+      paddingBottom -
+      ((sortedRanges[sortedRanges.length - 1].max - minValue) / valueRange) *
+        graphHeight
+    }`;
+
+    // Now go to the bottom boundary on the right edge
+    path += ` L ${width - paddingRight} ${
+      height -
+      paddingBottom -
+      ((sortedRanges[sortedRanges.length - 1].min - minValue) / valueRange) *
+        graphHeight
+    }`;
+
+    // Add points for the bottom boundary (min values) from right to left
+    for (let i = sortedRanges.length - 1; i >= 0; i--) {
+      const x =
+        paddingLeft +
+        ((sortedRanges[i].timestamp - minTime) / timeRange) * graphWidth;
+      const minY =
+        height -
+        paddingBottom -
+        ((sortedRanges[i].min - minValue) / valueRange) * graphHeight;
+      path += ` L ${x} ${minY}`;
+    }
+
+    // Close the path
+    path += ` Z`;
+
+    paths.push(path);
+  }
+
+  return paths;
+}
+
+function createVerticalGridLines(
+  dataPoints: DataPoint[],
+  minTime: number,
+  maxTime: number,
+  dimensions: ChartDimensions,
+  formatDate: (date: Date) => string
+) {
+  const {
+    width,
+    height,
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingBottom,
+  } = dimensions;
+  const graphWidth = width - paddingLeft - paddingRight;
+
+  const pointsToShow =
+    dataPoints.length <= 6
+      ? dataPoints
+      : [
+          dataPoints[0],
+          ...dataPoints.filter(
+            (_, i) =>
+              i > 0 &&
+              i < dataPoints.length - 1 &&
+              i % Math.ceil(dataPoints.length / 5) === 0
+          ),
+          dataPoints[dataPoints.length - 1],
+        ];
+
+  return pointsToShow.map((point, index) => {
+    const timeRange = maxTime - minTime;
+    const x =
+      paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
+
+    return (
+      <React.Fragment key={`grid-${index}`}>
+        <Line
+          x1={x}
+          y1={paddingTop}
+          x2={x}
+          y2={height - paddingBottom}
+          stroke="#ECECEC"
+          strokeWidth={1}
+        />
+        <SvgText
+          x={x}
+          y={height - paddingBottom + 20}
+          fill="#95aac9"
+          fontSize="9"
+          textAnchor="middle"
+          transform={`rotate(-45, ${x}, ${height - paddingBottom + 20})`}
+        >
+          {formatDate(point.date)}
+        </SvgText>
+      </React.Fragment>
+    );
+  });
+}
+
+function createHorizontalGridLines(
+  minValue: number,
+  maxValue: number,
+  dimensions: ChartDimensions,
+  unit: string
+) {
+  const {
+    width,
+    height,
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingBottom,
+  } = dimensions;
+  const graphHeight = height - paddingTop - paddingBottom;
+
+  const valueRange = maxValue - minValue;
+  const step = valueRange / 4;
+
+  return Array.from({ length: 5 }).map((_, index) => {
+    const value = minValue + step * index;
+    const y = height - paddingBottom - (index * graphHeight) / 4;
+
+    return (
+      <React.Fragment key={`h-grid-${index}`}>
+        <Line
+          x1={paddingLeft}
+          y1={y}
+          x2={width - paddingRight}
+          y2={y}
+          stroke="#ECECEC"
+          strokeWidth={1}
+        />
+        <SvgText
+          x={paddingLeft - 5}
+          y={y + 3}
+          fill="#95aac9"
+          fontSize="9"
+          textAnchor="middle"
+        >
+          {`${value.toFixed(1)} ${unit}`}
+        </SvgText>
+      </React.Fragment>
+    );
+  });
+}
+
+function createDataPoints(
+  dataPoints: DataPoint[],
+  minTime: number,
+  maxTime: number,
+  minValue: number,
+  maxValue: number,
+  dimensions: ChartDimensions,
+  referenceRanges: DynamicReferenceRangePoint[]
+) {
+  const {
+    width,
+    height,
+    paddingLeft,
+    paddingRight,
+    paddingTop,
+    paddingBottom,
+  } = dimensions;
+  const graphWidth = width - paddingLeft - paddingRight;
+  const graphHeight = height - paddingTop - paddingBottom;
+
+  // Sort reference ranges by timestamp
+  const sortedReferenceRanges = [...referenceRanges].sort(
+    (a, b) => a.timestamp - b.timestamp
+  );
+
+  return dataPoints.map((point, index) => {
+    const timeRange = maxTime - minTime;
+    const x =
+      paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
+
+    const valueRange = maxValue - minValue;
+    const y =
+      height -
+      paddingBottom -
+      (((point.value ?? 0) - minValue) / valueRange) * graphHeight;
+
+    // Find the appropriate reference range for this point's timestamp
+    const getReferenceRangeForTimestamp = (
+      timestamp: number
+    ): { min: number; max: number } => {
+      // If timestamp is before the first reference range, use the first one
+      if (timestamp <= sortedReferenceRanges[0].timestamp) {
+        return {
+          min: sortedReferenceRanges[0].min,
+          max: sortedReferenceRanges[0].max,
+        };
+      }
+
+      // If timestamp is after the last reference range, use the last one
+      if (
+        timestamp >=
+        sortedReferenceRanges[sortedReferenceRanges.length - 1].timestamp
+      ) {
+        const lastRange =
+          sortedReferenceRanges[sortedReferenceRanges.length - 1];
+        return {
+          min: lastRange.min,
+          max: lastRange.max,
+        };
+      }
+
+      // Find the two reference ranges that surround this timestamp and interpolate
+      for (let i = 0; i < sortedReferenceRanges.length - 1; i++) {
+        const currentRange = sortedReferenceRanges[i];
+        const nextRange = sortedReferenceRanges[i + 1];
+
+        if (
+          timestamp >= currentRange.timestamp &&
+          timestamp <= nextRange.timestamp
+        ) {
+          // Calculate how far along we are between the two reference points (0 to 1)
+          const ratio =
+            (timestamp - currentRange.timestamp) /
+            (nextRange.timestamp - currentRange.timestamp);
+
+          // Interpolate the min and max values
+          const min =
+            currentRange.min + ratio * (nextRange.min - currentRange.min);
+          const max =
+            currentRange.max + ratio * (nextRange.max - currentRange.max);
+
+          return { min, max };
+        }
+      }
+
+      // Fallback - shouldn't happen if the code is correct
+      return {
+        min: sortedReferenceRanges[0].min,
+        max: sortedReferenceRanges[0].max,
+      };
+    };
+
+    const refRange = getReferenceRangeForTimestamp(point.timestamp);
+    const isOutsideRange =
+      (point.value ?? 0) < refRange.min || (point.value ?? 0) > refRange.max;
+
+    return (
+      <Circle
+        key={`point-${index}`}
+        cx={x}
+        cy={y}
+        r={4}
+        fill={isOutsideRange ? "#e63757" : "#4484B2"}
+        stroke="white"
+        strokeWidth={1}
+      />
+    );
+  });
+}

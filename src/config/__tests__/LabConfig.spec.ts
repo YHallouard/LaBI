@@ -1,7 +1,7 @@
 import {
   LAB_VALUE_KEYS,
   LAB_VALUE_UNITS,
-  LAB_VALUE_REFERENCE_RANGES,
+  LAB_VALUE_DEFAULT_RANGES,
 } from "../LabConfig";
 
 describe("LabConfig", () => {
@@ -100,10 +100,10 @@ describe("LabConfig", () => {
     });
   });
 
-  describe("LAB_VALUE_REFERENCE_RANGES", () => {
+  describe("LAB_VALUE_DEFAULT_RANGES", () => {
     it("should contain the correct number of reference ranges", () => {
       // Given/When
-      const rangeKeys = Object.keys(LAB_VALUE_REFERENCE_RANGES);
+      const rangeKeys = Object.keys(LAB_VALUE_DEFAULT_RANGES);
 
       // Then
       expect(rangeKeys.length).toBe(27);
@@ -111,7 +111,7 @@ describe("LabConfig", () => {
 
     it("should contain reference ranges for all lab values", () => {
       // Given/When
-      const rangeKeys = Object.keys(LAB_VALUE_REFERENCE_RANGES);
+      const rangeKeys = Object.keys(LAB_VALUE_DEFAULT_RANGES);
 
       // Then
       LAB_VALUE_KEYS.forEach((key) => {
@@ -121,7 +121,7 @@ describe("LabConfig", () => {
 
     it("should have valid min and max values for each range", () => {
       // Given/When/Then
-      Object.entries(LAB_VALUE_REFERENCE_RANGES).forEach(([key, range]) => {
+      Object.entries(LAB_VALUE_DEFAULT_RANGES).forEach(([key, range]) => {
         expect(range).toHaveProperty("min");
         expect(range).toHaveProperty("max");
         expect(typeof range.min).toBe("number");
@@ -133,109 +133,111 @@ describe("LabConfig", () => {
 
     it("should have correct reference ranges for each lab value", () => {
       // Given/When/Then
-      expect(LAB_VALUE_REFERENCE_RANGES["Hematies"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Hematies"]).toEqual({
         min: 4.28,
         max: 6.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Hémoglobine"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Hémoglobine"]).toEqual({
         min: 13.0,
         max: 18.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Hématocrite"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Hématocrite"]).toEqual({
         min: 39.0,
         max: 53.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["VGM"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["VGM"]).toEqual({
         min: 78.0,
         max: 98.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["TCMH"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["TCMH"]).toEqual({
         min: 26.0,
         max: 34.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["CCMH"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["CCMH"]).toEqual({
         min: 31.0,
         max: 36.5,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Leucocytes"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Leucocytes"]).toEqual({
         min: 4.0,
         max: 11.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Polynucléaires neutrophiles"]).toEqual(
-        { min: 1.4, max: 7.7 }
-      );
-      expect(LAB_VALUE_REFERENCE_RANGES["Polynucléaires éosinophiles"]).toEqual(
-        { min: 0.02, max: 0.63 }
-      );
-      expect(LAB_VALUE_REFERENCE_RANGES["Polynucléaires basophiles"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Polynucléaires neutrophiles"]).toEqual({
+        min: 1.4,
+        max: 7.7,
+      });
+      expect(LAB_VALUE_DEFAULT_RANGES["Polynucléaires éosinophiles"]).toEqual({
+        min: 0.02,
+        max: 0.63,
+      });
+      expect(LAB_VALUE_DEFAULT_RANGES["Polynucléaires basophiles"]).toEqual({
         min: 0.0,
         max: 0.11,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Lymphocytes"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Lymphocytes"]).toEqual({
         min: 1.0,
         max: 4.8,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Monocytes"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Monocytes"]).toEqual({
         min: 0.18,
         max: 1.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Plaquettes"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Plaquettes"]).toEqual({
         min: 150.0,
         max: 400.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Proteine C Reactive"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Proteine C Reactive"]).toEqual({
         min: 0.0,
         max: 5.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Ferritine"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Ferritine"]).toEqual({
         min: 22.0,
         max: 322.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Vitamine B9"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Vitamine B9"]).toEqual({
         min: 3.89,
         max: 26.8,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Vitamine B12"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Vitamine B12"]).toEqual({
         min: 197.0,
         max: 771.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Glycémie"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Glycémie"]).toEqual({
         min: 0.74,
         max: 1.06,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Hémoglobine Glyquée"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Hémoglobine Glyquée"]).toEqual({
         min: 4.0,
         max: 6.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Cholesterol HDL"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Cholesterol HDL"]).toEqual({
         min: 0.4,
         max: 10.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Cholesterol LDL"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Cholesterol LDL"]).toEqual({
         min: 0.0,
         max: 1.6,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Triglycérides"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Triglycérides"]).toEqual({
         min: 0.0,
         max: 1.5,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Transaminases TGO"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Transaminases TGO"]).toEqual({
         min: 0.0,
         max: 40.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Transaminases TGP"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Transaminases TGP"]).toEqual({
         min: 0.0,
         max: 40.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Gamma GT"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Gamma GT"]).toEqual({
         min: 0.0,
         max: 38.0,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["Score de fibrose hépatique"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Score de fibrose hépatique"]).toEqual({
         min: 0.0,
         max: 2.67,
       });
-      expect(LAB_VALUE_REFERENCE_RANGES["TSH"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["TSH"]).toEqual({
         min: 0.55,
         max: 4.78,
       });
@@ -246,7 +248,7 @@ describe("LabConfig", () => {
     it("should have same keys in all configuration objects", () => {
       // Given
       const unitKeys = Object.keys(LAB_VALUE_UNITS);
-      const rangeKeys = Object.keys(LAB_VALUE_REFERENCE_RANGES);
+      const rangeKeys = Object.keys(LAB_VALUE_DEFAULT_RANGES);
 
       // When/Then
       expect(unitKeys).toEqual(expect.arrayContaining(LAB_VALUE_KEYS));

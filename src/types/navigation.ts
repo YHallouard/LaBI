@@ -7,6 +7,9 @@ export type HomeStackParamList = {
   PrivacyPolicyWebView: undefined;
   MistralApiKeyTutorial: undefined;
   AboutScreen: undefined;
+  ApiKeySettingsScreen: undefined;
+  DatabaseSettingsScreen: undefined;
+  ProfileScreen: undefined;
 };
 
 export type ChartStackParamList = {

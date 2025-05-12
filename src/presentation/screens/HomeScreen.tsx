@@ -39,6 +39,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const swipeableRefs = React.useRef<{ [key: string]: Swipeable | null }>({});
 
   useEffect(() => {
+    // Profile check is now handled by ProfileRequiredModal at the app level
+    // No need to redirect to profile creation here
     loadAnalyses();
   }, []);
 

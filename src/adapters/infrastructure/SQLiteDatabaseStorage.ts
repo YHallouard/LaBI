@@ -1,18 +1,20 @@
 import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system";
 import { DatabaseStoragePort } from "../../ports/infrastructure/DatabaseStoragePort";
+import { Platform } from "react-native";
 
 export type Database = SQLite.SQLiteDatabase;
 
-/**
- * Implementation of the DatabaseStoragePort using SQLite and Expo FileSystem
- * This adapter handles both initialization and deletion operations
- */
 export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private readonly dbName: string;
   private readonly dbDirectory: string;
   private readonly dbPath: string;
   private dbInstance: Database | null = null;
+  private isAndroid: boolean = Platform.OS === "android";
+  private retryCount: number = 0;
+  private maxRetries: number = 3;
+  private initializationPromise: Promise<Database> | null = null;
+  private isOperationInProgress: boolean = false;
 
   constructor(dbName: string = "biological_analyses.db") {
     this.dbName = dbName;
@@ -20,77 +22,395 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     this.dbPath = `${this.dbDirectory}/${this.dbName}`;
   }
 
-  /**
-   * Initializes the database and creates required tables
-   */
   async initializeDatabase(): Promise<Database> {
-    console.log("Initializing database...");
-
-    if (this.dbInstance) {
-      console.log("Returning existing database instance");
-      return this.dbInstance;
+    if (this.initializationPromise) {
+      console.log(
+        "Database initialization already in progress, reusing promise"
+      );
+      return this.initializationPromise;
     }
 
+    this.isOperationInProgress = true;
+    this.initializationPromise = this.performInitialization();
     try {
-      // Open database
-      const db = SQLite.openDatabaseSync(this.dbName);
-      console.log("Database opened successfully");
+      return await this.initializationPromise;
+    } finally {
+      this.initializationPromise = null;
+      this.isOperationInProgress = false;
+    }
+  }
 
-      // Make sure table exists
-      try {
-        // Create the table
-        db.execSync(`
-          CREATE TABLE IF NOT EXISTS biological_analyses (
-            id TEXT PRIMARY KEY,
-            date TEXT NOT NULL,
-            pdf_source TEXT,
-            lab_values TEXT
-          )
-        `);
-        console.log("Table creation SQL executed");
+  private async performInitialization(): Promise<Database> {
+    console.log("Initializing database...");
 
-        // Verify table exists by querying it
-        const tables = db.getAllSync(
-          'SELECT name FROM sqlite_master WHERE type="table" AND name="biological_analyses"'
-        );
-        console.log("Tables found:", JSON.stringify(tables));
+    if (await this.canReuseExistingConnection()) {
+      return this.dbInstance as Database;
+    }
 
-        if (tables.length === 0) {
-          throw new Error("Table was not created successfully");
-        }
+    await this.closeConnection();
 
-        console.log("Database table created/verified successfully");
+    try {
+      await this.ensureDirectoryExists();
 
-        // Insert test analyses
-        // await db.runAsync(`INSERT OR REPLACE INTO biological_analyses (id, date, pdf_source, lab_values) VALUES (?, ?, ?, ?)`, ['1', '2023-10-01T00:00:00.000Z', 'source1.pdf', '{"Hématocrite": {"value": 42.0, "unit": "%"}, "Hematies": {"value": 4.5, "unit": "T/L"}, "Hémoglobine": {"value": 13.5, "unit": "g/dL"}, "Vitamine B9": {"value": 12.0, "unit": "ng/mL"}, "TSH": {"value": 2.7, "unit": "mIU/L"}}']);
-        // await db.runAsync(`INSERT OR REPLACE INTO biological_analyses (id, date, pdf_source, lab_values) VALUES (?, ?, ?, ?)`, ['2', '2023-10-02T00:00:00.000Z', 'source2.pdf', '{"Hématocrite": {"value": 40.0, "unit": "%"}, "Hematies": {"value": 4.2, "unit": "T/L"}, "VGM": {"value": 90.0, "unit": "fl"}, "Vitamine B9": {"value": 10.0, "unit": "ng/mL"}, "TSH": {"value": 2.5, "unit": "mIU/L"}}']);
+      const dbExists = await this.databaseExists();
+      console.log(`Database exists? ${dbExists}`);
 
-        // Store the instance and return it
-        this.dbInstance = db;
-        return db;
-      } catch (tableError) {
-        console.error("Error creating or verifying table:", tableError);
-        throw tableError;
-      }
+      const db = await this.openDatabaseConnection();
+
+      await this.ensureRequiredTablesExist(db);
+      await this.populateTestDataIfEmpty(db);
+
+      this.dbInstance = db;
+      return db;
     } catch (error) {
-      console.error("Error initializing database:", error);
+      return this.handleInitializationError(error);
+    }
+  }
+
+  private async canReuseExistingConnection(): Promise<boolean> {
+    if (!this.dbInstance) return false;
+
+    try {
+      await this.dbInstance.getFirstAsync("SELECT 1");
+      console.log("Existing database connection is healthy, reusing it");
+      await this.ensureRequiredTablesExist(this.dbInstance);
+      await this.populateTestDataIfEmpty(this.dbInstance);
+      return true;
+    } catch {
+      console.log("Existing database connection is not usable, recreating it");
+      return false;
+    }
+  }
+
+  private async handleInitializationError(error: unknown): Promise<Database> {
+    console.error("Error initializing database:", error);
+
+    if (this.retryCount >= this.maxRetries) {
+      this.retryCount = 0;
+      throw error;
+    }
+
+    console.log(
+      `Retrying database initialization (attempt ${this.retryCount + 1}/${
+        this.maxRetries
+      })...`
+    );
+    this.retryCount++;
+
+    await this.waitBeforeRetry(1000);
+
+    try {
+      await this.deleteDatabase();
+    } catch (cleanupError) {
+      console.warn("Error cleaning up before retry:", cleanupError);
+    }
+
+    return this.initializeDatabase();
+  }
+
+  private async waitWithTimeout(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async waitBeforeRetry(ms: number): Promise<void> {
+    await this.waitWithTimeout(ms);
+  }
+
+  private async openDatabaseConnection(): Promise<Database> {
+    try {
+      const db = await SQLite.openDatabaseAsync(this.dbName);
+      console.log("Database opened successfully");
+      return db;
+    } catch (error) {
+      console.warn("Error opening database:", error);
       throw error;
     }
   }
 
-  /**
-   * Gets the existing database instance or initializes a new one
-   */
-  async getDatabase(): Promise<Database> {
-    if (!this.dbInstance) {
-      return this.initializeDatabase();
+  private async ensureRequiredTablesExist(db: Database): Promise<void> {
+    const requiredTables = ["biological_analyses", "user_profile"];
+    const existingTables = await this.getExistingTables(db);
+
+    const existingTableNames = existingTables.map((t) => t.name);
+    console.log("Existing tables found:", JSON.stringify(existingTables));
+
+    const missingTables = requiredTables.filter(
+      (table) => !existingTableNames.includes(table)
+    );
+
+    if (missingTables.length > 0) {
+      console.log(
+        `Missing required tables: ${missingTables.join(
+          ", "
+        )}. Creating tables...`
+      );
+      await this.createTables(db);
+    } else {
+      console.log("All required tables exist.");
     }
-    return this.dbInstance;
   }
 
-  /**
-   * Checks if the database file exists
-   */
+  private async getExistingTables(
+    db: Database
+  ): Promise<Array<{ name: string }>> {
+    return await db.getAllAsync<{ name: string }>(
+      'SELECT name FROM sqlite_master WHERE type="table" AND name NOT LIKE "sqlite_%"'
+    );
+  }
+
+  private async createTables(db: Database): Promise<void> {
+    this.validateDatabaseConnection(db);
+
+    try {
+      await this.createAllRequiredTables(db);
+      console.log("Database tables created successfully");
+    } catch (error) {
+      console.error("Error creating tables:", error);
+      throw error;
+    }
+  }
+
+  private validateDatabaseConnection(db: Database): void {
+    if (!db) {
+      throw new Error("Cannot create tables: database instance is null");
+    }
+  }
+
+  private async createAllRequiredTables(db: Database): Promise<void> {
+    try {
+      await this.createBiologicalAnalysesTable(db);
+      await this.addOperationDelay(100);
+      await this.createUserProfileTable(db);
+      await this.addOperationDelay(100);
+      await this.verifyTablesCreation(db);
+    } catch (error) {
+      console.error("Error creating tables:", error);
+      throw error;
+    }
+  }
+
+  private async createBiologicalAnalysesTable(db: Database): Promise<void> {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS biological_analyses (
+        id TEXT PRIMARY KEY,
+        date TEXT NOT NULL,
+        pdf_source TEXT,
+        lab_values TEXT
+      )
+    `);
+    console.log("Biological analyses table created");
+  }
+
+  private async createUserProfileTable(db: Database): Promise<void> {
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS user_profile (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        firstName TEXT NOT NULL,
+        lastName TEXT NOT NULL,
+        birthDate TEXT,
+        gender TEXT,
+        profileImage TEXT
+      )
+    `);
+    console.log("User profile table created");
+  }
+
+  private async verifyTablesCreation(db: Database): Promise<void> {
+    const tables = await db.getAllAsync(
+      'SELECT name FROM sqlite_master WHERE type="table" AND name IN ("biological_analyses", "user_profile")'
+    );
+    console.log("Tables found:", JSON.stringify(tables));
+
+    if (tables.length < 2) {
+      throw new Error("Not all tables were created successfully");
+    }
+  }
+
+  private async populateTestDataIfEmpty(db: Database): Promise<void> {
+    const count = await this.countExistingAnalyses(db);
+
+    if (count === 0) {
+      await this.insertTestAnalyses(db);
+    }
+  }
+
+  private async countExistingAnalyses(db: Database): Promise<number> {
+    const existingAnalyses = await db.getAllAsync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM biological_analyses"
+    );
+    return existingAnalyses[0]?.count || 0;
+  }
+
+  private async insertTestAnalyses(db: Database): Promise<void> {
+    const testAnalyses = this.prepareTestAnalysesData();
+
+    for (const analysis of testAnalyses) {
+      await this.insertAnalysis(db, analysis);
+    }
+
+    console.log("Added test analyses to the database");
+  }
+
+  private async insertAnalysis(
+    db: Database,
+    analysis: {
+      id: string;
+      date: string;
+      pdf_source: string | null;
+      lab_values: string;
+    }
+  ): Promise<void> {
+    const pdfSourceValue =
+      analysis.pdf_source === null ? "NULL" : `'${analysis.pdf_source}'`;
+    await db.execAsync(
+      `INSERT INTO biological_analyses (id, date, pdf_source, lab_values) 
+         VALUES ('${analysis.id}', '${analysis.date}', ${pdfSourceValue}, '${analysis.lab_values}')`
+    );
+  }
+
+  private prepareTestAnalysesData(): Array<{
+    id: string;
+    date: string;
+    pdf_source: string | null;
+    lab_values: string;
+  }> {
+    return [
+      {
+        id: "test-analysis-1",
+        date: new Date().toISOString().split("T")[0],
+        pdf_source: null,
+        lab_values: JSON.stringify({
+          Hematies: { value: 4.8, unit: "T/L" },
+          "Vitamine B9": { value: 15.2, unit: "ng/mL" },
+          TSH: { value: 2.1, unit: "mUI/L" },
+        }),
+      },
+      {
+        id: "test-analysis-2",
+        date: new Date(Date.now() - 29 * 12 * 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        pdf_source: null,
+        lab_values: JSON.stringify({
+          Hematies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }),
+      },
+    ];
+  }
+
+  private async addOperationDelay(ms: number): Promise<void> {
+    await this.waitWithTimeout(ms);
+  }
+
+  async executeSql(
+    db: Database,
+    sql: string,
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+    params: any[] = []
+  ): Promise<void> {
+    this.validateDatabaseConnection(db);
+
+    try {
+      this.isOperationInProgress = true;
+      await db.execAsync(sql);
+    } catch (error) {
+      console.error(`Error executing SQL: ${sql.substring(0, 50)}...`, error);
+      throw error;
+    } finally {
+      this.isOperationInProgress = false;
+    }
+  }
+
+  async querySql(
+    db: Database,
+    sql: string,
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+    params: any[] = []
+    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  ): Promise<any[]> {
+    this.validateDatabaseConnection(db);
+
+    try {
+      this.isOperationInProgress = true;
+      return await db.getAllAsync(sql, params);
+    } catch (error) {
+      console.error(`Error querying SQL: ${sql}`, error);
+      throw error;
+    } finally {
+      this.isOperationInProgress = false;
+    }
+  }
+
+  private async ensureDirectoryExists(): Promise<void> {
+    try {
+      await this.createDirectoryIfNotExists();
+      await this.verifyWritePermissions();
+    } catch (error) {
+      console.warn("Error ensuring directory exists:", error);
+      throw error;
+    }
+  }
+
+  private async createDirectoryIfNotExists(): Promise<void> {
+    const dirInfo = await FileSystem.getInfoAsync(this.dbDirectory);
+    if (!dirInfo.exists) {
+      await FileSystem.makeDirectoryAsync(this.dbDirectory, {
+        intermediates: true,
+      });
+      console.log(`Created database directory: ${this.dbDirectory}`);
+    }
+  }
+
+  private async verifyWritePermissions(): Promise<void> {
+    const testPath = `${this.dbDirectory}/test.tmp`;
+    await FileSystem.writeAsStringAsync(testPath, "test");
+    await FileSystem.deleteAsync(testPath, { idempotent: true });
+  }
+  private async closeConnection(): Promise<void> {
+    if (this.isOperationInProgress) {
+      console.log("Database operation in progress, skipping connection close");
+      return;
+    }
+
+    if (!this.dbInstance) return;
+
+    try {
+      await this.dbInstance.closeAsync();
+      console.log("Database connection closed");
+    } catch (error) {
+      console.warn("Error closing database:", error);
+    }
+
+    this.dbInstance = null;
+  }
+
+  async getDatabase(): Promise<Database> {
+    try {
+      if (await this.isCurrentConnectionValid()) {
+        return this.dbInstance as Database;
+      }
+
+      return this.initializeDatabase();
+    } catch (error) {
+      console.error("Error getting database:", error);
+      throw error;
+    }
+  }
+
+  private async isCurrentConnectionValid(): Promise<boolean> {
+    if (!this.dbInstance) return false;
+
+    try {
+      await this.dbInstance.getFirstAsync("SELECT 1");
+      return true;
+    } catch {
+      console.log("Database connection invalid, reinitializing...");
+      return false;
+    }
+  }
+
   async databaseExists(): Promise<boolean> {
     const dirInfo = await FileSystem.getInfoAsync(this.dbDirectory);
     if (!dirInfo.exists) {
@@ -101,32 +421,136 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     return fileInfo.exists;
   }
 
-  /**
-   * Deletes the database file if it exists
-   */
   async deleteDatabase(): Promise<void> {
+    await this.closeConnection();
+
     const exists = await this.databaseExists();
     if (exists) {
-      // Clear the instance before deleting the file
-      this.dbInstance = null;
-
-      await FileSystem.deleteAsync(this.dbPath);
-      console.log(`Database file ${this.dbPath} deleted successfully!`);
+      await this.deleteDatabaseFile();
     } else {
       console.log(`Database file ${this.dbPath} does not exist.`);
     }
   }
 
-  /**
-   * Resets the database by deleting and then re-initializing it
-   */
+  private async deleteDatabaseFile(): Promise<void> {
+    try {
+      await this.cleanupDatabaseFiles();
+      await FileSystem.deleteAsync(this.dbPath, { idempotent: true });
+      console.log(`Database file ${this.dbPath} deleted successfully!`);
+    } catch (error) {
+      console.error(`Error deleting database file: ${error}`);
+      throw error;
+    }
+  }
+
+  private async cleanupDatabaseFiles(): Promise<void> {
+    try {
+      const dirContents = await FileSystem.readDirectoryAsync(this.dbDirectory);
+      const filesToDelete = this.findDatabaseRelatedFiles(dirContents);
+      await this.deleteFilesOneByOne(filesToDelete);
+
+      if (this.isAndroid) {
+        await this.waitWithTimeout(300);
+      }
+    } catch (error) {
+      console.warn("Error during database file cleanup:", error);
+    }
+  }
+
+  private findDatabaseRelatedFiles(dirContents: string[]): string[] {
+    const relatedPatterns = [
+      this.dbName,
+      `${this.dbName}-journal`,
+      `${this.dbName}-shm`,
+      `${this.dbName}-wal`,
+    ];
+
+    return dirContents
+      .filter((file) =>
+        relatedPatterns.some((pattern) => file.includes(pattern))
+      )
+      .map((file) => `${this.dbDirectory}/${file}`);
+  }
+
+  private async deleteFilesOneByOne(filePaths: string[]): Promise<void> {
+    for (const filePath of filePaths) {
+      await FileSystem.deleteAsync(filePath, { idempotent: true }).catch(
+        (err) => console.warn(`Failed to delete ${filePath}:`, err)
+      );
+    }
+  }
+
   async resetDatabase(): Promise<Database> {
     console.log("Resetting database...");
 
-    // Delete the database if it exists
-    await this.deleteDatabase();
+    this.isOperationInProgress = true;
+    try {
+      const db = await this.getDatabase();
+      await this.dropAllTables(db);
+      await this.createTables(db);
+      await this.populateTestDataIfEmpty(db);
+      await this.verifyTablesAfterReset(db);
+      return db;
+    } catch (error) {
+      return this.handleResetError(error);
+    } finally {
+      this.isOperationInProgress = false;
+    }
+  }
 
-    // Initialize a new database
-    return this.initializeDatabase();
+  private async handleResetError(error: unknown): Promise<Database> {
+    console.error("Error during database reset:", error);
+
+    try {
+      console.log("Attempting recovery with full reinitialization");
+      await this.closeConnection();
+      await this.waitWithTimeout(1000);
+      return await this.initializeDatabase();
+    } catch (recoveryError) {
+      console.error("Recovery from reset error failed:", recoveryError);
+      throw error;
+    }
+  }
+
+  private async verifyTablesAfterReset(db: Database): Promise<void> {
+    const tables = await db.getAllAsync<{ name: string }>(
+      'SELECT name FROM sqlite_master WHERE type="table" AND name NOT LIKE "sqlite_%"'
+    );
+    console.log(
+      `Database reset complete. Found ${tables.length} tables: ${tables
+        .map((t) => t.name)
+        .join(", ")}`
+    );
+  }
+
+  private async dropAllTables(db: Database): Promise<void> {
+    try {
+      const tables = await this.getExistingTables(db);
+
+      for (const table of tables) {
+        await db.execAsync(`DROP TABLE IF EXISTS ${table.name}`);
+        console.log(`Table ${table.name} dropped`);
+      }
+    } catch (error) {
+      console.error("Error dropping tables:", error);
+      throw error;
+    }
+  }
+
+  async resetUserProfileTable(): Promise<Database> {
+    console.log("Resetting user_profile table...");
+
+    this.isOperationInProgress = true;
+    try {
+      const db = await this.getDatabase();
+      await this.executeSql(db, "DROP TABLE IF EXISTS user_profile");
+      await this.createUserProfileTable(db);
+      return db;
+    } catch (error) {
+      console.error("Error resetting user profile table:", error);
+      throw error;
+    } finally {
+      this.isOperationInProgress = false;
+    }
   }
 }

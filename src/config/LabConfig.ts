@@ -67,13 +67,9 @@ export const LAB_VALUE_UNITS: Record<string, string> = {
   "Gamma GT": "U/L",
   "Score de fibrose hépatique": "%",
   TSH: "mUI/L",
-  // Create configuration in settings to Add other mettrics to find and monitor
 };
 
-export const LAB_VALUE_REFERENCE_RANGES: Record<
-  string,
-  { min: number; max: number }
-> = {
+export const LAB_VALUE_DEFAULT_RANGES = {
   Hematies: { min: 4.28, max: 6.0 },
   Hémoglobine: { min: 13.0, max: 18.0 },
   Hématocrite: { min: 39.0, max: 53.0 },
@@ -92,7 +88,6 @@ export const LAB_VALUE_REFERENCE_RANGES: Record<
   "Vitamine B9": { min: 3.89, max: 26.8 },
   "Vitamine B12": { min: 197.0, max: 771.0 },
   Glycémie: { min: 0.74, max: 1.06 },
-  // To configure in the future. For diadetical people -> Type I 6.5 to 7 and Type II 48 to 53
   "Hémoglobine Glyquée": { min: 4, max: 6 },
   "Cholesterol HDL": { min: 0.4, max: 10 },
   "Cholesterol LDL": { min: 0.0, max: 1.6 },

@@ -23,9 +23,9 @@ import { UpdateAnalysisUseCase } from "../../application/usecases/UpdateAnalysis
 import {
   LAB_VALUE_KEYS,
   LAB_VALUE_UNITS,
-  LAB_VALUE_REFERENCE_RANGES,
   LAB_VALUE_CATEGORIES,
 } from "../../config/LabConfig";
+import { ReferenceRangeService } from "../../application/services/ReferenceRangeService";
 import { ScreenLayout } from "../components/ScreenLayout";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
@@ -35,6 +35,7 @@ interface AnalysisDetailsScreenProps
   extends StackScreenProps<HomeStackParamList, "AnalysisDetails"> {
   getAnalysisByIdUseCase: GetAnalysisByIdUseCase;
   updateAnalysisUseCase: UpdateAnalysisUseCase;
+  referenceRangeService: ReferenceRangeService;
 }
 
 // Composant pour saisir des valeurs numériques avec point décimal
@@ -86,6 +87,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   navigation,
   getAnalysisByIdUseCase,
   updateAnalysisUseCase,
+  referenceRangeService,
 }) => {
   const { analysisId } = route.params;
   const [analysis, setAnalysis] = useState<BiologicalAnalysis | null>(null);
@@ -108,7 +110,17 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
 
   useEffect(() => {
-    loadAnalysis();
+    async function initializeAndLoad() {
+      try {
+        await referenceRangeService.initialize();
+        await loadAnalysis();
+      } catch (error) {
+        console.error("Failed to initialize services:", error);
+        setError("Failed to initialize application");
+      }
+    }
+
+    initializeAndLoad();
   }, [analysisId]);
 
   const loadAnalysis = async () => {
@@ -343,6 +355,16 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
     }, 300);
   };
 
+  // Get dynamic reference range for a lab key
+  const getReferenceRange = (labKey: string) => {
+    if (!analysis) return { min: 0, max: 0 };
+    console.log(
+      labKey,
+      referenceRangeService.getReferenceRange(labKey, analysis.date)
+    );
+    return referenceRangeService.getReferenceRange(labKey, analysis.date);
+  };
+
   if (loading) {
     return <LoadingView />;
   }
@@ -435,7 +457,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
       ? activeMetrics[key]
       : displayValue !== undefined && displayValue !== null;
 
-    const refRange = LAB_VALUE_REFERENCE_RANGES[key];
+    const refRange = getReferenceRange(key);
     const isOutOfRange =
       isActive &&
       displayValue &&
@@ -506,8 +528,8 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
 
             {refRange && (
               <Text style={styles.referenceRange}>
-                Normal range: {refRange.min} - {refRange.max}{" "}
-                {LAB_VALUE_UNITS[key] || ""}
+                Normal range: {refRange.min.toFixed(2)} -{" "}
+                {refRange.max.toFixed(2)} {LAB_VALUE_UNITS[key] || ""}
               </Text>
             )}
           </View>

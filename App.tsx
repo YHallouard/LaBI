@@ -1,6 +1,6 @@
 import "./src/infrastructure/polyfills";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   NavigationContainer,
   Route,
@@ -20,6 +20,9 @@ import { ChartScreen } from "./src/presentation/screens/ChartScreen";
 import { HomeScreen } from "./src/presentation/screens/HomeScreen";
 import { UploadScreen } from "./src/presentation/screens/UploadScreen";
 import { SettingsScreen } from "./src/presentation/screens/SettingsScreen";
+import { ApiKeySettingsScreen } from "./src/presentation/screens/ApiKeySettingsScreen";
+import { DatabaseSettingsScreen } from "./src/presentation/screens/DatabaseSettingsScreen";
+import { ProfileScreen } from "./src/presentation/screens/ProfileScreen";
 import {
   GetAnalysesUseCase,
   GetAnalysisByIdUseCase,
@@ -59,8 +62,7 @@ import {
 import { HelpCenterScreen } from "./src/presentation/screens/HelpCenterScreen";
 import { PrivacySecurityScreen } from "./src/presentation/screens/PrivacySecurityScreen";
 import { AboutScreen } from "./src/presentation/screens/AboutScreen";
-import { Svg, Circle } from "react-native-svg";
-import { AppImage } from "./src/presentation/components/AppImage";
+import { LoadingOverlay } from "./src/presentation/components/LoadingOverlay";
 import { PrivacyPolicyWebViewScreen } from "./src/presentation/screens/PrivacyPolicyWebViewScreen";
 import { MistralApiKeyTutorialScreen } from "./src/presentation/screens/MistralApiKeyTutorialScreen";
 import { ResetDatabaseUseCase } from "./src/application/usecases/ResetDatabaseUseCase";
@@ -68,6 +70,10 @@ import {
   SafeAreaProvider,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { ReferenceRangeCalculator } from "./src/domain/services/ReferenceRangeCalculator";
+import { ReferenceRangeService } from "./src/application/services/ReferenceRangeService";
+import { SQLiteUserProfileRepository } from "./src/adapters/repositories/SQLiteUserProfileRepository";
+import { ProfileRequiredModal } from "./src/presentation/components/ProfileRequiredModal";
 
 const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
 const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
@@ -81,16 +87,17 @@ const CIRCLE_ANIMATION_DURATION = MIN_LOADING_TIME + FADE_DURATION - 100;
 const SAFETY_TIMEOUT_DURATION = 8000;
 const ANIMATION_START_DELAY = 300;
 
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+type NavigateToSettingsFunction = () => void;
 
 const SettingsButton = () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   const navigation = useNavigation<StackNavigationProp<any>>();
+
+  const navigateToSettings: NavigateToSettingsFunction = () =>
+    navigation.navigate("Home", { screen: "SettingsScreen" });
+
   return (
-    <TouchableOpacity
-      onPress={() => navigation.navigate("Home", { screen: "SettingsScreen" })}
-      style={styles.headerButton}
-    >
+    <TouchableOpacity onPress={navigateToSettings} style={styles.headerButton}>
       <Ionicons name="settings-outline" size={24} color="#2c7be5" />
     </TouchableOpacity>
   );
@@ -119,16 +126,22 @@ export default function App() {
     useState<CalculateStatisticsUseCase | null>(null);
   const [resetDatabaseUseCase, setResetDatabaseUseCase] =
     useState<ResetDatabaseUseCase | null>(null);
+  const [referenceRangeService, setReferenceRangeService] =
+    useState<ReferenceRangeService | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
   const [forceReload, setForceReload] = useState(0);
   const [appInitialized, setAppInitialized] = useState(false);
+  const [skipInitialDataLoad, setSkipInitialDataLoad] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const circleProgress = useRef(new Animated.Value(0)).current;
+  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const [isTransitioning, setIsTransitioning] = useState(true);
   const [circleAnimationComplete, setCircleAnimationComplete] = useState(false);
+
+  const [loaderVisible, setLoaderVisible] = useState(true);
 
   useEffect(() => {
     resetAppState();
@@ -153,25 +166,33 @@ export default function App() {
   };
 
   const startCircleAnimation = () => {
-    setTimeout(() => {
-      Animated.timing(circleProgress, {
-        toValue: 1,
-        duration: CIRCLE_ANIMATION_DURATION,
-        easing: Easing.inOut(Easing.exp),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          setCircleAnimationComplete(true);
-        }
-      });
-    }, ANIMATION_START_DELAY);
+    setTimeout(animateCircleProgress, ANIMATION_START_DELAY);
+  };
+
+  const animateCircleProgress = () => {
+    Animated.timing(circleProgress, {
+      toValue: 1,
+      duration: CIRCLE_ANIMATION_DURATION,
+      easing: Easing.inOut(Easing.exp),
+      useNativeDriver: true,
+    }).start(handleCircleAnimationComplete);
+  };
+
+  const handleCircleAnimationComplete = ({
+    finished,
+  }: {
+    finished: boolean;
+  }) => {
+    if (finished) {
+      setCircleAnimationComplete(true);
+    }
   };
 
   const configureSafetyTimeout = () => {
-    const safetyTimer = setTimeout(() => {
-      forceCompleteLoading();
-    }, SAFETY_TIMEOUT_DURATION);
-
+    const safetyTimer = setTimeout(
+      forceCompleteLoading,
+      SAFETY_TIMEOUT_DURATION
+    );
     return () => clearTimeout(safetyTimer);
   };
 
@@ -186,21 +207,27 @@ export default function App() {
   };
 
   const startFadeOutAnimation = () => {
-    setTimeout(() => {
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: FADE_DURATION,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) {
-          setIsTransitioning(false);
-        }
-      });
-    }, 300);
+    setTimeout(animateFadeOut, 300);
   };
 
-  const handleManualReload = () => {
+  const animateFadeOut = () => {
+    Animated.timing(fadeAnim, {
+      toValue: 0,
+      duration: FADE_DURATION,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(handleFadeOutComplete);
+  };
+
+  const handleFadeOutComplete = ({ finished }: { finished: boolean }) => {
+    if (finished) {
+      setIsTransitioning(false);
+    }
+  };
+
+  const handleManualReload = (): void => {
+    setLoaderVisible(true);
+    setSkipInitialDataLoad(true);
     setForceReload((prev) => prev + 1);
   };
 
@@ -239,8 +266,13 @@ export default function App() {
       await initializeUseCases(repository);
 
       await checkAndLoadApiKey();
-      await preloadAnalysesData();
       setAppInitialized(true);
+
+      if (!skipInitialDataLoad) {
+        setTimeout(loadInitialData, 2000);
+      } else {
+        setSkipInitialDataLoad(false);
+      }
     } catch (error) {
       handleInitializationError(error);
       setAppInitialized(true);
@@ -249,12 +281,41 @@ export default function App() {
     }
   };
 
+  const loadInitialData = () => {
+    preloadAnalysesData().catch(handlePreloadDataError);
+  };
+
+  const handlePreloadDataError = (err: Error) => {
+    console.warn("Deferred data loading failed:", err);
+  };
+
   const preloadAnalysesData = async () => {
-    if (getAnalysesUseCase) {
+    if (!getAnalysesUseCase) return;
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      await loadAnalysesWithRetry(getAnalysesUseCase);
+    } catch (error) {
+      console.error("Error in preloadAnalysesData:", error);
+    }
+  };
+
+  const loadAnalysesWithRetry = async (analysesUseCase: GetAnalysesUseCase) => {
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
       try {
-        await getAnalysesUseCase.execute();
-      } catch (error) {
-        console.error("Error preloading analyses data:", error);
+        await analysesUseCase.execute();
+        break;
+      } catch {
+        retryCount++;
+
+        if (retryCount >= maxRetries) {
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
   };
@@ -264,42 +325,72 @@ export default function App() {
     const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
 
     if (remainingTime > 0) {
-      setTimeout(() => {
-        setIsLoading(false);
-      }, remainingTime);
+      setTimeout(completeLoading, remainingTime);
     } else {
-      setIsLoading(false);
+      completeLoading();
     }
+  };
+
+  const completeLoading = () => {
+    setIsLoading(false);
   };
 
   const initializeUseCases = async (
     repository: SQLiteBiologicalAnalysisRepository
   ) => {
-    const newGetAnalysesUseCase = new GetAnalysesUseCase(repository);
-    const newGetAnalysisByIdUseCase = new GetAnalysisByIdUseCase(repository);
-    const newUpdateAnalysisUseCase = new UpdateAnalysisUseCase(repository);
-    const newDeleteAnalysisUseCase = new DeleteAnalysisUseCase(repository);
-    const newGetLabTestDataUseCase = new GetLabTestDataUseCase();
-    const newSaveApiKeyUseCase = new SaveApiKeyUseCase();
-    const newLoadApiKeyUseCase = new LoadApiKeyUseCase();
-    const newDeleteApiKeyUseCase = new DeleteApiKeyUseCase();
-    const newCalculateStatisticsUseCase = new CalculateStatisticsUseCase();
-    const newResetDatabaseUseCase = new ResetDatabaseUseCase(
-      getDatabaseStorage()
+    const useCases = createUseCases(repository);
+    assignUseCasesToState(useCases);
+    return useCases.loadApiKey;
+  };
+
+  const createUseCases = (repository: SQLiteBiologicalAnalysisRepository) => {
+    const getAnalyses = new GetAnalysesUseCase(repository);
+    const getAnalysisById = new GetAnalysisByIdUseCase(repository);
+    const updateAnalysis = new UpdateAnalysisUseCase(repository);
+    const deleteAnalysis = new DeleteAnalysisUseCase(repository);
+    const getLabTestData = new GetLabTestDataUseCase();
+    const saveApiKey = new SaveApiKeyUseCase();
+    const loadApiKey = new LoadApiKeyUseCase();
+    const deleteApiKey = new DeleteApiKeyUseCase();
+    const calculateStatistics = new CalculateStatisticsUseCase();
+    const resetDatabase = new ResetDatabaseUseCase(getDatabaseStorage());
+
+    const userProfileRepository = new SQLiteUserProfileRepository();
+    const referenceRangeCalculator = new ReferenceRangeCalculator();
+    const referenceRange = new ReferenceRangeService(
+      referenceRangeCalculator,
+      userProfileRepository
     );
 
-    setGetAnalysesUseCase(newGetAnalysesUseCase);
-    setGetAnalysisByIdUseCase(newGetAnalysisByIdUseCase);
-    setUpdateAnalysisUseCase(newUpdateAnalysisUseCase);
-    setDeleteAnalysisUseCase(newDeleteAnalysisUseCase);
-    setGetLabTestDataUseCase(newGetLabTestDataUseCase);
-    setSaveApiKeyUseCase(newSaveApiKeyUseCase);
-    setLoadApiKeyUseCase(newLoadApiKeyUseCase);
-    setDeleteApiKeyUseCase(newDeleteApiKeyUseCase);
-    setCalculateStatisticsUseCase(newCalculateStatisticsUseCase);
-    setResetDatabaseUseCase(newResetDatabaseUseCase);
+    return {
+      getAnalyses,
+      getAnalysisById,
+      updateAnalysis,
+      deleteAnalysis,
+      getLabTestData,
+      saveApiKey,
+      loadApiKey,
+      deleteApiKey,
+      calculateStatistics,
+      resetDatabase,
+      referenceRange,
+    };
+  };
 
-    return newLoadApiKeyUseCase;
+  const assignUseCasesToState = (
+    useCases: ReturnType<typeof createUseCases>
+  ) => {
+    setGetAnalysesUseCase(useCases.getAnalyses);
+    setGetAnalysisByIdUseCase(useCases.getAnalysisById);
+    setUpdateAnalysisUseCase(useCases.updateAnalysis);
+    setDeleteAnalysisUseCase(useCases.deleteAnalysis);
+    setGetLabTestDataUseCase(useCases.getLabTestData);
+    setSaveApiKeyUseCase(useCases.saveApiKey);
+    setLoadApiKeyUseCase(useCases.loadApiKey);
+    setDeleteApiKeyUseCase(useCases.deleteApiKey);
+    setCalculateStatisticsUseCase(useCases.calculateStatistics);
+    setResetDatabaseUseCase(useCases.resetDatabase);
+    setReferenceRangeService(useCases.referenceRange);
   };
 
   const createRepository = () => {
@@ -317,14 +408,12 @@ export default function App() {
     setAnalyzePdfUseCase(null);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-  const handleApiKeyLoadError = (error: any) => {
+  const handleApiKeyLoadError = () => {
     setApiKeyError("Failed to load API key configuration.");
     setAnalyzePdfUseCase(null);
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-  const handleInitializationError = (error: any) => {
+  const handleInitializationError = () => {
     setAppError("Failed to initialize application. Please restart the app.");
   };
 
@@ -369,7 +458,11 @@ export default function App() {
           }}
         >
           {(props: StackScreenProps<HomeStackParamList, "AnalysisDetails">) => {
-            if (!getAnalysisByIdUseCase || !updateAnalysisUseCase) {
+            if (
+              !getAnalysisByIdUseCase ||
+              !updateAnalysisUseCase ||
+              !referenceRangeService
+            ) {
               return (
                 <ErrorView errorMessage="Application is not properly initialized" />
               );
@@ -379,6 +472,7 @@ export default function App() {
                 {...props}
                 getAnalysisByIdUseCase={getAnalysisByIdUseCase}
                 updateAnalysisUseCase={updateAnalysisUseCase}
+                referenceRangeService={referenceRangeService}
               />
             );
           }}
@@ -461,6 +555,76 @@ export default function App() {
           }}
           component={MistralApiKeyTutorialScreen}
         />
+        <HomeStackNavigator.Screen
+          name="ApiKeySettingsScreen"
+          options={{
+            headerTitle: "API Key Settings",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+        >
+          {(
+            props: StackScreenProps<HomeStackParamList, "ApiKeySettingsScreen">
+          ) => {
+            if (
+              !saveApiKeyUseCase ||
+              !loadApiKeyUseCase ||
+              !deleteApiKeyUseCase
+            ) {
+              return (
+                <ErrorView errorMessage="Application is not properly initialized" />
+              );
+            }
+            return (
+              <ApiKeySettingsScreen
+                {...props}
+                saveApiKeyUseCase={saveApiKeyUseCase}
+                loadApiKeyUseCase={loadApiKeyUseCase}
+                deleteApiKeyUseCase={deleteApiKeyUseCase}
+                onApiKeyDeleted={handleApiKeyDeleted}
+                onApiKeySaved={handleApiKeySaved}
+                onManualReload={handleManualReload}
+              />
+            );
+          }}
+        </HomeStackNavigator.Screen>
+        <HomeStackNavigator.Screen
+          name="DatabaseSettingsScreen"
+          options={{
+            headerTitle: "Database Settings",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+        >
+          {(
+            props: StackScreenProps<
+              HomeStackParamList,
+              "DatabaseSettingsScreen"
+            >
+          ) => {
+            if (!resetDatabaseUseCase) {
+              return (
+                <ErrorView errorMessage="Application is not properly initialized" />
+              );
+            }
+            return (
+              <DatabaseSettingsScreen
+                {...props}
+                resetDatabaseUseCase={resetDatabaseUseCase}
+                onManualReload={handleManualReload}
+              />
+            );
+          }}
+        </HomeStackNavigator.Screen>
+        <HomeStackNavigator.Screen
+          name="ProfileScreen"
+          options={{
+            headerTitle: "User Profile",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+          component={ProfileScreen}
+        />
       </HomeStackNavigator.Navigator>
     );
     HomeStackComponent.displayName = "HomeStackComponent";
@@ -474,6 +638,7 @@ export default function App() {
     loadApiKeyUseCase,
     deleteApiKeyUseCase,
     resetDatabaseUseCase,
+    referenceRangeService,
   ]);
 
   const ChartStack = React.useMemo(() => {
@@ -497,7 +662,8 @@ export default function App() {
             if (
               !getAnalysesUseCase ||
               !getLabTestDataUseCase ||
-              !calculateStatisticsUseCase
+              !calculateStatisticsUseCase ||
+              !referenceRangeService
             ) {
               return (
                 <ErrorView errorMessage="Application is not properly initialized" />
@@ -509,6 +675,7 @@ export default function App() {
                 getAnalysesUseCase={getAnalysesUseCase}
                 getLabTestDataUseCase={getLabTestDataUseCase}
                 calculateStatisticsUseCase={calculateStatisticsUseCase}
+                referenceRangeService={referenceRangeService}
               />
             );
           }}
@@ -517,7 +684,12 @@ export default function App() {
     );
     ChartStackComponent.displayName = "ChartStackComponent";
     return ChartStackComponent;
-  }, [getAnalysesUseCase, getLabTestDataUseCase, calculateStatisticsUseCase]);
+  }, [
+    getAnalysesUseCase,
+    getLabTestDataUseCase,
+    calculateStatisticsUseCase,
+    referenceRangeService,
+  ]);
 
   const UploadStack = React.useMemo(() => {
     const UploadStackComponent = () => (
@@ -552,93 +724,25 @@ export default function App() {
     return UploadStackComponent;
   }, [analyzePdfUseCase, isLoading, apiKeyError]);
 
-  const renderCircularProgressIndicator = () => {
-    const circumference = 2 * Math.PI * 88;
-
-    const strokeDashoffset = circleProgress.interpolate({
-      inputRange: [0, 1],
-      outputRange: [circumference, 0],
-    });
-
-    return (
-      <Svg width={180} height={180} style={styles.progressCircle}>
-        <Circle
-          cx={90}
-          cy={90}
-          r={88}
-          stroke="#f0f0f0"
-          strokeWidth={4}
-          fill="none"
-        />
-        <AnimatedCircle
-          cx={90}
-          cy={90}
-          r={88}
-          stroke="#e63757"
-          strokeWidth={4}
-          fill="none"
-          strokeDasharray={`${circumference}`}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          transform="rotate(-90, 90, 90)"
-        />
-      </Svg>
-    );
+  const handleLoaderFinish = (): void => {
+    setLoaderVisible(false);
   };
-
-  const LoadingScreen = useMemo(() => {
-    return (
-      <View style={styles.logoContainer}>
-        {renderCircularProgressIndicator()}
-        <AppImage
-          imagePath="adaptive-icon"
-          style={styles.loadingImage}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }, [circleProgress]);
-
-  const shouldShowOverlay = isLoading || isTransitioning;
 
   const appContent = appError ? (
     <ErrorView errorMessage={appError} />
   ) : (
     <MainNavigationContainer
+      key={forceReload}
       homeStack={HomeStack}
       uploadStack={UploadStack}
       chartStack={ChartStack}
     />
   );
 
-  if (!appInitialized && shouldShowOverlay) {
-    return (
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          styles.centeredLoader,
-          { opacity: fadeAnim },
-        ]}
-      >
-        {LoadingScreen}
-      </Animated.View>
-    );
-  }
-
   return (
     <View style={{ flex: 1 }}>
       {appContent}
-      {shouldShowOverlay && (
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            styles.centeredLoader,
-            { opacity: fadeAnim },
-          ]}
-        >
-          {LoadingScreen}
-        </Animated.View>
-      )}
+      {loaderVisible && <LoadingOverlay onFinish={handleLoaderFinish} />}
     </View>
   );
 }
@@ -663,11 +767,13 @@ const MainNavigationContainer = ({
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <TabNavigator
-          homeStack={homeStack}
-          uploadStack={uploadStack}
-          chartStack={chartStack}
-        />
+        <ProfileRequiredModal>
+          <TabNavigator
+            homeStack={homeStack}
+            uploadStack={uploadStack}
+            chartStack={chartStack}
+          />
+        </ProfileRequiredModal>
       </NavigationContainer>
     </SafeAreaProvider>
   );
@@ -682,6 +788,7 @@ const TabNavigator = ({
 
   return (
     <Tab.Navigator
+      initialRouteName="Home"
       screenOptions={({ route }) =>
         configureTabScreenOptions({ route, insets })
       }
@@ -756,8 +863,7 @@ const createUploadTabButton = (
   insets: { bottom: number; top: number; left: number; right: number }
 ) => (
   <TouchableOpacity
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    {...(props as any)}
+    {...(props as React.ComponentProps<typeof TouchableOpacity>)}
     style={[
       styles.uploadTabButton,
       Platform.OS === "android" && insets.bottom > 0

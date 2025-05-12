@@ -11,7 +11,9 @@ export const getDatabaseStorage = (): SQLiteDatabaseStorage => {
 
 export const initializeDatabase = async () => {
   const storage = getDatabaseStorage();
-  return storage.initializeDatabase();
+  const db = await storage.initializeDatabase();
+
+  return db;
 };
 
 export const getDatabase = async () => {
