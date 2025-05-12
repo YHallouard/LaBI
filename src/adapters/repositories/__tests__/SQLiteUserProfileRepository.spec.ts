@@ -117,7 +117,7 @@ describe("SQLiteUserProfileRepository", () => {
     });
 
     test("should parse name into components when firstName/lastName are missing", async () => {
-      // Mock the response for checkProfileExists method
+      // Mock the database query for checkProfileExists
       mockDb.getAllAsync
         .mockResolvedValueOnce([{ count: 0 }]) // For checkProfileExists
         .mockResolvedValueOnce([{ id: "1" }]); // For retrieveAndSetNewProfileId

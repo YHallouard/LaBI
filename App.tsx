@@ -243,8 +243,8 @@ export default function App() {
       } else {
         handleMissingApiKey();
       }
-    } catch (error) {
-      handleApiKeyLoadError(error);
+    } catch {
+      handleApiKeyLoadError();
     }
   };
 
@@ -273,8 +273,8 @@ export default function App() {
       } else {
         setSkipInitialDataLoad(false);
       }
-    } catch (error) {
-      handleInitializationError(error);
+    } catch {
+      handleInitializationError();
       setAppInitialized(true);
     } finally {
       scheduleLoadingCompletion(startTime);
@@ -496,18 +496,7 @@ export default function App() {
                 <ErrorView errorMessage="Application is not properly initialized" />
               );
             }
-            return (
-              <SettingsScreen
-                {...props}
-                saveApiKeyUseCase={saveApiKeyUseCase}
-                loadApiKeyUseCase={loadApiKeyUseCase}
-                deleteApiKeyUseCase={deleteApiKeyUseCase}
-                resetDatabaseUseCase={resetDatabaseUseCase}
-                onApiKeyDeleted={handleApiKeyDeleted}
-                onApiKeySaved={handleApiKeySaved}
-                onManualReload={handleManualReload}
-              />
-            );
+            return <SettingsScreen {...props} />;
           }}
         </HomeStackNavigator.Screen>
         <HomeStackNavigator.Screen

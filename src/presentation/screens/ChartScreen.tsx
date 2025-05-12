@@ -1215,6 +1215,7 @@ function createLinePath(
     return `M ${x} ${y}`;
   }
 
+  // Convert data points to coordinate points
   const points = dataPoints.map((point) => {
     const {
       width,
@@ -1239,12 +1240,64 @@ function createLinePath(
     return { x, y, timestamp: point.timestamp };
   });
 
-  let path = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    path += ` L ${points[i].x} ${points[i].y}`;
+  // For 2 points, just do a straight line
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
   }
 
-  return path;
+  // Use Cardinal spline interpolation
+  return createCardinalSpline(points, 0.1);
+}
+
+/**
+ * Creates a Cardinal spline path
+ * @param points The data points
+ * @param tension The tension parameter (0 = straight lines, 1 = maximum curvature)
+ */
+function createCardinalSpline(
+  points: { x: number; y: number }[],
+  tension: number = 0.1
+): string {
+  if (points.length < 2) return "";
+
+  const path: string[] = [`M ${points[0].x},${points[0].y}`];
+
+  // For cardinal splines, we need to calculate the slope at each point
+  for (let i = 0; i < points.length - 1; i++) {
+    // Current point and next point
+    const p0 = points[i];
+    const p1 = points[i + 1];
+
+    // Calculate control points
+    let cp1x, cp1y, cp2x, cp2y;
+
+    if (i === 0) {
+      // First segment - use the first two points to determine the initial direction
+      cp1x = p0.x + (p1.x - p0.x) * tension;
+      cp1y = p0.y + (p1.y - p0.y) * tension;
+    } else {
+      // Use the previous point to calculate the slope
+      const prev = points[i - 1];
+      cp1x = p0.x + (p1.x - prev.x) * tension;
+      cp1y = p0.y + (p1.y - prev.y) * tension;
+    }
+
+    if (i === points.length - 2) {
+      // Last segment - use the last two points
+      cp2x = p1.x - (p1.x - p0.x) * tension;
+      cp2y = p1.y - (p1.y - p0.y) * tension;
+    } else {
+      // Use the next point to calculate the slope
+      const next = points[i + 2];
+      cp2x = p1.x - (next.x - p0.x) * tension;
+      cp2y = p1.y - (next.y - p0.y) * tension;
+    }
+
+    // Add the curve segment to the path
+    path.push(`C ${cp1x},${cp1y} ${cp2x},${cp2y} ${p1.x},${p1.y}`);
+  }
+
+  return path.join(" ");
 }
 
 function createDynamicReferenceAreaPaths(
