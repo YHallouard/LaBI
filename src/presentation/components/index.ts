@@ -4,3 +4,4 @@ export * from "./HemeaLogo";
 export * from "./ProfileRequiredModal";
 export * from "./AppImage";
 export * from "./EmptyState";
+export * from "./Button";

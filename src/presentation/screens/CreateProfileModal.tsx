@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -19,7 +19,9 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
 import { UserProfile, Gender } from "../../domain/UserProfile";
 import { SaveUserProfileUseCase } from "../../application/usecases/SaveUserProfileUseCase";
-import { SQLiteUserProfileRepository } from "../../adapters/repositories/SQLiteUserProfileRepository";
+import { RepositoryFactory } from "../../infrastructure/repositories/RepositoryFactory";
+import { UserProfileRepository } from "../../ports/repositories/UserProfileRepository";
+import { colorPalette, generateAlpha } from "../../config/themes";
 
 type CreateProfileModalProps = {
   visible: boolean;
@@ -44,15 +46,34 @@ export const CreateProfileModal: React.FC<CreateProfileModalProps> = ({
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
   const [error, setError] = useState<string | null>(null);
+  const [userProfileRepository, setUserProfileRepository] = useState<UserProfileRepository | null>(null);
+  const [saveUserProfileUseCase, setSaveUserProfileUseCase] = useState<SaveUserProfileUseCase | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
-  const [userProfileRepository] = useState(
-    () => new SQLiteUserProfileRepository()
-  );
-  const [saveUserProfileUseCase] = useState(
-    () => new SaveUserProfileUseCase(userProfileRepository)
-  );
+  useEffect(() => {
+    const initializeRepository = async () => {
+      try {
+        setIsInitializing(true);
+        const repository = await RepositoryFactory.getUserProfileRepository();
+        setUserProfileRepository(repository);
+        setSaveUserProfileUseCase(new SaveUserProfileUseCase(repository));
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Unknown error";
+        Alert.alert("Repository Initialization Error", errorMessage);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initializeRepository();
+  }, []);
 
   const saveProfile = async () => {
+    if (!userProfileRepository || !saveUserProfileUseCase) {
+      Alert.alert("Error", "Repository not initialized");
+      return;
+    }
+
     if (!isProfileValid()) {
       return;
     }
@@ -268,32 +289,39 @@ export const CreateProfileModal: React.FC<CreateProfileModalProps> = ({
           behavior={Platform.OS === "ios" ? "padding" : "height"}
           keyboardVerticalOffset={100}
         >
-          <ScrollView contentContainerStyle={styles.container}>
-            <HeaderSection />
+          {isInitializing ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={colorPalette.primary.main} />
+              <Text style={styles.loadingText}>Initializing...</Text>
+            </View>
+          ) : (
+            <ScrollView contentContainerStyle={styles.container}>
+              <HeaderSection />
 
-            {successMessage && (
-              <SuccessMessageDisplay message={successMessage} />
-            )}
-            {error && <ErrorMessageDisplay message={error} />}
+              {successMessage && (
+                <SuccessMessageDisplay message={successMessage} />
+              )}
+              {error && <ErrorMessageDisplay message={error} />}
 
-            <ProfileImageSection profile={profile} onPickImage={pickImage} />
+              <ProfileImageSection profile={profile} onPickImage={pickImage} />
 
-            <PersonalInformationSection
-              profile={profile}
-              onFirstNameChange={updateFirstName}
-              onLastNameChange={updateLastName}
-              birthDateFormatted={formatBirthDate(profile.birthDate)}
-              age={calculateAge(profile.birthDate)}
-              onOpenDatePicker={openDatePicker}
-              showDatePicker={showDatePicker}
-              onDateChange={handleDateChange}
-              onDatePickerDismiss={hideDatePicker}
-              onSelectMale={selectMaleGender}
-              onSelectFemale={selectFemaleGender}
-            />
+              <PersonalInformationSection
+                profile={profile}
+                onFirstNameChange={updateFirstName}
+                onLastNameChange={updateLastName}
+                birthDateFormatted={formatBirthDate(profile.birthDate)}
+                age={calculateAge(profile.birthDate)}
+                onOpenDatePicker={openDatePicker}
+                showDatePicker={showDatePicker}
+                onDateChange={handleDateChange}
+                onDatePickerDismiss={hideDatePicker}
+                onSelectMale={selectMaleGender}
+                onSelectFemale={selectFemaleGender}
+              />
 
-            <SaveButton onPress={saveProfile} isSaving={isSaving} />
-          </ScrollView>
+              <SaveButton onPress={saveProfile} isSaving={isSaving} />
+            </ScrollView>
+          )}
         </KeyboardAvoidingView>
       </ScreenLayout>
     </Modal>
@@ -351,7 +379,7 @@ const ProfileImageSection = ({
     <View style={styles.imageSection}>
       {renderProfileImage()}
       <TouchableOpacity style={styles.changeImageButton} onPress={onPickImage}>
-        <Ionicons name="camera-outline" size={24} color="#2c7be5" />
+        <Ionicons name="camera-outline" size={24} color={colorPalette.primary.main} />
         <Text style={styles.changeImageText}>Add Photo</Text>
       </TouchableOpacity>
     </View>
@@ -492,13 +520,13 @@ const DateOfBirthField = ({
       <Ionicons
         name="calendar-outline"
         size={18}
-        color="#2c7be5"
+        color={colorPalette.primary.main}
         style={styles.calendarIcon}
       />
       <Text style={styles.datePickerButtonText}>
         {birthDateFormatted} (Age: {age})
       </Text>
-      <Ionicons name="chevron-down" size={16} color="#95aac9" />
+      <Ionicons name="chevron-down" size={16} color={colorPalette.neutral.light} />
     </TouchableOpacity>
 
     {showDatePicker && (
@@ -656,7 +684,7 @@ const SaveButton = ({
     disabled={isSaving}
   >
     {isSaving ? (
-      <ActivityIndicator size="small" color="#ffffff" />
+      <ActivityIndicator size="small" color={colorPalette.neutral.white} />
     ) : (
       <Text style={styles.saveButtonText}>Continue</Text>
     )}
@@ -671,12 +699,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginBottom: 24,
   },
   imageSection: {
@@ -691,7 +719,7 @@ const styles = StyleSheet.create({
     borderRadius: 70,
     marginBottom: 15,
     borderWidth: 3,
-    borderColor: "#f1f4f8",
+    borderColor: colorPalette.neutral.background,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -702,12 +730,12 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 15,
     borderWidth: 3,
-    borderColor: "#f1f4f8",
+    borderColor: colorPalette.neutral.background,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -715,7 +743,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   initialsText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 40,
     fontWeight: "bold",
   },
@@ -725,12 +753,12 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   changeImageText: {
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
     marginLeft: 5,
     fontSize: 16,
   },
   section: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     borderRadius: 10,
     padding: 15,
     marginBottom: 20,
@@ -750,7 +778,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   inputGroup: {
     marginBottom: 20,
@@ -760,27 +788,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
     marginBottom: 8,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#e3ebf6",
+    borderColor: colorPalette.neutral.lighter,
     borderRadius: 5,
     padding: 12,
     fontSize: 16,
     width: "100%",
-    backgroundColor: "#fcfcfc",
+    backgroundColor: colorPalette.neutral.background,
   },
   datePickerButton: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#cdd9e9",
+    borderColor: colorPalette.neutral.lighter,
     borderRadius: 8,
     padding: 14,
     paddingRight: 16,
     width: "100%",
-    backgroundColor: "#f9fafb",
+    backgroundColor: colorPalette.neutral.background,
     marginBottom: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -790,13 +818,13 @@ const styles = StyleSheet.create({
   },
   datePickerButtonText: {
     fontSize: 16,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     flex: 1,
     marginRight: 10,
   },
   genderNote: {
     fontSize: 12,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginBottom: 10,
     fontStyle: "italic",
   },
@@ -807,39 +835,39 @@ const styles = StyleSheet.create({
   genderOption: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#e3ebf6",
+    borderColor: colorPalette.neutral.lighter,
     borderRadius: 5,
     padding: 10,
     alignItems: "center",
     marginHorizontal: 5,
   },
   genderOptionSelected: {
-    backgroundColor: "#2c7be5",
-    borderColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
+    borderColor: colorPalette.primary.main,
   },
   genderOptionText: {
     fontSize: 16,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   genderOptionTextSelected: {
-    color: "white",
+    color: colorPalette.neutral.white,
   },
   saveButton: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     padding: 16,
     borderRadius: 8,
     alignItems: "center",
     marginTop: 20,
     marginBottom: 30,
     width: "100%",
-    shadowColor: "#2c7be5",
+    shadowColor: colorPalette.primary.main,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
     elevation: 3,
   },
   saveButtonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 16,
     fontWeight: "bold",
   },
@@ -848,7 +876,7 @@ const styles = StyleSheet.create({
   },
   fieldHint: {
     fontSize: 12,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginTop: 2,
     marginLeft: 5,
     fontStyle: "italic",
@@ -859,7 +887,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   iosInlinePicker: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     borderRadius: 8,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -867,7 +895,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 5,
     borderWidth: 1,
-    borderColor: "#e3ebf6",
+    borderColor: colorPalette.neutral.lighter,
     overflow: "hidden",
   },
   iosButtonRow: {
@@ -875,9 +903,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 10,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colorPalette.neutral.background,
     borderBottomWidth: 1,
-    borderBottomColor: "#e3ebf6",
+    borderBottomColor: colorPalette.neutral.lighter,
   },
   iosDatePickerButton: {
     padding: 8,
@@ -885,14 +913,14 @@ const styles = StyleSheet.create({
   },
   iosDatePickerButtonText: {
     fontSize: 16,
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
   },
   iosDatePickerDoneButton: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     borderRadius: 6,
   },
   iosDatePickerDoneText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontWeight: "600",
   },
   iosPicker: {
@@ -900,25 +928,35 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   successMessageContainer: {
-    backgroundColor: "rgba(0, 217, 126, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.feedback.success, 0.1),
     padding: 12,
     borderRadius: 4,
     marginBottom: 20,
   },
   successMessageText: {
-    color: "#00d97e",
+    color: colorPalette.feedback.success,
     fontSize: 16,
     textAlign: "center",
   },
   errorContainer: {
-    backgroundColor: "rgba(230, 55, 87, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.feedback.error, 0.1),
     padding: 12,
     borderRadius: 4,
     marginBottom: 20,
   },
   errorText: {
-    color: "#e63757",
+    color: colorPalette.feedback.error,
     fontSize: 16,
     textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    color: colorPalette.primary.main,
+    fontSize: 16,
+    marginTop: 10,
   },
 });

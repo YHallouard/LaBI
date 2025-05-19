@@ -3,8 +3,8 @@ import {
   LabValue,
 } from "../../domain/entities/BiologicalAnalysis";
 import { BiologicalAnalysisRepository } from "../../ports/repositories/BiologicalAnalysisRepository";
-import { getDatabase } from "../../infrastructure/database/DatabaseInitializer";
-import type { Database } from "../../adapters/infrastructure/SQLiteDatabaseStorage";
+import { Database } from "../infrastructure/SQLiteDatabaseStorage";
+import { DatabaseStoragePort } from "../../ports/infrastructure/DatabaseStoragePort";
 import { LAB_VALUE_KEYS } from "../../config/LabConfig";
 
 export class SQLiteBiologicalAnalysisRepository
@@ -13,21 +13,19 @@ export class SQLiteBiologicalAnalysisRepository
   private db: Database | null = null;
   private initialized: Promise<void>;
 
-  constructor() {
+  constructor(private readonly dbStorage: DatabaseStoragePort) {
     this.initialized = this.initialize();
   }
 
-  private async initialize(): Promise<void> {
-    try {
-      this.db = await getDatabase();
-      await this.ensureLabValuesColumn();
-    } catch (error) {
-      console.error("Error initializing repository:", error);
-      throw error;
+  async initialize(): Promise<void> {
+    this.db = await this.dbStorage.getDatabase();
+    if (!this.db) {
+      throw new Error("Failed to initialize database");
     }
+    await this.createTableIfNotExists();
   }
 
-  private async ensureLabValuesColumn() {
+  private async createTableIfNotExists() {
     try {
       if (!this.db) {
         throw new Error("Database not initialized");

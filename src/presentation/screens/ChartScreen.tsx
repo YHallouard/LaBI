@@ -26,20 +26,21 @@ import {
   DataPoint,
 } from "../../application/usecases/GetAnalysesUseCase";
 import { CalculateStatisticsUseCase } from "../../application/usecases/CalculateStatisticsUseCase";
-import { LAB_VALUE_UNITS, LAB_VALUE_CATEGORIES } from "../../config/LabConfig";
-import { ReferenceRangeService } from "../../application/services/ReferenceRangeService";
+import { LAB_VALUE_UNITS, LAB_VALUE_CATEGORIES, LAB_VALUE_EXPLANATIONS } from "../../config/LabConfig";
+import { GetReferenceRangeUseCase } from "../../application/usecases/GetReferenceRangeUseCase";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { EmptyState } from "../components/EmptyState";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { ChartStackParamList } from "../../types/navigation";
+import { colorPalette, theme, generateAlpha } from "../../config/themes";
 
 type ChartScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
   getLabTestDataUseCase: GetLabTestDataUseCase;
   calculateStatisticsUseCase: CalculateStatisticsUseCase;
-  referenceRangeService: ReferenceRangeService;
+  getReferenceRangeUseCase: GetReferenceRangeUseCase;
   navigation: StackNavigationProp<ChartStackParamList, "ChartScreen">;
 };
 
@@ -58,7 +59,7 @@ type ChartItemProps = {
   labKey: string;
   data: DataPoint[];
   unit: string;
-  referenceRangeService: ReferenceRangeService;
+  getReferenceRangeUseCase: GetReferenceRangeUseCase;
   calculateStatisticsUseCase: CalculateStatisticsUseCase;
   chartDimensions: ChartDimensions;
   formatDate: (date: Date) => string;
@@ -80,11 +81,13 @@ const ChartItem: React.FC<ChartItemProps> = ({
   labKey,
   data,
   unit,
-  referenceRangeService,
+  getReferenceRangeUseCase,
   calculateStatisticsUseCase,
   chartDimensions,
   formatDate,
 }) => {
+  const [showExplanation, setShowExplanation] = useState<boolean>(false);
+  
   if (data.length < 2) return null;
 
   const generateChartDatapoints = () => {
@@ -116,7 +119,7 @@ const ChartItem: React.FC<ChartItemProps> = ({
       const currentDate = new Date(timestamp);
 
       // Get reference range based on the date (which determines the age)
-      const refRange = referenceRangeService.getReferenceRange(
+      const refRange = getReferenceRangeUseCase.execute(
         labKey,
         currentDate
       );
@@ -129,7 +132,7 @@ const ChartItem: React.FC<ChartItemProps> = ({
     }
 
     // Get the latest reference range for statistics
-    const latestRefRange = referenceRangeService.getReferenceRange(
+    const latestRefRange = getReferenceRangeUseCase.execute(
       labKey,
       latestDate
     );
@@ -195,8 +198,8 @@ const ChartItem: React.FC<ChartItemProps> = ({
         x2="0"
         y2="1"
       >
-        <Stop offset="0" stopColor="#00c800" stopOpacity="0.2" />
-        <Stop offset="1" stopColor="#00c800" stopOpacity="0.05" />
+        <Stop offset="0" stopColor={theme.chart.referenceArea.gradient.start.color} stopOpacity={theme.chart.referenceArea.gradient.start.opacity} />
+        <Stop offset="1" stopColor={theme.chart.referenceArea.gradient.end.color} stopOpacity={theme.chart.referenceArea.gradient.end.opacity} />
       </LinearGradient>
     </Defs>
   );
@@ -207,11 +210,15 @@ const ChartItem: React.FC<ChartItemProps> = ({
         key={`ref-area-${index}`}
         d={path}
         fill={`url(#referenceGradient-${labKey})`}
-        stroke="#00c800"
-        strokeWidth={1}
-        opacity={0.6}
+        stroke={theme.chart.referenceArea.stroke}
+        strokeWidth={theme.chart.referenceArea.strokeWidth}
+        opacity={theme.chart.referenceArea.opacity}
       />
     ));
+
+  const toggleExplanation = () => {
+    setShowExplanation(!showExplanation);
+  };
 
   const renderStatCard = (label: string, value: number, date?: Date) => {
     const isOutOfRange =
@@ -235,34 +242,58 @@ const ChartItem: React.FC<ChartItemProps> = ({
 
   return (
     <View style={styles.chartSection}>
-      <Text style={styles.chartTitle}>{labKey}</Text>
-
       <View style={styles.chartContainer}>
-        <Svg width={chartDimensions.width} height={chartDimensions.height}>
-          {renderChartGradient()}
-          {renderReferenceAreaPaths()}
+        <View style={styles.metricIdentifier}>
+          <View style={styles.metricNameContainer}>
+            <Text style={styles.metricName}>{labKey}</Text>
+          </View>
+          <TouchableOpacity 
+            onPress={toggleExplanation} 
+            style={styles.infoIconContainer}
+          >
+            <Ionicons 
+              name="information-circle-outline" 
+              size={24} 
+              color={colorPalette.primary.main} 
+            />
+          </TouchableOpacity>
+        </View>
+        
+        {showExplanation && (
+          <View style={styles.explanationContainer}>
+            <Text style={styles.explanationText}>
+              {LAB_VALUE_EXPLANATIONS[labKey] || `No explanation available for ${labKey}`}
+            </Text>
+          </View>
+        )}
+        
+        <View style={styles.svgContainer}>
+          <Svg width={chartDimensions.width} height={chartDimensions.height}>
+            {renderChartGradient()}
+            {renderReferenceAreaPaths()}
 
-          {createVerticalGridLines(
-            data,
-            minTime,
-            maxTime,
-            chartDimensions,
-            formatDate
-          )}
-          {createHorizontalGridLines(minValue, maxValue, chartDimensions, unit)}
+            {createVerticalGridLines(
+              data,
+              minTime,
+              maxTime,
+              chartDimensions,
+              formatDate
+            )}
+            {createHorizontalGridLines(minValue, maxValue, chartDimensions, unit)}
 
-          <Path d={linePath} fill="none" stroke="#4484B2" strokeWidth={3} />
+            <Path d={linePath} fill="none" stroke={theme.chart.line.color} strokeWidth={theme.chart.line.width} />
 
-          {createDataPoints(
-            data,
-            minTime,
-            maxTime,
-            minValue,
-            maxValue,
-            chartDimensions,
-            referenceRangesByDate
-          )}
-        </Svg>
+            {createDataPoints(
+              data,
+              minTime,
+              maxTime,
+              minValue,
+              maxValue,
+              chartDimensions,
+              referenceRangesByDate
+            )}
+          </Svg>
+        </View>
 
         <ChartLegend latestRefRange={latestRefRange} unit={unit} />
       </View>
@@ -290,11 +321,12 @@ const ChartLegend = ({
   <View style={styles.referenceLegend}>
     <View style={styles.legendRow}>
       <View style={styles.legendItem}>
-        <View style={[styles.legendColor, { backgroundColor: "#4484B2" }]} />
+      <View style={[styles.legendColor, { backgroundColor: theme.chart.point.alert.fill }]} />
+        <View style={[styles.legendColor, { backgroundColor: theme.chart.point.normal.fill }]} />
         <Text style={styles.legendText}>Measured Value</Text>
       </View>
       <View style={styles.legendItem}>
-        <View style={[styles.legendColor, { backgroundColor: "#00c800" }]} />
+        <View style={[styles.legendColor, { backgroundColor: colorPalette.feedback.success }]} />
         <Text style={styles.legendText}>Normal Range</Text>
       </View>
     </View>
@@ -309,7 +341,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   getAnalysesUseCase,
   getLabTestDataUseCase,
   calculateStatisticsUseCase,
-  referenceRangeService,
+  getReferenceRangeUseCase,
   navigation,
 }) => {
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
@@ -348,7 +380,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
 
   const initializeAndLoadData = async () => {
     try {
-      await referenceRangeService.initialize();
+      await getReferenceRangeUseCase.initialize();
       loadAnalyses();
     } catch {
       setError("Failed to initialize reference range service");
@@ -569,7 +601,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
         labKey={item.labKey}
         data={item.filteredData}
         unit={item.unit}
-        referenceRangeService={referenceRangeService}
+        getReferenceRangeUseCase={getReferenceRangeUseCase}
         calculateStatisticsUseCase={calculateStatisticsUseCase}
         chartDimensions={chartDimensions}
         formatDate={formatDate}
@@ -579,7 +611,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
       calculateStatisticsUseCase,
       chartDimensions,
       formatDate,
-      referenceRangeService,
+      getReferenceRangeUseCase,
     ]
   );
 
@@ -636,7 +668,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     return (
       <ScreenLayout>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#2c7be5" />
+          <ActivityIndicator size="large" color={colorPalette.feedback.info} />
         </View>
       </ScreenLayout>
     );
@@ -699,6 +731,8 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
           renderItem={renderSectionItem}
           keyExtractor={keyExtractor}
           contentContainerStyle={styles.chartsContainer}
+          contentInsetAdjustmentBehavior="automatic"
+          automaticallyAdjustContentInsets={true}
           showsVerticalScrollIndicator={false}
           initialNumToRender={3}
           maxToRenderPerBatch={3}
@@ -708,10 +742,10 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={["#2c7be5"]}
-              tintColor="#2c7be5"
+              colors={[colorPalette.feedback.info]}
+              tintColor={colorPalette.feedback.info}
               title="Pull to refresh..."
-              titleColor="#95aac9"
+              titleColor={colorPalette.neutral.light}
             />
           }
         />
@@ -731,7 +765,7 @@ const NoDataEmptyState: React.FC<NoDataEmptyStateProps> = ({
   <View style={styles.emptyStateContainer}>
     <View style={styles.emptyStateContent}>
       <View style={styles.emptyStateIconContainer}>
-        <Ionicons name="time-outline" size={60} color="#ffffff" />
+        <Ionicons name="time-outline" size={60} color={colorPalette.neutral.white} />
       </View>
       <Text style={styles.emptyStateTitle}>No Data Available</Text>
       <Text style={styles.emptyStateDescription}>
@@ -799,7 +833,10 @@ const TimeRangeButton: React.FC<TimeRangeButtonProps> = ({
     ]}
   >
     <TouchableOpacity
-      style={[styles.fabMenuButton, isActive && styles.fabMenuButtonActive]}
+      style={[
+        styles.fabMenuButton, 
+        isActive && styles.fabMenuButtonActive
+      ]}
       onPress={onPress}
     >
       <Text
@@ -895,7 +932,7 @@ const renderTimeRangeButtons = (
 const renderMainButton = (rotate: any, onToggleMenu: () => void) => (
   <TouchableOpacity style={styles.fab} onPress={onToggleMenu}>
     <Animated.View style={{ transform: [{ rotate }] }}>
-      <Ionicons name="time-outline" size={24} color="white" />
+      <Ionicons name="time-outline" size={24} color={colorPalette.neutral.white} />
     </Animated.View>
   </TouchableOpacity>
 );
@@ -909,50 +946,91 @@ const styles = StyleSheet.create({
   },
   chartsContainer: {
     paddingHorizontal: 10,
-    paddingBottom: 80, // Add space for the FAB
+    paddingBottom: 80,
+    marginTop: -5,
   },
   timeRangeIndicator: {
     alignItems: "center",
     marginBottom: 15,
     paddingVertical: 8,
-    backgroundColor: "rgba(241, 244, 248, 0.7)",
+    backgroundColor: generateAlpha(colorPalette.neutral.lighter, 0.7),
     borderRadius: 20,
   },
   timeRangeLabel: {
     fontSize: 14,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   timeRangeValue: {
     fontWeight: "bold",
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
   },
   chartSection: {
     marginBottom: 30,
   },
   chartTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 10,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     textAlign: "center",
+    marginBottom: 10,
   },
   chartContainer: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     borderRadius: 16,
-    padding: 8,
+    padding: 12,
     marginBottom: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    alignItems: "center",
+  },
+  metricIdentifier: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colorPalette.neutral.lighter,
+    width: '100%',
+    marginBottom: 8,
+    position: 'relative',
+  },
+  metricNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+  },
+  metricName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colorPalette.neutral.main,
+  },
+  metricUnit: {
+    fontSize: 14,
+    color: colorPalette.neutral.light,
+    marginLeft: 8,
+  },
+  explanationContainer: {
+    backgroundColor: colorPalette.neutral.background,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    width: '100%',
+  },
+  explanationText: {
+    fontSize: 14,
+    color: colorPalette.neutral.main,
+    lineHeight: 20,
   },
   referenceLegend: {
+    width: '100%',
     marginTop: 8,
     paddingTop: 8,
     borderTopWidth: 1,
-    borderTopColor: "#f1f4f8",
+    borderTopColor: colorPalette.neutral.lighter,
     flexDirection: "column",
     alignItems: "center",
   },
@@ -970,15 +1048,16 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
+    marginLeft: -7,
     marginRight: 4,
   },
   legendText: {
     fontSize: 12,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
   },
   rangeText: {
     fontSize: 12,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginTop: 4,
   },
   statsContainer: {
@@ -987,7 +1066,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: "white",
+    backgroundColor: theme.chart.stats.card.backgroundColor,
     borderRadius: 8,
     padding: 12,
     marginHorizontal: 4,
@@ -1001,7 +1080,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   statCardAlert: {
-    backgroundColor: "rgba(230, 55, 87, 0.1)",
+    backgroundColor: theme.chart.stats.card.alert.backgroundColor,
     shadowColor: "transparent",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0,
@@ -1009,37 +1088,37 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   statLabel: {
-    fontSize: 12,
-    color: "#95aac9",
+    fontSize: theme.chart.stats.label.fontSize,
+    color: theme.chart.stats.label.color,
     marginBottom: 4,
   },
   statValue: {
-    fontSize: 16,
+    fontSize: theme.chart.stats.value.normal.fontSize,
     fontWeight: "bold",
-    color: "#2c7be5",
+    color: theme.chart.stats.value.normal.color,
   },
   statValueAlert: {
-    color: "#e63757",
+    color: theme.chart.stats.value.alert.color,
   },
   statDate: {
-    fontSize: 10,
-    color: "#95aac9",
+    fontSize: theme.chart.stats.date.fontSize,
+    color: theme.chart.stats.date.color,
     marginTop: 2,
   },
   errorText: {
     fontSize: 18,
-    color: "#e63757",
+    color: colorPalette.feedback.error,
     textAlign: "center",
   },
   emptyText: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     textAlign: "center",
   },
   emptySubtext: {
     fontSize: 16,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     textAlign: "center",
     marginTop: 8,
   },
@@ -1052,7 +1131,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   fab: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -1074,7 +1153,7 @@ const styles = StyleSheet.create({
     zIndex: 9,
   },
   fabMenuButton: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     paddingHorizontal: 4,
     paddingVertical: 4,
     borderRadius: 16,
@@ -1087,17 +1166,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: colorPalette.neutral.lighter,
   },
   fabMenuButtonActive: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
   },
   fabMenuButtonText: {
     fontSize: 12,
     fontWeight: "bold",
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
   },
   fabMenuButtonTextActive: {
-    color: "white",
+    color: colorPalette.neutral.white,
   },
   emptyStateContainer: {
     flex: 1,
@@ -1106,13 +1187,13 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   emptyStateContent: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     borderRadius: 16,
     padding: 20,
     alignItems: "center",
   },
   emptyStateIconContainer: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     borderRadius: 28,
     padding: 12,
     marginBottom: 16,
@@ -1120,12 +1201,12 @@ const styles = StyleSheet.create({
   emptyStateTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 8,
   },
   emptyStateDescription: {
     fontSize: 16,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     textAlign: "center",
     marginBottom: 20,
   },
@@ -1134,11 +1215,11 @@ const styles = StyleSheet.create({
   },
   currentTimeRangeLabel: {
     fontSize: 14,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   currentTimeRangeValue: {
     fontWeight: "bold",
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
   },
   emptyStateActionContainer: {
     alignItems: "center",
@@ -1146,7 +1227,7 @@ const styles = StyleSheet.create({
   },
   emptyStateActionLabel: {
     fontSize: 14,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginBottom: 12,
   },
   categoryContainer: {
@@ -1156,11 +1237,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     textAlign: "center",
   },
   sectionHeaderContainer: {
-    marginTop: 24,
+    marginTop: 16,
     marginBottom: 16,
     paddingHorizontal: 16,
     alignItems: "center",
@@ -1168,7 +1249,7 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     letterSpacing: 0.5,
     marginBottom: 8,
     textAlign: "center",
@@ -1176,8 +1257,20 @@ const styles = StyleSheet.create({
   sectionHeaderLine: {
     height: 3,
     width: 80,
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     borderRadius: 3,
+  },
+  svgContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  infoIconContainer: {
+    position: 'absolute',
+    right: 4,
+    top: '50%',
+    marginTop: -9,
+    padding: 4,
   },
 });
 
@@ -1428,14 +1521,14 @@ function createVerticalGridLines(
           y1={paddingTop}
           x2={x}
           y2={height - paddingBottom}
-          stroke="#ECECEC"
-          strokeWidth={1}
+          stroke={theme.chart.grid.line.color}
+          strokeWidth={theme.chart.grid.line.width}
         />
         <SvgText
           x={x}
           y={height - paddingBottom + 20}
-          fill="#95aac9"
-          fontSize="9"
+          fill={theme.chart.grid.text.color}
+          fontSize={theme.chart.grid.text.fontSize}
           textAnchor="middle"
           transform={`rotate(-45, ${x}, ${height - paddingBottom + 20})`}
         >
@@ -1476,14 +1569,14 @@ function createHorizontalGridLines(
           y1={y}
           x2={width - paddingRight}
           y2={y}
-          stroke="#ECECEC"
-          strokeWidth={1}
+          stroke={theme.chart.grid.line.color}
+          strokeWidth={theme.chart.grid.line.width}
         />
         <SvgText
           x={paddingLeft - 5}
           y={y + 3}
-          fill="#95aac9"
-          fontSize="9"
+          fill={theme.chart.grid.text.color}
+          fontSize={theme.chart.grid.text.fontSize}
           textAnchor="middle"
         >
           {`${value.toFixed(1)} ${unit}`}
@@ -1589,15 +1682,17 @@ function createDataPoints(
     const isOutsideRange =
       (point.value ?? 0) < refRange.min || (point.value ?? 0) > refRange.max;
 
+    const pointStyle = isOutsideRange ? theme.chart.point.alert : theme.chart.point.normal;
+
     return (
       <Circle
         key={`point-${index}`}
         cx={x}
         cy={y}
-        r={4}
-        fill={isOutsideRange ? "#e63757" : "#4484B2"}
-        stroke="white"
-        strokeWidth={1}
+        r={pointStyle.radius}
+        fill={pointStyle.fill}
+        stroke={pointStyle.stroke}
+        strokeWidth={pointStyle.strokeWidth}
       />
     );
   });

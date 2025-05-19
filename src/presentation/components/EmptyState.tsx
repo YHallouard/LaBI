@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { HomeStackParamList } from "../../types/navigation";
+import { colorPalette } from "../../config/themes";
 
 interface EmptyStateProps {
   navigation: StackNavigationProp<HomeStackParamList, "HomeScreen">;
@@ -19,7 +20,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <View style={styles.centered}>
-      <Ionicons name={iconName} size={60} color="#95aac9" />
+      <Ionicons name={iconName} size={60} color={colorPalette.neutral.light} />
       <Text style={styles.emptyText}>{message}</Text>
       <Text style={styles.emptySubtext}>{subMessage}</Text>
       <TouchableOpacity
@@ -32,7 +33,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         <Ionicons
           name="cloud-upload-outline"
           size={20}
-          color="white"
+          color={colorPalette.neutral.white}
           style={styles.buttonIcon}
         />
         <Text style={styles.uploadButtonText}>Upload Report</Text>
@@ -51,18 +52,18 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     textAlign: "center",
   },
   emptySubtext: {
     fontSize: 16,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     textAlign: "center",
     marginTop: 8,
     marginBottom: 24,
   },
   uploadButton: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
     width: 200,
   },
   uploadButtonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 16,
     fontWeight: "600",
   },

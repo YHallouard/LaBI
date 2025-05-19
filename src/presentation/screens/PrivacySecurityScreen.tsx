@@ -4,6 +4,7 @@ import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { HomeStackParamList } from "../../types/navigation";
+import { colorPalette, generateAlpha } from "../../config/themes";
 
 type PrivacySecurityScreenProps = {
   navigation: StackNavigationProp<HomeStackParamList, "PrivacySecurityScreen">;
@@ -22,7 +23,7 @@ export const PrivacySecurityScreen: React.FC<PrivacySecurityScreenProps> = ({
         <Ionicons
           name="shield-outline"
           size={80}
-          color="#2c7be5"
+          color={colorPalette.primary.main}
           style={styles.icon}
         />
 
@@ -32,7 +33,7 @@ export const PrivacySecurityScreen: React.FC<PrivacySecurityScreenProps> = ({
           <Ionicons
             name="phone-portrait-outline"
             size={24}
-            color="#2c7be5"
+            color={colorPalette.primary.main}
             style={styles.sectionIcon}
           />
           <Text style={styles.sectionTitle}>Local Storage Only</Text>
@@ -47,7 +48,7 @@ export const PrivacySecurityScreen: React.FC<PrivacySecurityScreenProps> = ({
           <Ionicons
             name="document-text-outline"
             size={24}
-            color="#2c7be5"
+            color={colorPalette.primary.main}
             style={styles.sectionIcon}
           />
           <Text style={styles.sectionTitle}>PDF Processing</Text>
@@ -62,7 +63,7 @@ export const PrivacySecurityScreen: React.FC<PrivacySecurityScreenProps> = ({
           <Ionicons
             name="key-outline"
             size={24}
-            color="#2c7be5"
+            color={colorPalette.primary.main}
             style={styles.sectionIcon}
           />
           <Text style={styles.sectionTitle}>API Key Security</Text>
@@ -86,7 +87,7 @@ export const PrivacySecurityScreen: React.FC<PrivacySecurityScreenProps> = ({
           <Ionicons
             name="document-text"
             size={20}
-            color="#fff"
+            color={colorPalette.neutral.white}
             style={styles.buttonIcon}
           />
           <Text style={styles.buttonText}>View Privacy Policy</Text>
@@ -109,13 +110,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 30,
     textAlign: "center",
   },
   policySection: {
     width: "100%",
-    backgroundColor: "#f5f7fb",
+    backgroundColor: colorPalette.neutral.background,
     borderRadius: 8,
     padding: 20,
     marginBottom: 20,
@@ -127,31 +128,31 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 10,
     textAlign: "center",
   },
   sectionText: {
     fontSize: 16,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
     textAlign: "center",
     lineHeight: 22,
   },
   summaryContainer: {
-    backgroundColor: "rgba(44, 123, 229, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
     padding: 15,
     borderRadius: 8,
     marginVertical: 20,
   },
   summaryText: {
     fontSize: 16,
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
     textAlign: "center",
     lineHeight: 22,
     fontWeight: "500",
   },
   privacyButton: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   buttonText: {
-    color: "#fff",
+    color: colorPalette.neutral.white,
     fontSize: 16,
     fontWeight: "600",
   },

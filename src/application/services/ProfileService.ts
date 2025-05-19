@@ -1,18 +1,32 @@
 import { RetrieveUserProfileUseCase } from "../usecases/RetrieveUserProfileUseCase";
-import { SQLiteUserProfileRepository } from "../../adapters/repositories/SQLiteUserProfileRepository";
+import { UserProfileRepository } from "../../ports/repositories/UserProfileRepository";
+import { RepositoryFactory } from "../../infrastructure/repositories/RepositoryFactory";
 
 export class ProfileService {
   private static instance: ProfileService;
-  private userProfileRepository: SQLiteUserProfileRepository;
-  private retrieveUserProfileUseCase: RetrieveUserProfileUseCase;
+  private userProfileRepository: UserProfileRepository | null = null;
+  private retrieveUserProfileUseCase: RetrieveUserProfileUseCase | null = null;
   private hasCheckedProfile: boolean = false;
   private profileExists: boolean = false;
+  private isInitialized: boolean = false;
+  private initPromise: Promise<void> | null = null;
 
   private constructor() {
-    this.userProfileRepository = new SQLiteUserProfileRepository();
-    this.retrieveUserProfileUseCase = new RetrieveUserProfileUseCase(
-      this.userProfileRepository
-    );
+    this.initPromise = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    try {
+      this.userProfileRepository = await RepositoryFactory.getUserProfileRepository();
+      this.retrieveUserProfileUseCase = new RetrieveUserProfileUseCase(
+        this.userProfileRepository
+      );
+      this.isInitialized = true;
+    } catch (error) {
+      console.error("Error initializing ProfileService:", error);
+      this.isInitialized = false;
+      throw error;
+    }
   }
 
   public static getInstance(): ProfileService {
@@ -23,11 +37,23 @@ export class ProfileService {
   }
 
   public async checkProfileExists(): Promise<boolean> {
+    await this.ensureInitialized();
+    
     if (this.hasCheckedProfile) {
       return this.returnCachedProfileStatus();
     }
 
     return await this.retrieveAndCacheProfileStatus();
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    if (!this.isInitialized && this.initPromise) {
+      await this.initPromise;
+    }
+    
+    if (!this.isInitialized || !this.retrieveUserProfileUseCase) {
+      throw new Error("ProfileService is not initialized properly");
+    }
   }
 
   private returnCachedProfileStatus(): boolean {
@@ -36,6 +62,10 @@ export class ProfileService {
 
   private async retrieveAndCacheProfileStatus(): Promise<boolean> {
     try {
+      if (!this.retrieveUserProfileUseCase) {
+        throw new Error("RetrieveUserProfileUseCase is not initialized");
+      }
+      
       const profile = await this.retrieveUserProfileUseCase.execute();
       return this.updateProfileStatus(!!profile);
     } catch (error) {

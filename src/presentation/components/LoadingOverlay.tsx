@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, StyleSheet, View, Easing } from "react-native";
-import Svg, { Circle } from "react-native-svg";
+import Svg, { Circle, Defs, LinearGradient, Stop } from "react-native-svg";
 import { AppImage } from "./AppImage";
+import { colorPalette } from "../../config/themes";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -87,11 +88,19 @@ export const LoadingOverlay = ({
     >
       <View style={styles.logoContainer}>
         <Svg width={180} height={180} style={styles.progressCircle}>
+          <Defs>
+            <LinearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <Stop offset="0%" stopColor={colorPalette.gradient.red} />
+              <Stop offset="33%" stopColor={colorPalette.gradient.redPurple} />
+              <Stop offset="66%" stopColor={colorPalette.gradient.purple} />
+              <Stop offset="100%" stopColor={colorPalette.gradient.purpleLight} />
+            </LinearGradient>
+          </Defs>
           <Circle
             cx={90}
             cy={90}
             r={88}
-            stroke="#f0f0f0"
+            stroke={colorPalette.neutral.lighter}
             strokeWidth={4}
             fill="none"
           />
@@ -99,7 +108,7 @@ export const LoadingOverlay = ({
             cx={90}
             cy={90}
             r={88}
-            stroke="#e63757"
+            stroke="url(#gradient)"
             strokeWidth={4}
             fill="none"
             strokeDasharray={`${circumference}`}
@@ -108,11 +117,13 @@ export const LoadingOverlay = ({
             transform="rotate(-90, 90, 90)"
           />
         </Svg>
-        <AppImage
-          imagePath="adaptive-icon"
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <View style={styles.logoWrapper}>
+          <AppImage
+            imagePath="loading-icon"
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </View>
       </View>
     </Animated.View>
   );
@@ -122,7 +133,7 @@ const styles = StyleSheet.create({
   container: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f7fb",
+    backgroundColor: colorPalette.neutral.background,
     zIndex: 100,
   },
   logoContainer: {
@@ -137,10 +148,17 @@ const styles = StyleSheet.create({
     left: 10,
     zIndex: 10,
   },
-  logo: {
-    width: 160,
-    height: 160,
-    borderRadius: 100,
+  logoWrapper: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 5,
+  },
+  logo: {
+    width: "85%",
+    height: "85%",
   },
 });

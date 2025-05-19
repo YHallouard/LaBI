@@ -14,9 +14,11 @@ export class ResetDatabaseUseCase {
       console.log("Executing database reset use case...");
 
       await this.notifyProfileServiceReset();
-      const db = await this.resetDatabaseTables();
+      
+      // Use the storage port directly
+      const db = await this.storagePort.resetDatabase();
+      
       await this.waitForChangesToPropagate(500);
-
       return db;
     } catch (error) {
       return this.handleResetError(error);
@@ -27,13 +29,6 @@ export class ResetDatabaseUseCase {
     const profileService = ProfileService.getInstance();
     profileService.setProfileExists(false);
     console.log("Notified ProfileService that profile no longer exists");
-  }
-
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  private async resetDatabaseTables(): Promise<any> {
-    const db = await this.storagePort.resetDatabase();
-    console.log("Database tables reset and recreated successfully");
-    return db;
   }
 
   private async waitForChangesToPropagate(delayMs: number): Promise<void> {

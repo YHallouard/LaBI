@@ -115,13 +115,13 @@ describe("AnalyzePdfUseCase", () => {
       // When
       await useCase.execute(mockPdfPath);
 
-      // Run the timers to process the setTimeout for "Uploading document" completion
+      // Run the timers to process the setTimeout for "Uploading document to Mistral" completion
       jest.runAllTimers();
 
       // Then - verify the progress callbacks were called
       // Uploading document step
-      expect(onStepStartedMock).toHaveBeenCalledWith("Uploading document");
-      expect(onStepCompletedMock).toHaveBeenCalledWith("Uploading document");
+      expect(onStepStartedMock).toHaveBeenCalledWith("Uploading document to Mistral");
+      expect(onStepCompletedMock).toHaveBeenCalledWith("Uploading document to Mistral");
 
       // Mock extraction step
       expect(onStepStartedMock).toHaveBeenCalledWith("Mock extraction");

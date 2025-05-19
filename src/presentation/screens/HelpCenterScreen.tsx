@@ -10,6 +10,7 @@ import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { HomeStackParamList } from "../../types/navigation";
+import { colorPalette } from "../../config/themes";
 
 type HelpCenterScreenProps = {
   navigation: StackNavigationProp<HomeStackParamList, "HelpCenterScreen">;
@@ -32,7 +33,7 @@ export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({
         <Ionicons
           name="help-circle-outline"
           size={80}
-          color="#2c7be5"
+          color={colorPalette.primary.main}
           style={styles.icon}
         />
 
@@ -50,7 +51,7 @@ export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({
           <Ionicons
             name="mail-outline"
             size={24}
-            color="#2c7be5"
+            color={colorPalette.primary.main}
             style={styles.emailIcon}
           />
           <Text style={styles.emailText}>contact.hemea@gmail.com</Text>
@@ -69,7 +70,7 @@ export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({
           <Ionicons
             name="key-outline"
             size={24}
-            color="#fff"
+            color={colorPalette.neutral.white}
             style={styles.buttonIcon}
           />
           <Text style={styles.buttonText}>Mistral API Key Tutorial</Text>
@@ -92,19 +93,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 20,
     textAlign: "center",
   },
   description: {
     fontSize: 16,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
     textAlign: "center",
     marginBottom: 30,
     lineHeight: 22,
   },
   tutorialButton: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -115,7 +116,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   buttonText: {
-    color: "#fff",
+    color: colorPalette.neutral.white,
     fontSize: 16,
     fontWeight: "600",
   },
@@ -125,7 +126,7 @@ const styles = StyleSheet.create({
   emailContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f5f7fb",
+    backgroundColor: colorPalette.neutral.background,
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
@@ -135,12 +136,12 @@ const styles = StyleSheet.create({
   },
   emailText: {
     fontSize: 18,
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
     fontWeight: "500",
   },
   responseText: {
     fontSize: 14,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     textAlign: "center",
     marginBottom: 20,
   },

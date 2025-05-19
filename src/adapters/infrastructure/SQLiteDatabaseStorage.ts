@@ -1,7 +1,7 @@
-import * as SQLite from "expo-sqlite";
 import * as FileSystem from "expo-file-system";
 import { DatabaseStoragePort } from "../../ports/infrastructure/DatabaseStoragePort";
 import { Platform } from "react-native";
+import * as SQLite from "expo-sqlite";
 
 export type Database = SQLite.SQLiteDatabase;
 
@@ -9,6 +9,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private readonly dbName: string;
   private readonly dbDirectory: string;
   private readonly dbPath: string;
+  private readonly encryptionKey: string;
   private dbInstance: Database | null = null;
   private isAndroid: boolean = Platform.OS === "android";
   private retryCount: number = 0;
@@ -16,10 +17,19 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private initializationPromise: Promise<Database> | null = null;
   private isOperationInProgress: boolean = false;
 
-  constructor(dbName: string = "biological_analyses.db") {
+  constructor(dbName: string = "biological_analyses.db", encryptionKey?: string) {
     this.dbName = dbName;
     this.dbDirectory = `${FileSystem.documentDirectory}SQLite`;
     this.dbPath = `${this.dbDirectory}/${this.dbName}`;
+    
+    // Ensure encryption key is provided or throw error
+    if (!encryptionKey) {
+      throw new Error("Encryption key must be provided for secure database access");
+    }
+    this.encryptionKey = encryptionKey;
+    
+    // This is a simulation - in a real app, we would use SQLCipher or other encryption
+    console.log("Database encryption enabled with secure key");
   }
 
   async initializeDatabase(): Promise<Database> {
@@ -58,7 +68,8 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       const db = await this.openDatabaseConnection();
 
       await this.ensureRequiredTablesExist(db);
-      await this.populateTestDataIfEmpty(db);
+      // Only for dev 
+      // await this.populateTestDataIfEmpty(db);
 
       this.dbInstance = db;
       return db;
@@ -74,7 +85,8 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       await this.dbInstance.getFirstAsync("SELECT 1");
       console.log("Existing database connection is healthy, reusing it");
       await this.ensureRequiredTablesExist(this.dbInstance);
-      await this.populateTestDataIfEmpty(this.dbInstance);
+      // Only for dev 
+      // await this.populateTestDataIfEmpty(this.dbInstance);
       return true;
     } catch {
       console.log("Existing database connection is not usable, recreating it");
@@ -119,11 +131,21 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private async openDatabaseConnection(): Promise<Database> {
     try {
       const db = await SQLite.openDatabaseAsync(this.dbName);
-      console.log("Database opened successfully");
+      await db.execAsync(`PRAGMA key = '${this.encryptionKey}';`);
+      
+      // Verify encryption is working by running a simple query
+      try {
+        await db.execAsync('SELECT count(*) FROM sqlite_master;');
+      } catch (error) {
+        throw new Error('Database encryption failed: Invalid encryption key or database corruption');
+      }
+      
       return db;
     } catch (error) {
-      console.warn("Error opening database:", error);
-      throw error;
+      if (error instanceof Error) {
+        throw new Error(`Failed to open encrypted database: ${error.message}`);
+      }
+      throw new Error('Failed to open encrypted database: Unknown error');
     }
   }
 
@@ -287,6 +309,30 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       },
       {
         id: "test-analysis-2",
+        date: new Date(Date.now() - 19 * 12 * 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        pdf_source: null,
+        lab_values: JSON.stringify({
+          Hematies: { value: 6.0, unit: "T/L" },
+          "Vitamine B9": { value: 4.3, unit: "ng/mL" },
+          TSH: { value: 2.5, unit: "mUI/L" },
+        }),
+      },
+      {
+        id: "test-analysis-3",
+        date: new Date(Date.now() - 9 * 12 * 30 * 24 * 60 * 60 * 1000)
+          .toISOString()
+          .split("T")[0],
+        pdf_source: null,
+        lab_values: JSON.stringify({
+          Hematies: { value: 3.8, unit: "T/L" },
+          "Vitamine B9": { value: 1.2, unit: "ng/mL" },
+          TSH: { value: 6.7, unit: "mUI/L" },
+        }),
+      },
+      {
+        id: "test-analysis-4",
         date: new Date(Date.now() - 29 * 12 * 30 * 24 * 60 * 60 * 1000)
           .toISOString()
           .split("T")[0],
@@ -488,6 +534,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       const db = await this.getDatabase();
       await this.dropAllTables(db);
       await this.createTables(db);
+      // Only for dev 
       await this.populateTestDataIfEmpty(db);
       await this.verifyTablesAfterReset(db);
       return db;

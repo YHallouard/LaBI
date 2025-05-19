@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
@@ -19,24 +19,50 @@ import { GetAnalysisByIdUseCase } from "../../application/usecases/GetAnalysesUs
 import { UpdateAnalysisUseCase } from "../../application/usecases/UpdateAnalysisUseCase";
 import { DeleteAnalysisUseCase } from "../../application/usecases/DeleteAnalysisUseCase";
 import { CalculateStatisticsUseCase } from "../../application/usecases/CalculateStatisticsUseCase";
+import { RepositoryFactory } from "../../infrastructure/repositories/RepositoryFactory";
+import { GetReferenceRangeUseCase } from "../../application/usecases/GetReferenceRangeUseCase";
+import { ReferenceRangeCalculator } from "../../domain/services/ReferenceRangeCalculator";
+import { Alert } from "react-native";
+import { colorPalette } from "../../config/themes";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const Stack = createStackNavigator<RootStackParamList>();
 
-type AppNavigatorProps = {
-  biologicalAnalysisRepository: BiologicalAnalysisRepository;
-  ocrService: OcrService;
-  isLoadingApiKey: boolean;
-  apiKeyError: string | null;
-};
+export const AppNavigator: React.FC = () => {
+  const [loading, setLoading] = useState(true);
+  const [useCases, setUseCases] = useState<AppUseCases | null>(null);
 
-export const AppNavigator: React.FC<AppNavigatorProps> = ({
-  biologicalAnalysisRepository,
-  ocrService,
-  isLoadingApiKey,
-  apiKeyError,
-}) => {
-  const useCases = initializeUseCases(biologicalAnalysisRepository, ocrService);
+  useEffect(() => {
+    const initializeApp = async () => {
+      try {
+        // Use the repository factory to get encrypted repository
+        const repository = await RepositoryFactory.getBiologicalAnalysisRepository();
+        const userProfileRepository = await RepositoryFactory.getUserProfileRepository();
+        
+        // Create the reference range calculator and service
+        const referenceRangeCalculator = new ReferenceRangeCalculator();
+        const getReferenceRangeUseCase = new GetReferenceRangeUseCase(
+          referenceRangeCalculator,
+          userProfileRepository
+        );
+        
+        await getReferenceRangeUseCase.initialize();
+        
+        const appUseCases = initializeUseCases(repository, null, getReferenceRangeUseCase);
+        setUseCases(appUseCases);
+      } catch (error) {
+        console.error("Error initializing app:", error);
+        Alert.alert(
+          "Initialization Error",
+          "There was a problem starting the app. Please try again."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeApp();
+  }, []);
 
   return (
     <NavigationContainer>
@@ -53,21 +79,26 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
           {(props) => (
             <UploadScreen
               {...props}
-              analyzePdfUseCase={useCases.analyzePdfUseCase}
-              isLoadingApiKey={isLoadingApiKey}
-              apiKeyError={apiKeyError}
+              analyzePdfUseCase={useCases?.analyzePdfUseCase || null}
+              isLoadingApiKey={false}
+              apiKeyError={"API key not configured. Please set up your API key in Settings."}
               checkAndLoadApiKey={async () => Promise.resolve()}
             />
           )}
         </Tab.Screen>
         <Tab.Screen name="Charts" options={{ title: "Analysis Charts" }}>
           {(props) => (
-            <ChartScreen
-              {...props}
-              getAnalysesUseCase={useCases.getAnalysesUseCase}
-              getLabTestDataUseCase={useCases.getLabTestDataUseCase}
-              calculateStatisticsUseCase={useCases.calculateStatisticsUseCase}
-            />
+            useCases ? (
+              <ChartScreen
+                {...props}
+                getAnalysesUseCase={useCases.getAnalysesUseCase}
+                getLabTestDataUseCase={useCases.getLabTestDataUseCase}
+                calculateStatisticsUseCase={useCases.calculateStatisticsUseCase}
+                getReferenceRangeUseCase={useCases.getReferenceRangeUseCase}
+              />
+            ) : (
+              <></>
+            )
           )}
         </Tab.Screen>
       </Tab.Navigator>
@@ -77,20 +108,22 @@ export const AppNavigator: React.FC<AppNavigatorProps> = ({
 
 interface AppUseCases {
   getAnalysesUseCase: GetAnalysesUseCase;
-  analyzePdfUseCase: AnalyzePdfUseCase;
+  analyzePdfUseCase: AnalyzePdfUseCase | null;
   getAnalysisByIdUseCase: GetAnalysisByIdUseCase;
   updateAnalysisUseCase: UpdateAnalysisUseCase;
   deleteAnalysisUseCase: DeleteAnalysisUseCase;
   getLabTestDataUseCase: GetLabTestDataUseCase;
   calculateStatisticsUseCase: CalculateStatisticsUseCase;
+  getReferenceRangeUseCase: GetReferenceRangeUseCase;
 }
 
 const initializeUseCases = (
   repository: BiologicalAnalysisRepository,
-  ocrService: OcrService
+  ocrService: OcrService | null,
+  getReferenceRangeUseCase: GetReferenceRangeUseCase
 ): AppUseCases => {
   const getAnalysesUseCase = new GetAnalysesUseCase(repository);
-  const analyzePdfUseCase = new AnalyzePdfUseCase(ocrService, repository);
+  const analyzePdfUseCase = ocrService ? new AnalyzePdfUseCase(ocrService, repository) : null;
   const getAnalysisByIdUseCase = new GetAnalysisByIdUseCase(repository);
   const updateAnalysisUseCase = new UpdateAnalysisUseCase(repository);
   const deleteAnalysisUseCase = new DeleteAnalysisUseCase(repository);
@@ -105,10 +138,13 @@ const initializeUseCases = (
     deleteAnalysisUseCase,
     getLabTestDataUseCase,
     calculateStatisticsUseCase,
+    getReferenceRangeUseCase,
   };
 };
 
-const renderHomeStack = (useCases: AppUseCases) => {
+const renderHomeStack = (useCases: AppUseCases | null) => {
+  if (!useCases) return () => null;
+
   const HomeStackComponent = () => (
     <Stack.Navigator>
       <Stack.Screen name="Home" options={{ title: "My Analyses" }}>
@@ -129,6 +165,7 @@ const renderHomeStack = (useCases: AppUseCases) => {
             {...props}
             getAnalysisByIdUseCase={useCases.getAnalysisByIdUseCase}
             updateAnalysisUseCase={useCases.updateAnalysisUseCase}
+            getReferenceRangeUseCase={useCases.getReferenceRangeUseCase}
           />
         )}
       </Stack.Screen>
@@ -151,8 +188,8 @@ const configureTabScreenOptions = ({ route }: { route: { name: string } }) => ({
   }) => {
     return createTabIcon(route.name, focused, color, size);
   },
-  tabBarActiveTintColor: "#2c7be5",
-  tabBarInactiveTintColor: "gray",
+  tabBarActiveTintColor: colorPalette.primary.main,
+  tabBarInactiveTintColor: colorPalette.neutral.light,
 });
 
 const createTabIcon = (

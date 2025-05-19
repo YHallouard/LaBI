@@ -43,7 +43,7 @@ export class AnalyzePdfUseCase {
   async execute(pdfPath: string): Promise<BiologicalAnalysis> {
     try {
       // Start the extraction process
-      this.notifyStepStarted("Uploading document");
+      this.notifyStepStarted("Uploading document to Mistral");
 
       // Create a progress adapter to track OCR progress
       const progressProcessor = new AnalysisProgressAdapter(
@@ -53,7 +53,7 @@ export class AnalyzePdfUseCase {
 
       // Mark upload as complete after a short delay
       setTimeout(() => {
-        this.notifyStepCompleted("Uploading document");
+        this.notifyStepCompleted("Uploading document to Mistral");
       }, 1000);
 
       // Extract data with progress tracking

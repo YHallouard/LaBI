@@ -18,6 +18,7 @@ import { LoadApiKeyUseCase } from "../../application/usecases/LoadApiKeyUseCase"
 import { DeleteApiKeyUseCase } from "../../application/usecases/DeleteApiKeyUseCase";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../components/ScreenLayout";
+import { colorPalette, generateAlpha } from "../../config/themes";
 
 type ApiKeySettingsScreenProps = {
   navigation: StackNavigationProp<HomeStackParamList, "ApiKeySettingsScreen">;
@@ -267,7 +268,7 @@ export const ApiKeySettingsScreen: React.FC<ApiKeySettingsScreenProps> = ({
 const LoadingView = () => (
   <ScreenLayout>
     <View style={styles.centered}>
-      <ActivityIndicator size="large" color="#2c7be5" />
+      <ActivityIndicator size="large" color={colorPalette.primary.main} />
     </View>
   </ScreenLayout>
 );
@@ -277,7 +278,7 @@ const SuccessMessage = ({ message }: { message: string }) => (
     <Ionicons
       name="checkmark-circle-outline"
       size={24}
-      color="#00d97e"
+      color={colorPalette.feedback.success}
       style={styles.messageIcon}
     />
     <Text style={styles.successText}>{message}</Text>
@@ -289,7 +290,7 @@ const InfoMessage = ({ message }: { message: string }) => (
     <Ionicons
       name="information-circle-outline"
       size={24}
-      color="#2c7be5"
+      color={colorPalette.primary.main}
       style={styles.messageIcon}
     />
     <Text style={styles.infoText}>{message}</Text>
@@ -327,7 +328,7 @@ const EditingModeContent = ({
         title={isSaving ? "Saving..." : "Save API Key"}
         onPress={handleSave}
         disabled={isSaving}
-        color="#2c7be5"
+        color={colorPalette.primary.main}
       />
       {savedApiKey && (
         <Button title="Cancel" onPress={handleCancel} color="gray" />
@@ -338,7 +339,7 @@ const EditingModeContent = ({
       <Ionicons
         name="help-circle-outline"
         size={18}
-        color="#2c7be5"
+        color={colorPalette.primary.main}
         style={styles.tutorialIcon}
       />
       <Text style={styles.tutorialText}>
@@ -364,7 +365,7 @@ const ViewModeContent = ({
   <View>
     <View style={styles.savedKeyContainer}>
       <Text style={styles.savedKeyText}>{maskApiKey(savedApiKey)}</Text>
-      <Button title="Edit" onPress={handleEdit} color="#2c7be5" />
+      <Button title="Edit" onPress={handleEdit} color={colorPalette.primary.main} />
     </View>
 
     {savedApiKey && <ApiKeyDeletionWarning />}
@@ -374,7 +375,7 @@ const ViewModeContent = ({
         <Button
           title={isDeletingApiKey ? "Deleting..." : "Delete API Key"}
           onPress={confirmApiKeyDeletion}
-          color="#e63757"
+          color={colorPalette.feedback.error}
           disabled={isDeletingApiKey}
         />
       </View>
@@ -387,7 +388,7 @@ const ApiKeyDeletionWarning = () => (
     <Ionicons
       name="warning-outline"
       size={24}
-      color="#e63757"
+      color={colorPalette.feedback.error}
       style={styles.warningIcon}
     />
     <Text style={styles.warningText}>
@@ -414,17 +415,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   description: {
     fontSize: 14,
     marginBottom: 20,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
     lineHeight: 20,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#e3ebf6",
+    borderColor: colorPalette.neutral.lighter,
     borderRadius: 4,
     padding: 12,
     fontSize: 16,
@@ -442,17 +443,17 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingVertical: 10,
     paddingHorizontal: 15,
-    backgroundColor: "#f1f4f8",
+    backgroundColor: colorPalette.neutral.background,
     borderRadius: 4,
   },
   savedKeyText: {
     fontSize: 16,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     fontFamily: "monospace",
   },
   warningContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(230, 55, 87, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.feedback.error, 0.1),
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
@@ -463,33 +464,33 @@ const styles = StyleSheet.create({
   },
   warningText: {
     flex: 1,
-    color: "#e63757",
+    color: colorPalette.feedback.error,
     fontSize: 14,
     lineHeight: 20,
   },
   successContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(0, 217, 126, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.feedback.success, 0.1),
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
     alignItems: "center",
   },
   successText: {
-    color: "#00d97e",
+    color: colorPalette.feedback.success,
     flex: 1,
     fontSize: 14,
   },
   infoContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(44, 123, 229, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
     alignItems: "center",
   },
   infoText: {
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
     flex: 1,
     fontSize: 14,
   },
@@ -503,7 +504,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     padding: 10,
-    backgroundColor: "rgba(44, 123, 229, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
     borderRadius: 4,
     marginTop: 15,
   },
@@ -511,7 +512,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   tutorialText: {
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
     fontSize: 14,
   },
 });

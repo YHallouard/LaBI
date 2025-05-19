@@ -10,6 +10,7 @@ import {
   Item,
 } from "react-navigation-header-buttons";
 import { Ionicons } from "@expo/vector-icons";
+import { colorPalette } from "../../config/themes";
 
 const PRIVACY_POLICY_URL =
   "https://yhallouard.github.io/LaBI/privacy-policy.html";
@@ -19,7 +20,7 @@ const IoniconsHeaderButton = (props: any) => (
   <HeaderButton
     IconComponent={Ionicons}
     iconSize={23}
-    color="#2c7be5"
+    color={colorPalette.primary.main}
     {...props}
   />
 );
@@ -54,7 +55,7 @@ export const PrivacyPolicyWebViewScreen: React.FC<
     <ScreenLayout>
       {isLoading && (
         <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color="#2c7be5" />
+          <ActivityIndicator size="large" color={colorPalette.primary.main} />
         </View>
       )}
       <WebView
@@ -76,7 +77,7 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f7fb",
+    backgroundColor: colorPalette.neutral.background,
     zIndex: 1,
   },
 });

@@ -10,6 +10,7 @@ import {
 import { ResetDatabaseUseCase } from "../../application/usecases/ResetDatabaseUseCase";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../components/ScreenLayout";
+import { colorPalette, generateAlpha } from "../../config/themes";
 
 type DatabaseSettingsScreenProps = {
   resetDatabaseUseCase: ResetDatabaseUseCase;
@@ -79,7 +80,7 @@ export const DatabaseSettingsScreen: React.FC<DatabaseSettingsScreenProps> = ({
               <Ionicons
                 name="checkmark-circle-outline"
                 size={24}
-                color="#00d97e"
+                color={colorPalette.feedback.success}
                 style={styles.messageIcon}
               />
               <Text style={styles.successText}>{successMessage}</Text>
@@ -91,7 +92,7 @@ export const DatabaseSettingsScreen: React.FC<DatabaseSettingsScreenProps> = ({
               <Ionicons
                 name="information-circle-outline"
                 size={24}
-                color="#2c7be5"
+                color={colorPalette.primary.main}
                 style={styles.messageIcon}
               />
               <Text style={styles.infoText}>{infoMessage}</Text>
@@ -108,7 +109,7 @@ export const DatabaseSettingsScreen: React.FC<DatabaseSettingsScreenProps> = ({
             <Ionicons
               name="warning-outline"
               size={24}
-              color="#e63757"
+              color={colorPalette.feedback.error}
               style={styles.warningIcon}
             />
             <Text style={styles.warningText}>
@@ -120,7 +121,7 @@ export const DatabaseSettingsScreen: React.FC<DatabaseSettingsScreenProps> = ({
           <Button
             title={isResetting ? "Resetting..." : "Reset Database"}
             onPress={confirmDatabaseReset}
-            color="#e63757"
+            color={colorPalette.feedback.error}
             disabled={isResetting}
           />
         </View>
@@ -141,17 +142,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   description: {
     fontSize: 14,
     marginBottom: 20,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
     lineHeight: 20,
   },
   warningContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(230, 55, 87, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.feedback.error, 0.1),
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
@@ -162,33 +163,33 @@ const styles = StyleSheet.create({
   },
   warningText: {
     flex: 1,
-    color: "#e63757",
+    color: colorPalette.feedback.error,
     fontSize: 14,
     lineHeight: 20,
   },
   successContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(0, 217, 126, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.feedback.success, 0.1),
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
     alignItems: "center",
   },
   successText: {
-    color: "#00d97e",
+    color: colorPalette.feedback.success,
     flex: 1,
     fontSize: 14,
   },
   infoContainer: {
     flexDirection: "row",
-    backgroundColor: "rgba(44, 123, 229, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
     padding: 15,
     borderRadius: 8,
     marginBottom: 20,
     alignItems: "center",
   },
   infoText: {
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
     flex: 1,
     fontSize: 14,
   },

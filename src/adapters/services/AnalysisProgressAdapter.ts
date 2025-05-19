@@ -10,10 +10,14 @@ export class AnalysisProgressAdapter implements ProgressProcessor {
   ) {}
 
   onStepStarted(step: string): void {
-    this.onStepStartedCallback(step);
+    setTimeout(() => {
+      this.onStepStartedCallback(step);
+    }, 500);
   }
 
   onStepCompleted(step: string): void {
-    this.onStepCompletedCallback(step);
+    setTimeout(() => {
+      this.onStepCompletedCallback(step);
+    }, 500);
   }
 }

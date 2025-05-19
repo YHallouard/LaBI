@@ -19,6 +19,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { EmptyState } from "../components/EmptyState";
+import { colorPalette } from "../../config/themes";
 
 type HomeScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
@@ -135,7 +136,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             closeSwipeableItem(analysisId);
           }}
         >
-          <Ionicons name="trash-outline" size={24} color="white" />
+          <Ionicons name="trash-outline" size={24} color={colorPalette.neutral.white} />
         </TouchableOpacity>
       </View>
     );
@@ -168,7 +169,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return (
       <ScreenLayout scrollable={false}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#2c7be5" />
+          <ActivityIndicator size="large" color={colorPalette.primary.main} />
           <Text style={styles.loadingText}>Loading your analyses...</Text>
         </View>
       </ScreenLayout>
@@ -179,7 +180,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     return (
       <ScreenLayout scrollable={false}>
         <View style={styles.centered}>
-          <Ionicons name="alert-circle-outline" size={60} color="#e63757" />
+          <Ionicons name="alert-circle-outline" size={60} color={colorPalette.feedback.error} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.retryButton}
@@ -215,10 +216,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={onRefresh}
-            colors={["#2c7be5"]}
-            tintColor="#2c7be5"
+            colors={[colorPalette.primary.main]}
+            tintColor={colorPalette.primary.main}
             title="Pull to refresh..."
-            titleColor="#95aac9"
+            titleColor={colorPalette.neutral.light}
           />
         }
       />
@@ -235,30 +236,30 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 18,
-    color: "#e63757",
+    color: colorPalette.feedback.error,
     textAlign: "center",
     marginTop: 16,
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
     marginTop: 10,
   },
   retryButtonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 16,
     fontWeight: "600",
   },
   loadingText: {
     fontSize: 16,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginTop: 16,
   },
   deleteButton: {
-    backgroundColor: "#e63757",
+    backgroundColor: colorPalette.feedback.error,
     justifyContent: "center",
     alignItems: "center",
     width: 50,

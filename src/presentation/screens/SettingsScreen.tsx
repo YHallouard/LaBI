@@ -10,6 +10,7 @@ import { StackNavigationProp } from "@react-navigation/stack";
 import { HomeStackParamList } from "../../types/navigation";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../components/ScreenLayout";
+import { colorPalette } from "../../config/themes";
 
 type SettingsScreenProps = {
   navigation: StackNavigationProp<HomeStackParamList, "SettingsScreen">;
@@ -123,12 +124,12 @@ const SettingItem: React.FC<SettingItemProps> = ({
         <Ionicons
           name={icon}
           size={22}
-          color="#2c7be5"
+          color={colorPalette.primary.main}
           style={styles.settingIcon}
         />
         <Text style={styles.settingItemText}>{title}</Text>
       </View>
-      {chevron && <Ionicons name="chevron-forward" size={18} color="#95aac9" />}
+      {chevron && <Ionicons name="chevron-forward" size={18} color={colorPalette.neutral.light} />}
     </View>
   </TouchableOpacity>
 );
@@ -164,12 +165,12 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   description: {
     fontSize: 16,
     marginBottom: 25,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
   },
   settingSection: {
     marginBottom: 24,
@@ -178,10 +179,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     marginBottom: 12,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   sectionContent: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     borderRadius: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
@@ -207,11 +208,11 @@ const styles = StyleSheet.create({
   },
   settingItemText: {
     fontSize: 16,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   divider: {
     height: 1,
-    backgroundColor: "#e3ebf6",
+    backgroundColor: colorPalette.neutral.lighter,
     marginHorizontal: 16,
   },
 });

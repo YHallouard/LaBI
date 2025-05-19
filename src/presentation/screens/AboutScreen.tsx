@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   Linking,
   ScrollView,
+  Platform,
 } from "react-native";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { AppImage } from "../components/AppImage";
 import { APP_VERSION } from "../../utils/appVersion";
+import { colorPalette } from "../../config/themes";
 
 export const AboutScreen: React.FC = () => {
   const handleLinkedInPress = () => {
@@ -21,11 +23,15 @@ export const AboutScreen: React.FC = () => {
     <ScreenLayout>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
-          <AppImage
-            imagePath="adaptive-icon"
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <View style={styles.logoContainer}>
+            <View style={styles.logoBackground}>
+              <AppImage
+                imagePath="adaptive-icon"
+                style={styles.logo}
+                resizeMode="contain"
+              />
+            </View>
+          </View>
 
           <Text style={styles.title}>About Héméa</Text>
 
@@ -33,7 +39,7 @@ export const AboutScreen: React.FC = () => {
             <Ionicons
               name="code-outline"
               size={24}
-              color="#2c7be5"
+              color={colorPalette.primary.main}
               style={styles.sectionIcon}
             />
             <Text style={styles.sectionTitle}>License</Text>
@@ -46,7 +52,7 @@ export const AboutScreen: React.FC = () => {
             <Ionicons
               name="person-outline"
               size={24}
-              color="#2c7be5"
+              color={colorPalette.primary.main}
               style={styles.sectionIcon}
             />
             <Text style={styles.sectionTitle}>Developer</Text>
@@ -70,7 +76,7 @@ export const AboutScreen: React.FC = () => {
             <Ionicons
               name="information-circle-outline"
               size={24}
-              color="#2c7be5"
+              color={colorPalette.primary.main}
               style={styles.sectionIcon}
             />
             <Text style={styles.sectionTitle}>About the App</Text>
@@ -97,22 +103,48 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
   },
-  logo: {
+  logoContainer: {
     width: 120,
     height: 120,
-    marginBottom: 20,
+    marginBottom: 30,
     marginTop: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoBackground: {
+    width: 120,
+    height: 120,
+    borderRadius: 28,
+    backgroundColor: colorPalette.neutral.white,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
+  },
+  logo: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 30,
     textAlign: "center",
   },
   infoSection: {
     width: "100%",
-    backgroundColor: "#f5f7fb",
+    backgroundColor: colorPalette.neutral.background,
     borderRadius: 8,
     padding: 20,
     marginBottom: 20,
@@ -124,13 +156,13 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 10,
     textAlign: "center",
   },
   sectionText: {
     fontSize: 16,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
     textAlign: "center",
     lineHeight: 22,
     marginBottom: 15,
@@ -153,7 +185,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 14,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginTop: 10,
   },
 });

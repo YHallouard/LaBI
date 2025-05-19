@@ -29,12 +29,8 @@ import {
   GetLabTestDataUseCase,
 } from "./src/application/usecases/GetAnalysesUseCase";
 import { AnalyzePdfUseCase } from "./src/application/usecases/AnalyzePdfUseCase";
-import { SQLiteBiologicalAnalysisRepository } from "./src/adapters/repositories/SQLiteBiologicalAnalysisRepository";
 import { MistralOcrService } from "./src/adapters/services/MistralOcrService";
-import {
-  initializeDatabase,
-  getDatabaseStorage,
-} from "./src/infrastructure/database/DatabaseInitializer";
+import { getDatabaseStorage, initializeDatabase } from "./src/infrastructure/database/DatabaseInitializer";
 import { Ionicons } from "@expo/vector-icons";
 import { UpdateAnalysisUseCase } from "./src/application/usecases/UpdateAnalysisUseCase";
 import { DeleteAnalysisUseCase } from "./src/application/usecases/DeleteAnalysisUseCase";
@@ -71,9 +67,11 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { ReferenceRangeCalculator } from "./src/domain/services/ReferenceRangeCalculator";
-import { ReferenceRangeService } from "./src/application/services/ReferenceRangeService";
-import { SQLiteUserProfileRepository } from "./src/adapters/repositories/SQLiteUserProfileRepository";
+import { GetReferenceRangeUseCase } from "./src/application/usecases/GetReferenceRangeUseCase";
 import { ProfileRequiredModal } from "./src/presentation/components/ProfileRequiredModal";
+import { initializeApp } from "./src/infrastructure/AppInitializer";
+import { RepositoryFactory } from "./src/infrastructure/repositories/RepositoryFactory";
+import { colorPalette, theme } from "./src/config/themes";
 
 const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
 const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
@@ -98,7 +96,7 @@ const SettingsButton = () => {
 
   return (
     <TouchableOpacity onPress={navigateToSettings} style={styles.headerButton}>
-      <Ionicons name="settings-outline" size={24} color="#2c7be5" />
+      <Ionicons name="settings-outline" size={24} color={theme.buttons.info.backgroundColor} />
     </TouchableOpacity>
   );
 };
@@ -126,8 +124,8 @@ export default function App() {
     useState<CalculateStatisticsUseCase | null>(null);
   const [resetDatabaseUseCase, setResetDatabaseUseCase] =
     useState<ResetDatabaseUseCase | null>(null);
-  const [referenceRangeService, setReferenceRangeService] =
-    useState<ReferenceRangeService | null>(null);
+  const [getReferenceRangeUseCase, setGetReferenceRangeUseCase] =
+    useState<GetReferenceRangeUseCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
@@ -239,7 +237,7 @@ export default function App() {
 
       if (loadedApiKey) {
         setApiKeyError(null);
-        createOcrService(loadedApiKey);
+        await createOcrService(loadedApiKey);
       } else {
         handleMissingApiKey();
       }
@@ -255,16 +253,19 @@ export default function App() {
 
   const handleApiKeySaved = async (apiKey: string) => {
     setApiKeyError(null);
-    createOcrService(apiKey);
+    await createOcrService(apiKey);
   };
 
   const initializeApplication = async () => {
     const startTime = Date.now();
     try {
-      await initializeDatabase();
-      const repository = createRepository();
-      await initializeUseCases(repository);
-
+      // Initialize the app with encrypted database
+      await initializeApp();
+      
+      // Initialize use cases
+      const useCases = await initializeUseCases();
+      assignUseCasesToState(useCases);
+      
       await checkAndLoadApiKey();
       setAppInitialized(true);
 
@@ -273,7 +274,8 @@ export default function App() {
       } else {
         setSkipInitialDataLoad(false);
       }
-    } catch {
+    } catch (error) {
+      console.error("Error initializing application:", error);
       handleInitializationError();
       setAppInitialized(true);
     } finally {
@@ -335,29 +337,23 @@ export default function App() {
     setIsLoading(false);
   };
 
-  const initializeUseCases = async (
-    repository: SQLiteBiologicalAnalysisRepository
-  ) => {
-    const useCases = createUseCases(repository);
-    assignUseCasesToState(useCases);
-    return useCases.loadApiKey;
-  };
+  const initializeUseCases = async () => {
+    const databaseStorage = await getDatabaseStorage();
+    const biologicalAnalysisRepository = await RepositoryFactory.getBiologicalAnalysisRepository();
+    const userProfileRepository = await RepositoryFactory.getUserProfileRepository();
 
-  const createUseCases = (repository: SQLiteBiologicalAnalysisRepository) => {
-    const getAnalyses = new GetAnalysesUseCase(repository);
-    const getAnalysisById = new GetAnalysisByIdUseCase(repository);
-    const updateAnalysis = new UpdateAnalysisUseCase(repository);
-    const deleteAnalysis = new DeleteAnalysisUseCase(repository);
+    const getAnalyses = new GetAnalysesUseCase(biologicalAnalysisRepository);
+    const getAnalysisById = new GetAnalysisByIdUseCase(biologicalAnalysisRepository);
+    const updateAnalysis = new UpdateAnalysisUseCase(biologicalAnalysisRepository);
+    const deleteAnalysis = new DeleteAnalysisUseCase(biologicalAnalysisRepository);
     const getLabTestData = new GetLabTestDataUseCase();
     const saveApiKey = new SaveApiKeyUseCase();
     const loadApiKey = new LoadApiKeyUseCase();
     const deleteApiKey = new DeleteApiKeyUseCase();
     const calculateStatistics = new CalculateStatisticsUseCase();
-    const resetDatabase = new ResetDatabaseUseCase(getDatabaseStorage());
-
-    const userProfileRepository = new SQLiteUserProfileRepository();
+    const resetDatabase = new ResetDatabaseUseCase(databaseStorage);
     const referenceRangeCalculator = new ReferenceRangeCalculator();
-    const referenceRange = new ReferenceRangeService(
+    const getReferenceRangeUseCase = new GetReferenceRangeUseCase(
       referenceRangeCalculator,
       userProfileRepository
     );
@@ -373,12 +369,24 @@ export default function App() {
       deleteApiKey,
       calculateStatistics,
       resetDatabase,
-      referenceRange,
+      getReferenceRangeUseCase,
     };
   };
 
   const assignUseCasesToState = (
-    useCases: ReturnType<typeof createUseCases>
+    useCases: {
+      getAnalyses: GetAnalysesUseCase;
+      getAnalysisById: GetAnalysisByIdUseCase;
+      updateAnalysis: UpdateAnalysisUseCase;
+      deleteAnalysis: DeleteAnalysisUseCase;
+      getLabTestData: GetLabTestDataUseCase;
+      saveApiKey: SaveApiKeyUseCase;
+      loadApiKey: LoadApiKeyUseCase;
+      deleteApiKey: DeleteApiKeyUseCase;
+      calculateStatistics: CalculateStatisticsUseCase;
+      resetDatabase: ResetDatabaseUseCase;
+      getReferenceRangeUseCase: GetReferenceRangeUseCase;
+    }
   ) => {
     setGetAnalysesUseCase(useCases.getAnalyses);
     setGetAnalysisByIdUseCase(useCases.getAnalysisById);
@@ -390,17 +398,13 @@ export default function App() {
     setDeleteApiKeyUseCase(useCases.deleteApiKey);
     setCalculateStatisticsUseCase(useCases.calculateStatistics);
     setResetDatabaseUseCase(useCases.resetDatabase);
-    setReferenceRangeService(useCases.referenceRange);
+    setGetReferenceRangeUseCase(useCases.getReferenceRangeUseCase);
   };
 
-  const createRepository = () => {
-    return new SQLiteBiologicalAnalysisRepository();
-  };
-
-  const createOcrService = (apiKey: string) => {
+  const createOcrService = async (apiKey: string) => {
     const ocrService = new MistralOcrService(apiKey);
-    const repository = new SQLiteBiologicalAnalysisRepository();
-    setAnalyzePdfUseCase(new AnalyzePdfUseCase(ocrService, repository));
+    const biologicalAnalysisRepository = await RepositoryFactory.getBiologicalAnalysisRepository();
+    setAnalyzePdfUseCase(new AnalyzePdfUseCase(ocrService, biologicalAnalysisRepository));
   };
 
   const handleMissingApiKey = () => {
@@ -425,6 +429,12 @@ export default function App() {
           headerBackTitle: " ",
           headerLeftContainerStyle: { paddingLeft: 10 },
           headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: colorPalette.neutral.white,
+            shadowColor: colorPalette.neutral.main,
+            shadowOpacity: 0.1,
+          },
+          headerTintColor: theme.buttons.info.backgroundColor,
         }}
       >
         <HomeStackNavigator.Screen
@@ -461,7 +471,7 @@ export default function App() {
             if (
               !getAnalysisByIdUseCase ||
               !updateAnalysisUseCase ||
-              !referenceRangeService
+              !getReferenceRangeUseCase
             ) {
               return (
                 <ErrorView errorMessage="Application is not properly initialized" />
@@ -472,7 +482,7 @@ export default function App() {
                 {...props}
                 getAnalysisByIdUseCase={getAnalysisByIdUseCase}
                 updateAnalysisUseCase={updateAnalysisUseCase}
-                referenceRangeService={referenceRangeService}
+                getReferenceRangeUseCase={getReferenceRangeUseCase}
               />
             );
           }}
@@ -596,6 +606,7 @@ export default function App() {
                 <ErrorView errorMessage="Application is not properly initialized" />
               );
             }
+            
             return (
               <DatabaseSettingsScreen
                 {...props}
@@ -627,7 +638,7 @@ export default function App() {
     loadApiKeyUseCase,
     deleteApiKeyUseCase,
     resetDatabaseUseCase,
-    referenceRangeService,
+    getReferenceRangeUseCase,
   ]);
 
   const ChartStack = React.useMemo(() => {
@@ -638,6 +649,12 @@ export default function App() {
           headerBackTitle: " ",
           headerLeftContainerStyle: { paddingLeft: 10 },
           headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: colorPalette.neutral.white,
+            shadowColor: colorPalette.neutral.main,
+            shadowOpacity: 0.1,
+          },
+          headerTintColor: theme.buttons.info.backgroundColor,
         }}
       >
         <ChartStackNavigator.Screen
@@ -652,7 +669,7 @@ export default function App() {
               !getAnalysesUseCase ||
               !getLabTestDataUseCase ||
               !calculateStatisticsUseCase ||
-              !referenceRangeService
+              !getReferenceRangeUseCase
             ) {
               return (
                 <ErrorView errorMessage="Application is not properly initialized" />
@@ -664,7 +681,7 @@ export default function App() {
                 getAnalysesUseCase={getAnalysesUseCase}
                 getLabTestDataUseCase={getLabTestDataUseCase}
                 calculateStatisticsUseCase={calculateStatisticsUseCase}
-                referenceRangeService={referenceRangeService}
+                getReferenceRangeUseCase={getReferenceRangeUseCase}
               />
             );
           }}
@@ -677,7 +694,7 @@ export default function App() {
     getAnalysesUseCase,
     getLabTestDataUseCase,
     calculateStatisticsUseCase,
-    referenceRangeService,
+    getReferenceRangeUseCase,
   ]);
 
   const UploadStack = React.useMemo(() => {
@@ -688,6 +705,12 @@ export default function App() {
           headerBackTitle: " ",
           headerLeftContainerStyle: { paddingLeft: 10 },
           headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: colorPalette.neutral.white,
+            shadowColor: colorPalette.neutral.main,
+            shadowOpacity: 0.1,
+          },
+          headerTintColor: theme.buttons.info.backgroundColor,
         }}
       >
         <UploadStackNavigator.Screen
@@ -729,9 +752,11 @@ export default function App() {
   );
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, backgroundColor: colorPalette.neutral.background }}>
       {appContent}
-      {loaderVisible && <LoadingOverlay onFinish={handleLoaderFinish} />}
+      {loaderVisible && <LoadingOverlay 
+        onFinish={handleLoaderFinish} 
+      />}
     </View>
   );
 }
@@ -753,6 +778,45 @@ const MainNavigationContainer = ({
   uploadStack,
   chartStack,
 }: MainNavigationContainerProps) => {
+  const [dbInitialized, setDbInitialized] = useState(false);
+  
+  useEffect(() => {
+    const checkOrInitializeDatabase = async () => {
+      try {
+        // Check if database is already initialized
+        await getDatabaseStorage();
+        console.log("Database already initialized");
+        return true;
+      } catch (error) {
+        // Not initialized yet, try to initialize
+        console.log("Database not initialized, attempting initialization");
+        await initializeDatabase();
+        return true;
+      }
+    };
+    
+    const initDb = async () => {
+      try {
+        await checkOrInitializeDatabase();
+        setDbInitialized(true);
+      } catch (error) {
+        console.error("Failed to initialize database:", error);
+        // Try again after 1 second
+        setTimeout(initDb, 1000);
+      }
+    };
+    
+    initDb();
+  }, []);
+  
+  if (!dbInitialized) {
+    return (
+      <View style={styles.centeredLoader}>
+        <Text style={styles.loadingText}>Initializing database...</Text>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>
@@ -806,8 +870,8 @@ const configureTabScreenOptions = ({
   route: Route<keyof RootTabParamList>;
   insets: { bottom: number; top: number; left: number; right: number };
 }): BottomTabNavigationOptions => ({
-  tabBarActiveTintColor: "#2c7be5",
-  tabBarInactiveTintColor: "gray",
+  tabBarActiveTintColor: theme.buttons.info.backgroundColor,
+  tabBarInactiveTintColor: colorPalette.neutral.light,
   headerShown: false,
   tabBarShowLabel: true,
   tabBarStyle: {
@@ -865,7 +929,7 @@ const createUploadTabButton = (
     activeOpacity={0.8}
   >
     <View style={styles.uploadTabButtonInner}>
-      <Ionicons name="add" size={32} color="white" />
+      <Ionicons name="add" size={32} color={theme.buttons.fab.textColor} />
     </View>
   </TouchableOpacity>
 );
@@ -882,13 +946,13 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: "gray",
+    color: colorPalette.neutral.light,
   },
   centeredLoader: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#f5f7fb",
+    backgroundColor: colorPalette.neutral.background,
   },
   logoContainer: {
     position: "relative",
@@ -915,12 +979,12 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#5a7184",
+    color: colorPalette.neutral.light,
   },
   errorText: {
     marginTop: 10,
     fontSize: 16,
-    color: "#e63757",
+    color: colorPalette.primary.main,
     textAlign: "center",
     padding: 20,
   },
@@ -932,8 +996,8 @@ const styles = StyleSheet.create({
     paddingBottom: 5,
     paddingTop: 5,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
-    backgroundColor: "white",
+    borderTopColor: colorPalette.neutral.lighter,
+    backgroundColor: colorPalette.neutral.white,
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -1 },
@@ -948,12 +1012,12 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#2c7be5",
-    elevation: 6,
-    shadowColor: "#2c7be5",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    backgroundColor: theme.buttons.fab.backgroundColor,
+    elevation: theme.buttons.fab.elevation,
+    shadowColor: theme.buttons.fab.shadowColor,
+    shadowOffset: theme.buttons.fab.shadowOffset,
+    shadowOpacity: theme.buttons.fab.shadowOpacity,
+    shadowRadius: theme.buttons.fab.shadowRadius,
     zIndex: 1,
   },
   uploadTabButtonInner: {

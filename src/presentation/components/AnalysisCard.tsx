@@ -4,6 +4,9 @@ import {
   BiologicalAnalysis,
   LabValue,
 } from "../../domain/entities/BiologicalAnalysis";
+import { colorPalette } from "../../config/themes";
+import { Ionicons } from "@expo/vector-icons";
+import { LAB_VALUE_DEFAULT_RANGES, LAB_VALUE_KEYS } from "../../config/LabConfig";
 
 type AnalysisCardProps = {
   analysis: BiologicalAnalysis;
@@ -21,7 +24,9 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({
   };
 
   const formattedDate = formatAnalysisDate(analysis.date);
-  const crpData = extractCRPData(analysis);
+  const outOfRangeCount = countOutOfRangeValues(analysis);
+  const indicatorColor = getIndicatorColor(outOfRangeCount);
+  const indicatorIcon = getIndicatorIcon(outOfRangeCount);
 
   return (
     <TouchableOpacity
@@ -32,8 +37,10 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({
       <View style={styles.content}>
         <Text style={styles.date}>{formattedDate}</Text>
         <View style={styles.valueContainer}>
-          <Text style={styles.label}>CRP</Text>
-          <Text style={styles.value}>{formatLabValue(crpData)}</Text>
+          <Ionicons name={indicatorIcon} size={24} color={indicatorColor} />
+          <Text style={[styles.value, { color: indicatorColor }]}>
+            {outOfRangeCount}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -44,52 +51,44 @@ const formatAnalysisDate = (date: Date): string => {
   return date.toLocaleDateString("fr-FR");
 };
 
-type CRPData = {
-  value: number | string | null;
-  unit: string;
-  isActive: boolean;
+const countOutOfRangeValues = (analysis: BiologicalAnalysis): number => {
+  return Object.entries(analysis).reduce((count, [key, value]) => {
+    if (
+      value &&
+      typeof value === "object" &&
+      "value" in value &&
+      LAB_VALUE_KEYS.includes(key)
+    ) {
+      const labValue = value as LabValue;
+      const range = LAB_VALUE_DEFAULT_RANGES[key as keyof typeof LAB_VALUE_DEFAULT_RANGES];
+      
+      if (
+        labValue.value !== null &&
+        labValue.value !== undefined &&
+        (labValue.value < range.min || labValue.value > range.max)
+      ) {
+        return count + 1;
+      }
+    }
+    return count;
+  }, 0);
 };
 
-const extractCRPData = (analysis: BiologicalAnalysis): CRPData => {
-  const crpData = analysis["Proteine C Reactive"];
-  const isActive = Boolean(
-    crpData && typeof crpData === "object" && "value" in crpData
-  );
-
-  if (
-    isActive &&
-    crpData &&
-    typeof crpData === "object" &&
-    "value" in crpData
-  ) {
-    const labValue = crpData as LabValue;
-    return {
-      value:
-        labValue.value !== null && labValue.value !== undefined
-          ? labValue.value
-          : "-.--",
-      unit: labValue.unit || "mg/L",
-      isActive: true,
-    };
-  }
-
-  return {
-    value: "-.--",
-    unit: "mg/L",
-    isActive: false,
-  };
+const getIndicatorColor = (count: number): string => {
+  if (count === 0) return colorPalette.feedback.success;
+  if (count < 5) return colorPalette.feedback.labWarning;
+  return colorPalette.feedback.error;
 };
 
-const formatLabValue = (data: CRPData): string => {
-  if (!data.isActive || typeof data.value !== "number" || data.value === null) {
-    return `${data.value || "-.--"} ${data.unit}`;
-  }
-  return `${data.value.toFixed(2)} ${data.unit}`;
+const getIndicatorIcon = (count: number): keyof typeof Ionicons.glyphMap => {
+  if (count === 0) return "checkmark-circle";
+  if (count < 5) return "warning";
+  return "alert-circle";
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     borderRadius: 8,
     padding: 16,
     marginVertical: 8,
@@ -111,15 +110,11 @@ const styles = StyleSheet.create({
   },
   valueContainer: {
     alignItems: "center",
-  },
-  label: {
-    fontSize: 12,
-    color: "#666",
-    marginBottom: 4,
+    flexDirection: "row",
+    gap: 8,
   },
   value: {
     fontSize: 18,
     fontWeight: "bold",
-    color: "#2c7be5",
   },
 });

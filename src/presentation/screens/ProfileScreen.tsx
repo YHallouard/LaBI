@@ -23,6 +23,7 @@ import { SaveUserProfileUseCase } from "../../application/usecases/SaveUserProfi
 import { EditUserProfileUseCase } from "../../application/usecases/EditUserProfileUseCase";
 import { RetrieveUserProfileUseCase } from "../../application/usecases/RetrieveUserProfileUseCase";
 import { SQLiteUserProfileRepository } from "../../adapters/repositories/SQLiteUserProfileRepository";
+import { RepositoryFactory } from "../../infrastructure/repositories/RepositoryFactory";
 
 type ProfileScreenProps = {
   navigation: StackNavigationProp<HomeStackParamList, "ProfileScreen">;
@@ -44,36 +45,55 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [profileExists, setProfileExists] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+   
   const [error, setError] = useState<string | null>(null);
 
   // Initialize repository and use cases within useEffect to ensure they're only created once
-  const [userProfileRepository] = useState(() => {
-    console.log("Creating new SQLiteUserProfileRepository instance");
-    return new SQLiteUserProfileRepository();
-  });
-
-  const [saveUserProfileUseCase] = useState(
-    () => new SaveUserProfileUseCase(userProfileRepository)
-  );
-  const [editUserProfileUseCase] = useState(
-    () => new EditUserProfileUseCase(userProfileRepository)
-  );
-  const [retrieveUserProfileUseCase] = useState(
-    () => new RetrieveUserProfileUseCase(userProfileRepository)
-  );
+  const [userProfileRepository, setUserProfileRepository] = useState<SQLiteUserProfileRepository | null>(null);
+  const [saveUserProfileUseCase, setSaveUserProfileUseCase] = useState<SaveUserProfileUseCase | null>(null);
+  const [editUserProfileUseCase, setEditUserProfileUseCase] = useState<EditUserProfileUseCase | null>(null);
+  const [retrieveUserProfileUseCase, setRetrieveUserProfileUseCase] = useState<RetrieveUserProfileUseCase | null>(null);
 
   useEffect(() => {
-    console.log("ProfileScreen mounted - loading profile data");
-    loadProfile();
+    const initializeRepositories = async () => {
+      try {
+        console.log("Initializing repositories and use cases");
+        const repository = await RepositoryFactory.getUserProfileRepository();
+        setUserProfileRepository(repository as SQLiteUserProfileRepository);
+        
+        const saveUseCase = new SaveUserProfileUseCase(repository);
+        const editUseCase = new EditUserProfileUseCase(repository);
+        const retrieveUseCase = new RetrieveUserProfileUseCase(repository);
+        
+        setSaveUserProfileUseCase(saveUseCase);
+        setEditUserProfileUseCase(editUseCase);
+        setRetrieveUserProfileUseCase(retrieveUseCase);
+        
+        // Load profile after repositories are initialized
+        await loadProfile(retrieveUseCase);
+      } catch (error) {
+        console.error("Error initializing repositories:", error);
+        setError("Could not initialize repositories");
+        setIsLoading(false);
+      }
+    };
+    
+    initializeRepositories();
   }, []);
 
-  const loadProfile = async () => {
+  const loadProfile = async (retrieveUseCase?: RetrieveUserProfileUseCase | null) => {
     console.log("Beginning loadProfile function");
     setIsLoading(true);
     try {
+      // Use the passed use case or the state one
+      const useCase = retrieveUseCase || retrieveUserProfileUseCase;
+      
+      if (!useCase) {
+        throw new Error("RetrieveUserProfileUseCase is not initialized");
+      }
+      
       // Directly try to get the single profile
-      const savedProfile = await retrieveUserProfileUseCase.execute();
+      const savedProfile = await useCase.execute();
       console.log(
         "Retrieved profile:",
         savedProfile ? JSON.stringify(savedProfile) : "No profile found"
@@ -159,7 +179,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
     try {
       // Try a different approach: always treat as new profile for now
       try {
-        const saveResult = await saveUserProfileUseCase.execute(
+        const saveResult = await saveUserProfileUseCase?.execute(
           validatedProfile
         );
         if (saveResult) {
@@ -175,7 +195,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         );
 
         // If saving fails, try updating instead
-        const updateResult = await editUserProfileUseCase.execute(
+        const updateResult = await editUserProfileUseCase?.execute(
           validatedProfile
         );
         if (updateResult) {

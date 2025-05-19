@@ -10,55 +10,32 @@ type ProfileRequiredModalProps = {
 export const ProfileRequiredModal: React.FC<ProfileRequiredModalProps> = ({
   children,
 }) => {
-  const [isProfileModalVisible, setIsProfileModalVisible] =
-    useState<boolean>(false);
-  /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-  const [isCheckingProfile, setIsCheckingProfile] = useState<boolean>(true);
-
-  const checkProfileStatus = async () => {
-    setIsCheckingProfile(true);
-    try {
-      const profileExists = await fetchProfileExistsFromService();
-      setIsProfileModalVisible(!profileExists);
-    } catch (error) {
-      handleProfileCheckError(error);
-    } finally {
-      setIsCheckingProfile(false);
-    }
-  };
-
-  const fetchProfileExistsFromService = async (): Promise<boolean> => {
-    const profileService = ProfileService.getInstance();
-    return await profileService.checkProfileExists();
-  };
-
-  const handleProfileCheckError = (error: unknown): void => {
-    console.error("Error checking profile status:", error);
-    setIsProfileModalVisible(true);
-  };
+  const [isProfileModalVisible, setIsProfileModalVisible] = useState<boolean>(false);
 
   useEffect(() => {
+    // Check for profile on component mount
+    const checkProfileStatus = async () => {
+      try {
+        const profileService = ProfileService.getInstance();
+        const profileExists = await profileService.checkProfileExists();
+        setIsProfileModalVisible(!profileExists);
+      } catch (error) {
+        console.error("Error checking profile status:", error);
+      }
+    };
+    
     checkProfileStatus();
   }, []);
 
   const handleProfileCreated = () => {
-    updateProfileServiceWithCreatedProfile();
-    hideProfileModal();
-  };
-
-  const updateProfileServiceWithCreatedProfile = (): void => {
     const profileService = ProfileService.getInstance();
     profileService.setProfileExists(true);
-  };
-
-  const hideProfileModal = (): void => {
     setIsProfileModalVisible(false);
   };
 
   return (
     <View style={styles.container}>
       {children}
-
       <CreateProfileModal
         visible={isProfileModalVisible}
         onProfileCreated={handleProfileCreated}

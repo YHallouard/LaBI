@@ -27,6 +27,8 @@ export class MistralOcrService implements OcrService {
     pdfPath: string,
     progressProcessor?: ProgressProcessor
   ): Promise<OcrResult> {
+    let uploadedFileId: string | null = null;
+
     try {
       console.log("Reading PDF file...");
 
@@ -37,6 +39,7 @@ export class MistralOcrService implements OcrService {
 
       try {
         const uploadedPdf = await this.uploadFile(mockFile);
+        uploadedFileId = uploadedPdf.id;
         console.log("File uploaded successfully:", uploadedPdf);
 
         const signedUrl = await this.getSignedUrlForFile(uploadedPdf.id);
@@ -107,7 +110,30 @@ export class MistralOcrService implements OcrService {
           return this.createFallbackResult();
         }
       } finally {
-        // Cleanup if needed
+        // Nettoyage du fichier téléchargé
+        if (uploadedFileId) {
+          try {
+            // Notification du début du nettoyage
+            if (progressProcessor) {
+              progressProcessor.onStepStarted("Delete Document From Mistral");
+            }
+            
+            // Supprimer le fichier
+            await this.deleteFile(uploadedFileId);
+            console.log(`File with ID ${uploadedFileId} deleted successfully`);
+            
+            // Notification de la fin du nettoyage
+            if (progressProcessor) {
+              progressProcessor.onStepCompleted("Delete Document From Mistral");
+            }
+          } catch (cleanupError) {
+            console.error("Error cleaning up file:", cleanupError);
+            // Marquer l'étape comme terminée même en cas d'erreur pour ne pas bloquer l'UI
+            if (progressProcessor) {
+              progressProcessor.onStepCompleted("Delete Document From Mistral");
+            }
+          }
+        }
       }
     } catch (error) {
       console.error("Error in OCR service:", error);
@@ -377,5 +403,19 @@ Retourne seulement: {"DATE": "YYYY-MM-DD"}`,
     });
 
     return fallbackResult;
+  }
+
+  private async deleteFile(fileId: string): Promise<void> {
+    const response = await fetch(`https://api.mistral.ai/v1/files/${fileId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        Accept: "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`File deletion failed: ${response.statusText}`);
+    }
   }
 }

@@ -1,9 +1,29 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
+import { colorPalette } from '../../config/themes';
 
-type HemeaLogoProps = {
-  size?: 'small' | 'medium' | 'large';
+export type HemeaLogoSize = 'small' | 'medium' | 'large';
+export interface HemeaLogoProps {
+  size?: HemeaLogoSize;
+}
+
+const getLogoFontSize = (size: HemeaLogoSize): number => {
+  switch (size) {
+    case 'small': return 24;
+    case 'large': return 36;
+    case 'medium':
+    default: return 30;
+  }
+};
+
+const getDropIconSize = (size: HemeaLogoSize): number => {
+  switch (size) {
+    case 'small': return 16;
+    case 'large': return 30;
+    case 'medium':
+    default: return 24;
+  }
 };
 
 export const HemeaLogo: React.FC<HemeaLogoProps> = ({ 
@@ -15,33 +35,24 @@ export const HemeaLogo: React.FC<HemeaLogoProps> = ({
   return (
     <View style={styles.container}>
       <Text style={[styles.logoText, { fontSize }]}>Héméa</Text>
-      <Ionicons 
-        name="water" 
-        size={dropSize} 
-        color="#e63757" 
-        style={styles.dropIcon}
-        testID="water-icon"
-      />
+      <View style={styles.dropIcon}>
+        <Svg width={dropSize} height={dropSize} viewBox="0 0 24 24">
+          <Defs>
+            <LinearGradient id="dropGradient" x1="100%" y1="100%" x2="0%" y2="0%">
+              <Stop offset="0%" stopColor={colorPalette.gradient.red} />
+              <Stop offset="30%" stopColor={colorPalette.gradient.redPurple} />
+              <Stop offset="100%" stopColor={colorPalette.gradient.purpleLight} />
+            </LinearGradient>
+          </Defs>
+          <Path
+            d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"
+            fill="url(#dropGradient)"
+            strokeWidth="0"
+          />
+        </Svg>
+      </View>
     </View>
   );
-};
-
-const getLogoFontSize = (size: 'small' | 'medium' | 'large'): number => {
-  const fontSizeMap = {
-    small: 18,
-    medium: 22,
-    large: 28
-  };
-  return fontSizeMap[size];
-};
-
-const getDropIconSize = (size: 'small' | 'medium' | 'large'): number => {
-  const dropSizeMap = {
-    small: 16,
-    medium: 20,
-    large: 26
-  };
-  return dropSizeMap[size];
 };
 
 const styles = StyleSheet.create({
@@ -52,7 +63,8 @@ const styles = StyleSheet.create({
   },
   logoText: {
     fontWeight: 'bold',
-    color: '#12263f',
+    color: colorPalette.neutral.main,
+    fontFamily: 'Inter',
   },
   dropIcon: {
     marginLeft: -4,

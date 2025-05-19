@@ -16,6 +16,17 @@ import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { LAB_VALUE_CATEGORIES } from "../../config/LabConfig";
 
+// Définir les étapes de traitement une seule fois pour tout le composant
+const PROCESSING_STEPS = [
+  "Uploading document to Mistral",
+  "Extracting date",
+  ...Object.keys(LAB_VALUE_CATEGORIES).map(
+    (category) => `Analyzing ${category}`
+  ),
+  "Saving analysis",
+  "Delete Document From Mistral",
+];
+
 type UploadScreenProps = {
   navigation: StackNavigationProp<UploadStackParamList, "UploadScreen">;
   analyzePdfUseCase: AnalyzePdfUseCase | null;
@@ -115,6 +126,15 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
       console.log(`Step completed: ${step}`);
       setCompletedSteps((prev) => [...prev, step]);
       setProcessingStep(null);
+      
+      // Vérifier si c'était la dernière étape
+      setTimeout(() => {
+        if (completedSteps.length + 1 === PROCESSING_STEPS.length) {
+          console.log("All steps completed, showing success message");
+          setSuccessMessage("Analysis extracted and saved successfully");
+          setTimeout(() => setSuccessMessage(null), 5000);
+        }
+      }, 100); // Petit délai pour s'assurer que l'état est à jour
     };
 
     setCompletedSteps([]);
@@ -124,9 +144,20 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
       useCase.onProcessingStepCompleted(onProcessingStepCompleted);
 
       await useCase.execute(pdfUri);
-
-      setSuccessMessage("Analysis extracted and saved successfully");
-      setTimeout(() => setSuccessMessage(null), 5000);
+      
+      // Délai additionnel après l'exécution pour s'assurer que tous les callbacks ont été traités
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Vérifier s'il reste des étapes manquantes
+      const missingSteps = PROCESSING_STEPS.filter(
+        step => !completedSteps.includes(step)
+      );
+      
+      // S'il reste des étapes manquantes, ne pas afficher le message de succès tout de suite
+      if (missingSteps.length === 0) {
+        setSuccessMessage("Analysis extracted and saved successfully");
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
     } finally {
       useCase.removeProcessingListeners();
     }
@@ -253,18 +284,9 @@ const ProcessingStepsIndicator = ({
   processingStep: string | null;
   completedSteps: string[];
 }) => {
-  const allSteps = [
-    "Uploading document",
-    "Extracting date",
-    ...Object.keys(LAB_VALUE_CATEGORIES).map(
-      (category) => `Analyzing ${category}`
-    ),
-    "Saving analysis",
-  ];
-
   return (
     <View style={styles.processingStepsContainer}>
-      {allSteps.map((step) => {
+      {PROCESSING_STEPS.map((step) => {
         const isCompleted = completedSteps.includes(step);
         const isInProgress = processingStep === step;
 

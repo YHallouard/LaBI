@@ -25,17 +25,18 @@ import {
   LAB_VALUE_UNITS,
   LAB_VALUE_CATEGORIES,
 } from "../../config/LabConfig";
-import { ReferenceRangeService } from "../../application/services/ReferenceRangeService";
+import { GetReferenceRangeUseCase } from "../../application/usecases/GetReferenceRangeUseCase";
 import { ScreenLayout } from "../components/ScreenLayout";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from "@expo/vector-icons";
+import { colorPalette, generateAlpha } from "../../config/themes";
 
 // Define the props type for the AnalysisDetails screen
 interface AnalysisDetailsScreenProps
   extends StackScreenProps<HomeStackParamList, "AnalysisDetails"> {
   getAnalysisByIdUseCase: GetAnalysisByIdUseCase;
   updateAnalysisUseCase: UpdateAnalysisUseCase;
-  referenceRangeService: ReferenceRangeService;
+  getReferenceRangeUseCase: GetReferenceRangeUseCase;
 }
 
 // Composant pour saisir des valeurs numériques avec point décimal
@@ -87,7 +88,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   navigation,
   getAnalysisByIdUseCase,
   updateAnalysisUseCase,
-  referenceRangeService,
+  getReferenceRangeUseCase,
 }) => {
   const { analysisId } = route.params;
   const [analysis, setAnalysis] = useState<BiologicalAnalysis | null>(null);
@@ -112,7 +113,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   useEffect(() => {
     async function initializeAndLoad() {
       try {
-        await referenceRangeService.initialize();
+        await getReferenceRangeUseCase.initialize();
         await loadAnalysis();
       } catch (error) {
         console.error("Failed to initialize services:", error);
@@ -360,9 +361,9 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
     if (!analysis) return { min: 0, max: 0 };
     console.log(
       labKey,
-      referenceRangeService.getReferenceRange(labKey, analysis.date)
+      getReferenceRangeUseCase.execute(labKey, analysis.date)
     );
-    return referenceRangeService.getReferenceRange(labKey, analysis.date);
+    return getReferenceRangeUseCase.execute(labKey, analysis.date);
   };
 
   if (loading) {
@@ -480,8 +481,8 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
             <Switch
               value={activeMetrics[key]}
               onValueChange={(value) => handleMetricToggle(key, value)}
-              trackColor={{ false: "#e3ebf6", true: "#c6e9d9" }}
-              thumbColor={activeMetrics[key] ? "#00d97e" : "#95aac9"}
+              trackColor={{ false: colorPalette.neutral.lighter, true: "#c6e9d9" }}
+              thumbColor={activeMetrics[key] ? colorPalette.feedback.success : colorPalette.neutral.light}
               style={{ marginBottom: 10 }}
             />
           )}
@@ -542,7 +543,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
 const LoadingView = () => (
   <ScreenLayout>
     <View style={styles.centered}>
-      <ActivityIndicator size="large" color="#2c7be5" />
+      <ActivityIndicator size="large" color={colorPalette.primary.main} />
       <Text style={styles.loadingText}>Loading analysis details...</Text>
     </View>
   </ScreenLayout>
@@ -598,7 +599,7 @@ const DatePickerSection = ({
         <Ionicons
           name="calendar-outline"
           size={18}
-          color="#2c7be5"
+          color={colorPalette.primary.main}
           style={{ marginRight: 8 }}
         />
         <Text style={styles.date}>{formattedDate}</Text>
@@ -655,7 +656,7 @@ const EditActionButtons = ({
       disabled={isSaving}
     >
       {isSaving ? (
-        <ActivityIndicator size="small" color="#fff" />
+        <ActivityIndicator size="small" color={colorPalette.neutral.white} />
       ) : (
         <Text style={styles.actionButtonText}>Save</Text>
       )}
@@ -671,19 +672,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: "#e3ebf6",
+    borderBottomColor: colorPalette.neutral.lighter,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   date: {
     fontSize: 16,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginTop: 4,
   },
   dateEditButton: {
@@ -693,7 +694,7 @@ const styles = StyleSheet.create({
   editableDateContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f1f4f8",
+    backgroundColor: colorPalette.neutral.background,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -701,7 +702,7 @@ const styles = StyleSheet.create({
   },
   editDateText: {
     fontSize: 12,
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
     marginLeft: 4,
     textDecorationLine: "underline",
   },
@@ -710,13 +711,13 @@ const styles = StyleSheet.create({
   },
   scrollViewContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 0,
   },
   spacer: {
     height: 100,
   },
   labValueContainer: {
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     padding: 16,
     borderRadius: 8,
     marginBottom: 12,
@@ -728,12 +729,12 @@ const styles = StyleSheet.create({
   },
   outOfRange: {
     borderLeftWidth: 4,
-    borderLeftColor: "#e63757",
+    borderLeftColor: colorPalette.feedback.error,
   },
   labValueName: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     marginBottom: 8,
   },
   valueRow: {
@@ -748,27 +749,27 @@ const styles = StyleSheet.create({
   decimalButton: {
     width: 30,
     height: 40,
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     justifyContent: "center",
     alignItems: "center",
     borderTopRightRadius: 4,
     borderBottomRightRadius: 4,
   },
   decimalButtonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 20,
     fontWeight: "bold",
   },
   labValueText: {
     fontSize: 18,
-    color: "#2c7be5",
+    color: colorPalette.primary.main,
   },
   outOfRangeText: {
-    color: "#e63757",
+    color: colorPalette.feedback.error,
   },
   referenceRange: {
     fontSize: 12,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
     marginTop: 8,
   },
   centered: {
@@ -780,27 +781,27 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: "#12263f",
+    color: colorPalette.neutral.main,
   },
   errorText: {
     fontSize: 18,
-    color: "#e63757",
+    color: colorPalette.feedback.error,
     textAlign: "center",
     marginBottom: 20,
   },
   button: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 6,
   },
   buttonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 16,
     fontWeight: "bold",
   },
   editButton: {
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 6,
@@ -808,7 +809,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   editButtonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 14,
     fontWeight: "bold",
   },
@@ -823,13 +824,13 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   cancelButton: {
-    backgroundColor: "#95aac9",
+    backgroundColor: colorPalette.neutral.light,
   },
   saveButton: {
-    backgroundColor: "#00d97e",
+    backgroundColor: colorPalette.feedback.success,
   },
   actionButtonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontSize: 14,
     fontWeight: "bold",
   },
@@ -837,7 +838,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     borderWidth: 1,
-    borderColor: "#e3ebf6",
+    borderColor: colorPalette.neutral.lighter,
     borderRadius: 4,
     padding: 8,
     borderTopRightRadius: 0,
@@ -847,13 +848,13 @@ const styles = StyleSheet.create({
     width: 80,
     fontSize: 18,
     borderWidth: 1,
-    borderColor: "#e3ebf6",
+    borderColor: colorPalette.neutral.lighter,
     borderRadius: 4,
     padding: 8,
   },
   datePickerContainer: {
     marginVertical: 10,
-    backgroundColor: "white",
+    backgroundColor: colorPalette.neutral.white,
     borderRadius: 8,
     padding: 10,
     shadowColor: "#000",
@@ -872,10 +873,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 6,
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
   },
   iosCloseButtonText: {
-    color: "white",
+    color: colorPalette.neutral.white,
     fontWeight: "bold",
     fontSize: 16,
   },
@@ -890,17 +891,17 @@ const styles = StyleSheet.create({
   },
   notAvailableText: {
     fontSize: 14,
-    color: "#95aac9",
+    color: colorPalette.neutral.light,
   },
   successMessageContainer: {
-    backgroundColor: "rgba(0, 217, 126, 0.1)",
+    backgroundColor: generateAlpha(colorPalette.feedback.success, 0.1),
     padding: 8,
     borderRadius: 4,
     marginBottom: 10,
     alignSelf: "stretch",
   },
   successMessageText: {
-    color: "#00d97e",
+    color: colorPalette.feedback.success,
     fontSize: 14,
     textAlign: "center",
   },
@@ -916,7 +917,7 @@ const styles = StyleSheet.create({
   sectionHeaderTitle: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#12263f",
+    color: colorPalette.neutral.main,
     letterSpacing: 0.5,
     marginBottom: 8,
     textAlign: "center",
@@ -924,7 +925,7 @@ const styles = StyleSheet.create({
   sectionHeaderLine: {
     height: 3,
     width: 80,
-    backgroundColor: "#2c7be5",
+    backgroundColor: colorPalette.primary.main,
     borderRadius: 3,
   },
 });

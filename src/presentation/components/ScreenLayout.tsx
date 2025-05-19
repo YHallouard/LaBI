@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { StyleSheet, View, SafeAreaView, ScrollView, RefreshControl, StyleProp, ViewStyle } from 'react-native';
+import { colorPalette } from '../../config/themes';
 
 type ScreenLayoutProps = {
   children: ReactNode;
@@ -16,7 +17,7 @@ export const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   refreshing = false,
   onRefresh,
   scrollable = false,
-  backgroundColor = '#f5f7fb',
+  backgroundColor = colorPalette.neutral.background,
 }) => {
   const containerStyle = { backgroundColor };
 
@@ -80,10 +81,10 @@ const createRefreshControl = (refreshing: boolean, onRefresh?: () => void) => {
     <RefreshControl
       refreshing={refreshing}
       onRefresh={onRefresh}
-      colors={['#2c7be5']}
-      tintColor="#2c7be5"
+      colors={[colorPalette.primary.main]}
+      tintColor={colorPalette.primary.main}
       title="Pull to refresh..."
-      titleColor="#95aac9"
+      titleColor={colorPalette.neutral.light}
     />
   );
 };
