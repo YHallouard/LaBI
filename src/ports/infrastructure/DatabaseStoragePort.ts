@@ -7,4 +7,8 @@ export interface DatabaseStoragePort {
   deleteDatabase(): Promise<void>;
   /* eslint-disable @typescript-eslint/no-explicit-any */
   resetDatabase(): Promise<any>;
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  exportData(): Promise<any>;
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  importData(data: any): Promise<void>;
 }

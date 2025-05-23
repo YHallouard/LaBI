@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,6 +9,8 @@ import {
   Animated,
   RefreshControl,
   SectionList,
+  LayoutChangeEvent,
+  ScaledSize,
 } from "react-native";
 import Svg, {
   Line,
@@ -87,6 +89,14 @@ const ChartItem: React.FC<ChartItemProps> = ({
   formatDate,
 }) => {
   const [showExplanation, setShowExplanation] = useState<boolean>(false);
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+  
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    if (width > 0 && (!containerWidth || Math.abs(containerWidth - width) > 10)) {
+      setContainerWidth(width);
+    }
+  };
   
   if (data.length < 2) return null;
 
@@ -171,13 +181,24 @@ const ChartItem: React.FC<ChartItemProps> = ({
   const { latestValue, averageValue, maxPointValue } =
     calculateStatisticsUseCase.execute(data, latestRefRange);
 
+  // Use measured container width if available, otherwise fall back to chartDimensions
+  const effectiveChartDimensions = useMemo(() => {
+    if (!containerWidth) return chartDimensions;
+    
+    const adjustedWidth = containerWidth - 24; // Account for container padding
+    return {
+      ...chartDimensions,
+      width: adjustedWidth
+    };
+  }, [containerWidth, chartDimensions]);
+  
   const linePath = createLinePath(
     data,
     minTime,
     maxTime,
     minValue,
     maxValue,
-    chartDimensions
+    effectiveChartDimensions
   );
 
   const referenceAreaPaths = createDynamicReferenceAreaPaths(
@@ -186,7 +207,7 @@ const ChartItem: React.FC<ChartItemProps> = ({
     maxTime,
     minValue,
     maxValue,
-    chartDimensions
+    effectiveChartDimensions
   );
 
   const renderChartGradient = () => (
@@ -242,7 +263,10 @@ const ChartItem: React.FC<ChartItemProps> = ({
 
   return (
     <View style={styles.chartSection}>
-      <View style={styles.chartContainer}>
+      <View 
+        style={styles.chartContainer} 
+        onLayout={handleLayout}
+      >
         <View style={styles.metricIdentifier}>
           <View style={styles.metricNameContainer}>
             <Text style={styles.metricName}>{labKey}</Text>
@@ -268,31 +292,42 @@ const ChartItem: React.FC<ChartItemProps> = ({
         )}
         
         <View style={styles.svgContainer}>
-          <Svg width={chartDimensions.width} height={chartDimensions.height}>
-            {renderChartGradient()}
-            {renderReferenceAreaPaths()}
+          {containerWidth ? (
+            <Svg 
+              width={effectiveChartDimensions.width} 
+              height={effectiveChartDimensions.height}
+              viewBox={`0 0 ${effectiveChartDimensions.width} ${effectiveChartDimensions.height}`}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              {renderChartGradient()}
+              {renderReferenceAreaPaths()}
 
-            {createVerticalGridLines(
-              data,
-              minTime,
-              maxTime,
-              chartDimensions,
-              formatDate
-            )}
-            {createHorizontalGridLines(minValue, maxValue, chartDimensions, unit)}
+              {createVerticalGridLines(
+                data,
+                minTime,
+                maxTime,
+                effectiveChartDimensions,
+                formatDate
+              )}
+              {createHorizontalGridLines(minValue, maxValue, effectiveChartDimensions, unit)}
 
-            <Path d={linePath} fill="none" stroke={theme.chart.line.color} strokeWidth={theme.chart.line.width} />
+              <Path d={linePath} fill="none" stroke={theme.chart.line.color} strokeWidth={theme.chart.line.width} />
 
-            {createDataPoints(
-              data,
-              minTime,
-              maxTime,
-              minValue,
-              maxValue,
-              chartDimensions,
-              referenceRangesByDate
-            )}
-          </Svg>
+              {createDataPoints(
+                data,
+                minTime,
+                maxTime,
+                minValue,
+                maxValue,
+                effectiveChartDimensions,
+                referenceRangesByDate
+              )}
+            </Svg>
+          ) : (
+            <View style={[styles.placeholderContainer, { width: chartDimensions.width, height: chartDimensions.height }]}>
+              <ActivityIndicator size="small" color={colorPalette.primary.main} />
+            </View>
+          )}
         </View>
 
         <ChartLegend latestRefRange={latestRefRange} unit={unit} />
@@ -352,6 +387,10 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     useState<TimeRangeOption>("3y");
   const [isTimeRangeMenuOpen, setIsTimeRangeMenuOpen] =
     useState<boolean>(false);
+  const [screenWidth, setScreenWidth] = useState<number>(
+    Dimensions.get("window").width
+  );
+  const dimensionsInitialized = useRef<boolean>(false);
 
   const animations = {
     rotation: useState(new Animated.Value(0))[0],
@@ -361,16 +400,32 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     menuItem4: useState(new Animated.Value(0))[0],
   };
 
-  const screenWidth = Dimensions.get("window").width;
+  // Setup dimension change listener only once
+  useEffect(() => {
+    const updateDimensions = ({ window }: { window: ScaledSize }) => {
+      setScreenWidth(window.width);
+    };
+    
+    const subscription = Dimensions.addEventListener("change", updateDimensions);
+    
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+  
   const chartDimensions = useMemo<ChartDimensions>(
-    () => ({
-      width: screenWidth - 40,
-      height: 200,
-      paddingTop: 20,
-      paddingRight: 20,
-      paddingBottom: 40,
-      paddingLeft: 40,
-    }),
+    () => {
+      const baseWidth = Math.min(screenWidth - 40, 600); // Limit width for large screens
+      
+      return {
+        width: baseWidth,
+        height: 200,
+        paddingTop: 20,
+        paddingRight: 20,
+        paddingBottom: 40,
+        paddingLeft: 40,
+      };
+    },
     [screenWidth]
   );
 
@@ -725,31 +780,33 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   ) {
     return (
       <ScreenLayout>
-        <SectionList
-          sections={sections}
-          renderSectionHeader={renderSectionHeader}
-          renderItem={renderSectionItem}
-          keyExtractor={keyExtractor}
-          contentContainerStyle={styles.chartsContainer}
-          contentInsetAdjustmentBehavior="automatic"
-          automaticallyAdjustContentInsets={true}
-          showsVerticalScrollIndicator={false}
-          initialNumToRender={3}
-          maxToRenderPerBatch={3}
-          windowSize={6}
-          stickySectionHeadersEnabled={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={[colorPalette.feedback.info]}
-              tintColor={colorPalette.feedback.info}
-              title="Pull to refresh..."
-              titleColor={colorPalette.neutral.light}
-            />
-          }
-        />
-        {timeRangeFloatingMenu}
+        <View style={styles.screenContainer}>
+          <SectionList
+            sections={sections}
+            renderSectionHeader={renderSectionHeader}
+            renderItem={renderSectionItem}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={styles.chartsContainer}
+            contentInsetAdjustmentBehavior="automatic"
+            automaticallyAdjustContentInsets={true}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={3}
+            maxToRenderPerBatch={3}
+            windowSize={6}
+            stickySectionHeadersEnabled={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colorPalette.feedback.info]}
+                tintColor={colorPalette.feedback.info}
+                title="Pull to refresh..."
+                titleColor={colorPalette.neutral.light}
+              />
+            }
+          />
+          {timeRangeFloatingMenu}
+        </View>
       </ScreenLayout>
     );
   }
@@ -949,6 +1006,10 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
     marginTop: -5,
   },
+  screenContainer: {
+    flex: 1,
+    width: '100%',
+  },
   timeRangeIndicator: {
     alignItems: "center",
     marginBottom: 15,
@@ -1024,6 +1085,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colorPalette.neutral.main,
     lineHeight: 20,
+    textAlign: 'justify',
   },
   referenceLegend: {
     width: '100%',
@@ -1264,6 +1326,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+    width: '100%',
+    minHeight: 200,
+  },
+  placeholderContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colorPalette.neutral.white,
+    borderRadius: 8,
   },
   infoIconContainer: {
     position: 'absolute',
@@ -1294,12 +1364,12 @@ function createLinePath(
       paddingBottom,
     } = dimensions;
     const point = dataPoints[0];
-    const timeRange = maxTime - minTime;
+    const timeRange = maxTime - minTime || 1; // Prevent division by zero
     const x =
       paddingLeft +
       ((point.timestamp - minTime) / timeRange) *
         (width - paddingLeft - paddingRight);
-    const valueRange = maxValue - minValue;
+    const valueRange = maxValue - minValue || 1; // Prevent division by zero
     const y =
       height -
       paddingBottom -

@@ -10,6 +10,7 @@ export type HomeStackParamList = {
   ApiKeySettingsScreen: undefined;
   DatabaseSettingsScreen: undefined;
   ProfileScreen: undefined;
+  SyncScreen: undefined;
 };
 
 export type ChartStackParamList = {

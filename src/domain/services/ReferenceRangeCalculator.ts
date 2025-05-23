@@ -67,7 +67,7 @@ export class ReferenceRangeCalculator {
     gender: Gender
   ): ReferenceRange {
     switch (labKey) {
-      case "Hematies":
+      case "Hématies":
         return this.getRedBloodCellsRange(age, gender);
       case "Hémoglobine":
         return this.getHemoglobinRange(age, gender);

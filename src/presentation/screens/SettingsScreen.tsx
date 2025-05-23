@@ -32,6 +32,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   navigation,
 }) => {
   const navigateToProfile = () => navigation.navigate("ProfileScreen");
+  const navigateToDeviceSync = () => navigation.navigate("SyncScreen");
   const navigateToApiKeySettings = () =>
     navigation.navigate("ApiKeySettingsScreen");
   const navigateToDatabaseSettings = () =>
@@ -48,6 +49,11 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
         title: "User Profile",
         icon: "person-outline",
         onPress: navigateToProfile,
+      },
+      {
+        title: "Device Sync",
+        icon: "sync-outline",
+        onPress: navigateToDeviceSync,
       },
     ],
   });

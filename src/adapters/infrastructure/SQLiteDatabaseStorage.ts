@@ -17,7 +17,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private initializationPromise: Promise<Database> | null = null;
   private isOperationInProgress: boolean = false;
 
-  constructor(dbName: string = "biological_analyses.db", encryptionKey?: string) {
+  constructor(dbName: string, encryptionKey?: string) {
     this.dbName = dbName;
     this.dbDirectory = `${FileSystem.documentDirectory}SQLite`;
     this.dbPath = `${this.dbDirectory}/${this.dbName}`;
@@ -69,7 +69,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
 
       await this.ensureRequiredTablesExist(db);
       // Only for dev 
-      // await this.populateTestDataIfEmpty(db);
+      await this.populateTestDataIfEmpty(db);
 
       this.dbInstance = db;
       return db;
@@ -86,7 +86,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       console.log("Existing database connection is healthy, reusing it");
       await this.ensureRequiredTablesExist(this.dbInstance);
       // Only for dev 
-      // await this.populateTestDataIfEmpty(this.dbInstance);
+      await this.populateTestDataIfEmpty(this.dbInstance);
       return true;
     } catch {
       console.log("Existing database connection is not usable, recreating it");
@@ -249,29 +249,45 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   }
 
   private async populateTestDataIfEmpty(db: Database): Promise<void> {
-    const count = await this.countExistingAnalyses(db);
-
-    if (count === 0) {
-      await this.insertTestAnalyses(db);
-    }
+    await this.insertMissingTestAnalyses(db);
+    
   }
 
-  private async countExistingAnalyses(db: Database): Promise<number> {
-    const existingAnalyses = await db.getAllAsync<{ count: number }>(
-      "SELECT COUNT(*) as count FROM biological_analyses"
-    );
-    return existingAnalyses[0]?.count || 0;
-  }
-
-  private async insertTestAnalyses(db: Database): Promise<void> {
+  private async insertMissingTestAnalyses(db: Database): Promise<void> {
     const testAnalyses = this.prepareTestAnalysesData();
-
+    let insertedCount = 0;
+    
     for (const analysis of testAnalyses) {
-      await this.insertAnalysis(db, analysis);
+      try {
+        const exists = await this.analysisExists(db, analysis.id);
+        
+        if (!exists) {
+          await this.insertAnalysis(db, analysis);
+          insertedCount++;
+        }
+      } catch (error) {
+        console.warn(`Failed to insert analysis ${analysis.id}:`, error);
+      }
     }
-
-    console.log("Added test analyses to the database");
+    
+    if (insertedCount > 0) {
+      console.log(`Added ${insertedCount} missing test analyses to the database`);
+    }
   }
+  
+  private async analysisExists(db: Database, id: string): Promise<boolean> {
+    try {
+      const result = await db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM biological_analyses WHERE id = ?", 
+        [id]
+      );
+      return (result?.count || 0) > 0;
+    } catch (error) {
+      console.warn(`Error checking if analysis ${id} exists:`, error);
+      return false; // Safer to return false if we can't check
+    }
+  }
+
 
   private async insertAnalysis(
     db: Database,
@@ -282,12 +298,20 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       lab_values: string;
     }
   ): Promise<void> {
-    const pdfSourceValue =
-      analysis.pdf_source === null ? "NULL" : `'${analysis.pdf_source}'`;
-    await db.execAsync(
-      `INSERT INTO biological_analyses (id, date, pdf_source, lab_values) 
-         VALUES ('${analysis.id}', '${analysis.date}', ${pdfSourceValue}, '${analysis.lab_values}')`
-    );
+    try {
+      await db.runAsync(
+        `INSERT INTO biological_analyses (id, date, pdf_source, lab_values) 
+         VALUES (?, ?, ?, ?)`,
+        [analysis.id, analysis.date, analysis.pdf_source, analysis.lab_values]
+      );
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("UNIQUE constraint failed")) {
+        console.log(`Analysis ${analysis.id} already exists, skipping insertion`);
+      } else {
+        throw error;
+      }
+    }
   }
 
   private prepareTestAnalysesData(): Array<{
@@ -302,7 +326,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
         date: new Date().toISOString().split("T")[0],
         pdf_source: null,
         lab_values: JSON.stringify({
-          Hematies: { value: 4.8, unit: "T/L" },
+          Hématies: { value: 4.8, unit: "T/L" },
           "Vitamine B9": { value: 15.2, unit: "ng/mL" },
           TSH: { value: 2.1, unit: "mUI/L" },
         }),
@@ -314,7 +338,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
           .split("T")[0],
         pdf_source: null,
         lab_values: JSON.stringify({
-          Hematies: { value: 6.0, unit: "T/L" },
+          Hématies: { value: 6.0, unit: "T/L" },
           "Vitamine B9": { value: 4.3, unit: "ng/mL" },
           TSH: { value: 2.5, unit: "mUI/L" },
         }),
@@ -326,7 +350,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
           .split("T")[0],
         pdf_source: null,
         lab_values: JSON.stringify({
-          Hematies: { value: 3.8, unit: "T/L" },
+          Hématies: { value: 3.8, unit: "T/L" },
           "Vitamine B9": { value: 1.2, unit: "ng/mL" },
           TSH: { value: 6.7, unit: "mUI/L" },
         }),
@@ -338,7 +362,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
           .split("T")[0],
         pdf_source: null,
         lab_values: JSON.stringify({
-          Hematies: { value: 5.1, unit: "T/L" },
+          Hématies: { value: 5.1, unit: "T/L" },
           "Vitamine B9": { value: 8.7, unit: "ng/mL" },
           TSH: { value: 3.8, unit: "mUI/L" },
         }),
@@ -598,6 +622,71 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       throw error;
     } finally {
       this.isOperationInProgress = false;
+    }
+  }
+
+  async exportData(): Promise<any> {
+    const db = await this.getDatabase();
+    
+    const tables = await this.getTables(db);
+    
+    const exportedData: Record<string, any[]> = {};
+    
+    for (const table of tables) {
+      const rows = await this.getAllRowsFromTable(db, table);
+      exportedData[table] = rows;
+    }
+    
+    return exportedData;
+  }
+
+  async importData(data: any): Promise<void> {
+    const db = await this.getDatabase();
+    
+    try {
+      for (const [tableName, rows] of Object.entries(data)) {
+        if (Array.isArray(rows) && rows.length > 0) {
+          const firstRow = rows[0];
+          const columns = Object.keys(firstRow).filter(col => col !== 'id');
+          
+          for (const row of rows) {
+            const columnString = columns.join(', ');
+            const valuePlaceholders = columns.map(() => '?').join(', ');
+            const values = columns.map(col => row[col]);
+            
+            const insertQuery = `INSERT OR REPLACE INTO ${tableName} (${columnString}) VALUES (${valuePlaceholders})`;
+            
+            await this.executeSql(db, insertQuery, values);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error during import:', error);
+      throw error;
+    }
+  }
+
+  private async getTables(db: Database): Promise<string[]> {
+    try {
+      const query = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'";
+      
+      const result = await this.querySql(db, query);
+      
+      return result.map(row => row.name);
+    } catch (error) {
+      console.error('Error getting tables:', error);
+      throw error;
+    }
+  }
+
+  private async getAllRowsFromTable(db: Database, tableName: string): Promise<any[]> {
+    try {
+      const query = `SELECT * FROM ${tableName}`;
+      
+      return await this.querySql(db, query);
+    } catch (error) {
+      console.error(`Error getting rows from ${tableName}:`, error);
+      throw error;
     }
   }
 }

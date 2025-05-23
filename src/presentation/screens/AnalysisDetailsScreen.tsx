@@ -54,32 +54,31 @@ const DecimalInput = ({
 }) => {
   const inputRef = useRef<TextInput>(null);
 
-  const addDecimalPoint = () => {
-    if (!value.includes(".")) {
-      onChangeText(value + ".");
+  const handleTextChange = (text: string) => {
+    const normalizedText = text.replace(',', '.');
+    
+    // Only allow numbers and a single decimal point
+    if (/^-?\d*\.?\d*$/.test(normalizedText) || normalizedText === '') {
+      onChangeText(normalizedText);
     }
-
-    focusInputField();
   };
 
-  const focusInputField = () => {
-    inputRef.current?.focus();
+  const handleBlur = () => {
+    if (value === '') {
+      onChangeText('0');
+    }
   };
 
   return (
-    <View style={styles.decimalInputContainer}>
-      <TextInput
-        ref={inputRef}
-        style={[styles.valueInput, style]}
-        value={value}
-        onChangeText={onChangeText}
-        keyboardType="number-pad"
-        onFocus={onFocus}
-      />
-      <TouchableOpacity style={styles.decimalButton} onPress={addDecimalPoint}>
-        <Text style={styles.decimalButtonText}>.</Text>
-      </TouchableOpacity>
-    </View>
+    <TextInput
+      ref={inputRef}
+      style={[styles.valueInput, style]}
+      value={value}
+      onChangeText={handleTextChange}
+      onBlur={handleBlur}
+      keyboardType="decimal-pad"
+      onFocus={onFocus}
+    />
   );
 };
 
@@ -167,7 +166,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
       if (isActive && value) {
         initialValues[key] = { ...value };
         initialRawInputs[key] =
-          value.value != null ? value.value.toString() : "0";
+          value.value != null ? value.value.toString() : "";
       } else {
         initialValues[key] = initializeLabValueWithDefaults(key);
         initialRawInputs[key] = "";
@@ -206,6 +205,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
         },
       }));
     } else if (text === "" || text === ".") {
+      // For empty or just decimal point, store 0 in the model but keep display as is
       setEditedValues((prev) => ({
         ...prev,
         [key]: {
@@ -249,7 +249,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   const initializeMetricValue = (key: string) => {
     setRawInputs((prev) => ({
       ...prev,
-      [key]: "0",
+      [key]: "",
     }));
 
     setEditedValues((prev) => ({
@@ -359,10 +359,6 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   // Get dynamic reference range for a lab key
   const getReferenceRange = (labKey: string) => {
     if (!analysis) return { min: 0, max: 0 };
-    console.log(
-      labKey,
-      getReferenceRangeUseCase.execute(labKey, analysis.date)
-    );
     return getReferenceRangeUseCase.execute(labKey, analysis.date);
   };
 
@@ -496,11 +492,12 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
               {isEditing && isActive ? (
                 <View style={styles.valueRow}>
                   <DecimalInput
-                    value={rawInputs[key] || "0"}
+                    value={rawInputs[key] || ""}
                     onChangeText={(text) => handleValueChange(key, text)}
                     onFocus={() => {
                       handleInputFocus(key);
                     }}
+                    style={styles.decimalInput}
                   />
                   <TextInput
                     style={styles.unitInput}
@@ -741,24 +738,30 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  decimalInputContainer: {
+  decimalInput: {
     flex: 1,
-    flexDirection: "row",
+    fontSize: 18,
+    borderWidth: 1,
+    borderColor: colorPalette.neutral.lighter,
+    borderRadius: 4,
+    padding: 8,
     marginRight: 8,
   },
-  decimalButton: {
-    width: 30,
-    height: 40,
-    backgroundColor: colorPalette.primary.main,
-    justifyContent: "center",
-    alignItems: "center",
-    borderTopRightRadius: 4,
-    borderBottomRightRadius: 4,
+  valueInput: {
+    flex: 1,
+    fontSize: 18,
+    borderWidth: 1,
+    borderColor: colorPalette.neutral.lighter,
+    borderRadius: 4,
+    padding: 8,
   },
-  decimalButtonText: {
-    color: colorPalette.neutral.white,
-    fontSize: 20,
-    fontWeight: "bold",
+  unitInput: {
+    width: 80,
+    fontSize: 18,
+    borderWidth: 1,
+    borderColor: colorPalette.neutral.lighter,
+    borderRadius: 4,
+    padding: 8,
   },
   labValueText: {
     fontSize: 18,
@@ -833,24 +836,6 @@ const styles = StyleSheet.create({
     color: colorPalette.neutral.white,
     fontSize: 14,
     fontWeight: "bold",
-  },
-  valueInput: {
-    flex: 1,
-    fontSize: 18,
-    borderWidth: 1,
-    borderColor: colorPalette.neutral.lighter,
-    borderRadius: 4,
-    padding: 8,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-  },
-  unitInput: {
-    width: 80,
-    fontSize: 18,
-    borderWidth: 1,
-    borderColor: colorPalette.neutral.lighter,
-    borderRadius: 4,
-    padding: 8,
   },
   datePickerContainer: {
     marginVertical: 10,

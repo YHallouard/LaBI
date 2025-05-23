@@ -72,6 +72,7 @@ import { ProfileRequiredModal } from "./src/presentation/components/ProfileRequi
 import { initializeApp } from "./src/infrastructure/AppInitializer";
 import { RepositoryFactory } from "./src/infrastructure/repositories/RepositoryFactory";
 import { colorPalette, theme } from "./src/config/themes";
+import { SyncScreen } from "./src/presentation/screens/SyncScreen";
 
 const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
 const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
@@ -624,6 +625,15 @@ export default function App() {
             headerLeftContainerStyle: { paddingLeft: 10 },
           }}
           component={ProfileScreen}
+        />
+        <HomeStackNavigator.Screen
+          name="SyncScreen"
+          options={{
+            headerTitle: "Device Sync",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+          component={SyncScreen}
         />
       </HomeStackNavigator.Navigator>
     );

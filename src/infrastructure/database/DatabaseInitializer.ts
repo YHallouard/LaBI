@@ -48,7 +48,7 @@ export const initializeDatabase = async () => {
   const encryptionKey = await getEncryptionKey();
   
   // Create a new database instance
-  databaseStorageInstance = new SQLiteDatabaseStorage("biological_analyses.db", encryptionKey);
+  databaseStorageInstance = new SQLiteDatabaseStorage("hemea.db", encryptionKey);
   
   // Initialize the database
   await databaseStorageInstance.initializeDatabase();

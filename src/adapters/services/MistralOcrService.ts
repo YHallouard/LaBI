@@ -215,7 +215,7 @@ export class MistralOcrService implements OcrService {
     labKeys: string[]
   ) {
     return await this.client.chat.complete({
-      model: "mistral-large-latest",
+      model: "mistral-medium-latest",//"mistral-large-latest",
       messages: [
         {
           role: "system",

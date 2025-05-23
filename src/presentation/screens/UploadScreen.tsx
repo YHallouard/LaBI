@@ -170,7 +170,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   };
 
   const navigateToSettings = (): void => {
-    (navigation as any).navigate("Home", { screen: "SettingsScreen" });
+    (navigation as any).navigate("Home", { screen: "ApiKeySettingsScreen" });
   };
 
   if (isLoadingApiKey || isInitialLoading) {
