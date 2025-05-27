@@ -1,6 +1,53 @@
 import { SyncDevicesUseCase } from '../SyncDevicesUseCase';
 import { SyncingServicePort, SyncStatus, SyncProgress, SyncDeviceInfo } from '../../../ports/services/SyncingServicePort';
 import { DatabaseStoragePort } from '../../../ports/infrastructure/DatabaseStoragePort';
+import { BiologicalAnalysisRepository } from '../../../ports/repositories/BiologicalAnalysisRepository';
+import { UserProfileRepository } from '../../../ports/repositories/UserProfileRepository';
+import { BiologicalAnalysis } from '../../../domain/entities/BiologicalAnalysis';
+import { UserProfile } from '../../../domain/UserProfile';
+
+// Mock expo dependencies that require React Native
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+  deleteItemAsync: jest.fn(),
+}));
+
+jest.mock('expo-file-system', () => ({
+  documentDirectory: 'file://test-documents/',
+  getInfoAsync: jest.fn().mockResolvedValue({ exists: true }),
+  readAsStringAsync: jest.fn().mockResolvedValue('mock-base64-content'),
+  writeAsStringAsync: jest.fn().mockResolvedValue(undefined),
+  EncodingType: {
+    Base64: 'base64',
+  },
+}));
+
+// Mock DatabaseInitializer to avoid expo-secure-store import
+jest.mock('../../../infrastructure/database/DatabaseInitializer', () => ({
+  getDatabaseStorage: jest.fn(),
+  getDatabase: jest.fn(),
+  resetDatabase: jest.fn(),
+  initializeDatabase: jest.fn(),
+}));
+
+// Mock RepositoryFactory to avoid dependency chain
+jest.mock('../../../infrastructure/repositories/RepositoryFactory', () => ({
+  RepositoryFactory: {
+    getBiologicalAnalysisRepository: jest.fn(),
+    getUserProfileRepository: jest.fn(),
+  },
+}));
+
+// Mock ProfileService to avoid dependency chain
+jest.mock('../../services/ProfileService', () => ({
+  ProfileService: {
+    getInstance: jest.fn().mockReturnValue({
+      setProfileExists: jest.fn(),
+      checkProfileExists: jest.fn().mockResolvedValue(false),
+    }),
+  },
+}));
 
 // Mock implementations
 class MockSyncingService implements SyncingServicePort {
@@ -14,6 +61,7 @@ class MockSyncingService implements SyncingServicePort {
   async startScanning(): Promise<void> {}
   async stopScanning(): Promise<void> {}
   getDiscoveredDevices(): SyncDeviceInfo[] { return this.discoveredDevices; }
+  clearDiscoveredDevices(): void { this.discoveredDevices = []; }
   async connectToDevice(): Promise<boolean> { return true; }
   async sendData(): Promise<boolean> { return true; }
   async receiveData(): Promise<any> { return { data: 'test data' }; }
@@ -24,6 +72,7 @@ class MockSyncingService implements SyncingServicePort {
   onTransferProgress(callback: (progress: SyncProgress) => void): void {
     this.transferProgressCallback = callback;
   }
+  setAutoDataReceptionCallback(): void {}
   async disconnect(): Promise<void> {}
 
   // Test helpers
@@ -45,23 +94,56 @@ class MockSyncingService implements SyncingServicePort {
 }
 
 class MockDatabaseStorage implements DatabaseStoragePort {
+  async initializeDatabase(): Promise<any> { return {}; }
+  async getDatabase(): Promise<any> { return {}; }
+  async databaseExists(): Promise<boolean> { return true; }
+  async deleteDatabase(): Promise<void> {}
   async resetDatabase(): Promise<any> { return {}; }
   async exportData(): Promise<any> { return { data: 'exported data' }; }
   async importData(): Promise<void> {}
+}
+
+class MockBiologicalAnalysisRepository implements BiologicalAnalysisRepository {
+  async save(analysis: BiologicalAnalysis): Promise<void> {}
+  async getAll(): Promise<BiologicalAnalysis[]> { return []; }
+  async getById(id: string): Promise<BiologicalAnalysis | null> { return null; }
+  async deleteById(id: string): Promise<void> {}
+}
+
+class MockUserProfileRepository implements UserProfileRepository {
+  async save(profile: UserProfile): Promise<UserProfile> { return profile; }
+  async retrieve(): Promise<UserProfile | null> { return null; }
+  async update(profile: UserProfile): Promise<void> {}
+  async reset(): Promise<void> {}
 }
 
 describe('SyncDevicesUseCase', () => {
   let syncDevicesUseCase: SyncDevicesUseCase;
   let mockSyncingService: MockSyncingService;
   let mockDatabaseStorage: MockDatabaseStorage;
+  let mockBiologicalAnalysisRepository: MockBiologicalAnalysisRepository;
+  let mockUserProfileRepository: MockUserProfileRepository;
   let progressEvents: SyncProgress[] = [];
+  let originalSetTimeout: typeof setTimeout;
   
   beforeEach(() => {
+    // Store original setTimeout and mock it to execute immediately
+    originalSetTimeout = global.setTimeout;
+    global.setTimeout = ((callback: any) => {
+      // Execute callback immediately instead of waiting
+      setImmediate(callback);
+      return {} as any; // Return a mock timer ID
+    }) as any;
+    
     mockSyncingService = new MockSyncingService();
     mockDatabaseStorage = new MockDatabaseStorage();
+    mockBiologicalAnalysisRepository = new MockBiologicalAnalysisRepository();
+    mockUserProfileRepository = new MockUserProfileRepository();
     syncDevicesUseCase = new SyncDevicesUseCase(
       mockSyncingService,
       mockDatabaseStorage,
+      mockBiologicalAnalysisRepository,
+      mockUserProfileRepository,
       'Test Device'
     );
     
@@ -69,6 +151,11 @@ describe('SyncDevicesUseCase', () => {
     syncDevicesUseCase.setProgressCallback((progress) => {
       progressEvents.push(progress);
     });
+  });
+  
+  afterEach(() => {
+    // Restore original setTimeout
+    global.setTimeout = originalSetTimeout;
   });
   
   it('should initialize correctly', async () => {
@@ -131,6 +218,9 @@ describe('SyncDevicesUseCase', () => {
     
     const success = await syncDevicesUseCase.startSync();
     
+    // Give time for any setImmediate callbacks to execute
+    await new Promise(resolve => setImmediate(resolve));
+    
     expect(success).toBe(true);
     expect(progressEvents.some(p => p.status === SyncStatus.TRANSFERRING)).toBe(true);
     expect(progressEvents.some(p => p.status === SyncStatus.COMPLETED)).toBe(true);
@@ -144,6 +234,9 @@ describe('SyncDevicesUseCase', () => {
     progressEvents = [];
     
     const success = await syncDevicesUseCase.startSync();
+    
+    // Give time for any setImmediate callbacks to execute
+    await new Promise(resolve => setImmediate(resolve));
     
     expect(success).toBe(true);
     expect(progressEvents.some(p => p.status === SyncStatus.TRANSFERRING)).toBe(true);

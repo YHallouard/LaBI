@@ -50,7 +50,7 @@ describe("GetReferenceRangeUseCase", () => {
 
   it("should properly initialize and calculate reference range based on user profile", () => {
     const testDate = new Date("2022-01-01");
-    const range = service.execute("Hematies", testDate);
+    const range = service.execute("Hématies", testDate);
 
     expect(range).toBeDefined();
     expect(range.min).toBeGreaterThan(0);
@@ -62,7 +62,7 @@ describe("GetReferenceRangeUseCase", () => {
     await nullProfileService.initialize();
     
     const testDate = new Date("2022-01-01");
-    const range = nullProfileService.execute("Hematies", testDate);
+    const range = nullProfileService.execute("Hématies", testDate);
 
     expect(range).toBeDefined();
     expect(range.min).toBeGreaterThan(0);

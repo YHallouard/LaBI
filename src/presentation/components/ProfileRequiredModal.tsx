@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { ProfileService } from "../../application/services/ProfileService";
-import { CreateProfileModal } from "../screens/CreateProfileModal";
+import { CreateProfileModal } from "../screens/home/CreateProfileModal";
 
 type ProfileRequiredModalProps = {
   children: React.ReactNode;

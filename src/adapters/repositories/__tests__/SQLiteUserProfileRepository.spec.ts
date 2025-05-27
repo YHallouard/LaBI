@@ -1,8 +1,6 @@
 import { SQLiteUserProfileRepository } from "../SQLiteUserProfileRepository";
 import { UserProfile, Gender } from "../../../domain/UserProfile";
-import * as DatabaseInitializer from "../../../infrastructure/database/DatabaseInitializer";
-
-jest.mock("../../../infrastructure/database/DatabaseInitializer");
+import { DatabaseStoragePort } from "../../../ports/infrastructure/DatabaseStoragePort";
 
 describe("SQLiteUserProfileRepository", () => {
   let repository: SQLiteUserProfileRepository;
@@ -11,12 +9,23 @@ describe("SQLiteUserProfileRepository", () => {
     execAsync: jest.fn(),
   };
 
+  // Mock database storage port
+  const mockDatabaseStorage: DatabaseStoragePort = {
+    getDatabase: jest.fn().mockResolvedValue(mockDb),
+    initializeDatabase: jest.fn().mockResolvedValue(undefined),
+    databaseExists: jest.fn().mockResolvedValue(true),
+    deleteDatabase: jest.fn().mockResolvedValue(undefined),
+    resetDatabase: jest.fn().mockResolvedValue(undefined),
+    exportData: jest.fn().mockResolvedValue({
+      biological_analyses: [],
+      user_profile: []
+    }),
+    importData: jest.fn().mockResolvedValue(undefined)
+  };
+
   beforeEach(() => {
     jest.clearAllMocks();
-
-    (DatabaseInitializer.getDatabase as jest.Mock).mockResolvedValue(mockDb);
-
-    repository = new SQLiteUserProfileRepository();
+    repository = new SQLiteUserProfileRepository(mockDatabaseStorage);
   });
 
   describe("retrieve", () => {

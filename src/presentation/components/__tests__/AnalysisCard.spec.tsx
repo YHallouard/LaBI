@@ -7,34 +7,32 @@ describe('AnalysisCard', () => {
   const mockAnalysis: BiologicalAnalysis = {
     id: '1',
     date: new Date('2023-10-01'),
-    "Proteine C Reactive": { value: 5.5, unit: 'mg/L' },
+    "Protéine C Reactive": { value: 5.5, unit: 'mg/L' },
     // Add other necessary fields if required
   };
   
   const mockAnalysisWithoutCRP: BiologicalAnalysis = {
     id: '2',
     date: new Date('2023-10-02'),
-    // No Proteine C Reactive data
+    // No Protéine C Reactive data
   };
 
-  test('Given an AnalysisCard component When it renders Then it displays the formatted date and CRP value', () => {
+  test('Given an AnalysisCard component When it renders Then it displays the formatted date and out-of-range count', () => {
     // When
     const { getByText } = render(<AnalysisCard analysis={mockAnalysis} />);
 
     // Then
     expect(getByText('01/10/2023')).toBeDefined();
-    expect(getByText('CRP')).toBeDefined();
-    expect(getByText('5.50 mg/L')).toBeDefined();
+    expect(getByText('1')).toBeDefined(); // out-of-range count (CRP value 5.5 is above range of 0-5)
   });
   
-  test('Given an AnalysisCard component without CRP data When it renders Then it displays "-.--" for the CRP value', () => {
+  test('Given an AnalysisCard component without any out-of-range values When it renders Then it displays "0"', () => {
     // When
     const { getByText } = render(<AnalysisCard analysis={mockAnalysisWithoutCRP} />);
 
     // Then
     expect(getByText('02/10/2023')).toBeDefined();
-    expect(getByText('CRP')).toBeDefined();
-    expect(getByText('-.-- mg/L')).toBeDefined();
+    expect(getByText('0')).toBeDefined(); // no out-of-range values
   });
 
   test('Given an AnalysisCard component with onPress prop When it is pressed Then it calls the onPress function', () => {

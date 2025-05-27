@@ -1,41 +1,53 @@
 import { Platform } from 'react-native';
 import { SyncingServicePort } from '../../ports/services/SyncingServicePort';
-import { InMemoryMultipeerSyncService } from '../../adapters/services/InMemoryMultipeerSyncService';
+import { InMemorySyncService } from '../../adapters/services/InMemorySyncService';
 
 export class SyncingServiceFactory {
   static createSyncingService(): SyncingServicePort {
-    // Always use InMemoryMultipeerSyncService in Expo Go or development mode
-    const isDevMode = __DEV__;
     let isExpo = false;
+    let isPhysicalDevice = false;
+    let constants = null;
+    let expoDevice = null;
     
     try {
-      // Check if we're in Expo Go
-      const Constants = require('expo-constants');
-      isExpo = Constants.appOwnership === 'expo';
+      constants = require('expo-constants');
+      isExpo = constants.appOwnership === 'expo';
+      console.log(`[SyncFactory] Constants.appOwnership: ${constants.appOwnership}`);
+      
+
+      expoDevice = require('expo-device');
+      isPhysicalDevice = expoDevice.isDevice;
+      
+      console.log(`[SyncFactory] Environment Details:`);
+      console.log(`  - Expo: ${isExpo}`);
+      console.log(`  - PhysicalDevice: ${isPhysicalDevice}`);
+      console.log(`  - Platform: ${Platform.OS}`);
+      console.log(`  - DevMode: ${__DEV__}`);
+      console.log(`  - Constants.appOwnership: ${constants?.appOwnership}`);
+      console.log(`  - ExpoDevice.isDevice: ${expoDevice?.isDevice}`);
+      console.log(`  - ExpoDevice.deviceType: ${expoDevice?.deviceType}`);
     } catch (error) {
-      console.log("Error checking Expo environment:", error);
+      console.log("Error checking environment:", error);
+
+      isExpo = true;
+      isPhysicalDevice = false;
     }
     
-    // Always use InMemory implementation in Expo Go
-    if (isExpo || isDevMode) {
-      console.log('Using InMemoryMultipeerSyncService for device syncing');
-      return new InMemoryMultipeerSyncService();
+    // Use InMemory implementation only in Expo Go or simulators/emulators
+    if (isExpo || !isPhysicalDevice) {
+      console.log(`[SyncFactory] Using InMemoryMultipeerSyncService - Reason: isExpo=${isExpo}, isPhysicalDevice=${isPhysicalDevice}`);
+      return new InMemorySyncService();
     }
     
-    // For production native builds, dynamically import the platform-specific implementation
     try {
-      if (Platform.OS === 'ios') {
-        const { IOSMultipeerSyncService } = require('../../adapters/services/IOSMultipeerSyncService');
-        return new IOSMultipeerSyncService();
-      } else if (Platform.OS === 'android') {
-        const { AndroidMultipeerSyncService } = require('../../adapters/services/AndroidMultipeerSyncService');
-        return new AndroidMultipeerSyncService();
-      } else {
-        throw new Error(`Platform ${Platform.OS} is not supported for syncing`);
-      }
+      console.log(`[SyncFactory] Attempting to use MultipeerSyncService on physical ${Platform.OS} device`);
+      const { MultipeerSyncService } = require('../../adapters/services/MultipeerSyncService');
+      const service = new MultipeerSyncService();
+      console.log('[SyncFactory] Successfully created MultipeerSyncService');
+      return service;
     } catch (error) {
-      console.log(`Error initializing native sync service: ${error}. Falling back to InMemory implementation.`);
-      return new InMemoryMultipeerSyncService();
+      console.log(`[SyncFactory] Error creating MultipeerSyncService: ${error}. Falling back to InMemory implementation.`);
+      return new InMemorySyncService();
     }
   }
 } 

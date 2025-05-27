@@ -33,8 +33,8 @@ describe("AnalyzePdfUseCase", () => {
     // Initialize OCR service with default test data
     mockOcrResult = {
       extractedDate: mockDate,
-      Hematies: { value: 4.5, unit: "T/L" },
-      "Proteine C Reactive": { value: 5.2, unit: "mg/L" },
+      "Hématies": { value: 4.5, unit: "T/L" },
+      "Protéine C Reactive": { value: 5.2, unit: "mg/L" },
     };
     ocrService = new InMemoryOcrService(mockOcrResult);
 
@@ -66,8 +66,8 @@ describe("AnalyzePdfUseCase", () => {
         id: "mocked-uuid",
         date: mockDate,
         pdfSource: mockPdfPath,
-        Hematies: { value: 4.5, unit: "T/L" },
-        "Proteine C Reactive": { value: 5.2, unit: "mg/L" },
+        Hématies: { value: 4.5, unit: "T/L" },
+        "Protéine C Reactive": { value: 5.2, unit: "mg/L" },
       });
 
       // Verify OCR service was called with correct path and progress processor
@@ -159,7 +159,7 @@ describe("AnalyzePdfUseCase", () => {
       // Given
       const partialOcrResult: Partial<OcrResult> = {
         extractedDate: mockDate,
-        Hematies: { value: 4.5, unit: "T/L" },
+        "Hématies": { value: 4.5, unit: "T/L" },
         // Other lab values not defined
       };
       ocrService = new InMemoryOcrService(partialOcrResult);
@@ -176,9 +176,9 @@ describe("AnalyzePdfUseCase", () => {
       expect(result.date).toEqual(mockDate);
       expect(result.pdfSource).toBe(mockPdfPath);
 
-      // The analysis should only have the Hematies key from the lab values
+      // The analysis should only have the Hématies key from the lab values
       LAB_VALUE_KEYS.forEach((key) => {
-        if (key === "Hematies") {
+        if (key === "Hématies") {
           expect(result).toHaveProperty(key);
           expect((result as Record<string, LabValue>)[key]).toEqual({
             value: 4.5,
@@ -334,8 +334,8 @@ describe("AnalyzePdfUseCase", () => {
       // Given - create OCR result with falsy values (undefined, 0, empty string)
       const specialOcrResult: Partial<OcrResult> = {
         extractedDate: mockDate,
-        Hematies: { value: 4.5, unit: "T/L" },
-        "Proteine C Reactive": undefined, // Undefined value (should be skipped)
+        "Hématies": { value: 4.5, unit: "T/L" },
+        "Protéine C Reactive": undefined, // Undefined value (should be skipped)
         Leucocytes: { value: 0, unit: "G/L" }, // Zero value (should be added)
         Plaquettes: null, // Null value (should be skipped)
         CCMH: { value: "" as unknown as number, unit: "g/dL" }, // Empty string value (should be added)
@@ -348,8 +348,8 @@ describe("AnalyzePdfUseCase", () => {
       const result = await useCase.execute(mockPdfPath);
 
       // Then - check which values were added
-      expect(result.Hematies).toEqual({ value: 4.5, unit: "T/L" });
-      expect(result["Proteine C Reactive"]).toBeUndefined(); // Undefined skipped
+      expect(result["Hématies"]).toEqual({ value: 4.5, unit: "T/L" });
+      expect(result["Protéine C Reactive"]).toBeUndefined(); // Undefined skipped
       expect(result.Leucocytes).toEqual({ value: 0, unit: "G/L" }); // Zero value added
       expect(result.Plaquettes).toBeUndefined(); // Null skipped
       expect(result.CCMH).toEqual({
@@ -414,7 +414,7 @@ describe("AnalyzePdfUseCase", () => {
       };
 
       const ocrResult: Partial<OcrResult> = {
-        Hematies: { value: 5.0, unit: "T/L" },
+        "Hématies": { value: 5.0, unit: "T/L" },
         VGM: { value: 85, unit: "fL" },
         CCMH: null,
       };
@@ -424,7 +424,7 @@ describe("AnalyzePdfUseCase", () => {
       useCase.addLabValuesToAnalysis(analysis, ocrResult);
 
       // Then - verify lab values were added correctly
-      expect(analysis.Hematies).toEqual({ value: 5.0, unit: "T/L" });
+      expect(analysis["Hématies"]).toEqual({ value: 5.0, unit: "T/L" });
       expect(analysis.VGM).toEqual({ value: 85, unit: "fL" });
       expect(analysis.CCMH).toBeUndefined(); // Null values should be skipped
 
@@ -468,12 +468,12 @@ describe("AnalyzePdfUseCase", () => {
 
       // Prepare different types of lab values
       const ocrResult: Partial<OcrResult> = {
-        Hematies: { value: 4.5, unit: "T/L" }, // Regular value
+        "Hématies": { value: 4.5, unit: "T/L" }, // Regular value
         VGM: { value: 0, unit: "fL" }, // Zero value (should be added)
         CCMH: { value: null as unknown as number, unit: "g/dL" }, // Null value inside object (should be added)
         Leucocytes: null, // Null value (should be skipped)
         Plaquettes: undefined, // Undefined value (should be skipped)
-        "Proteine C Reactive": undefined, // Empty string (should be skipped)
+        "Protéine C Reactive": undefined, // Empty string (should be skipped)
       };
 
       // When - call the private method directly
@@ -481,12 +481,12 @@ describe("AnalyzePdfUseCase", () => {
       useCase.addLabValuesToAnalysis(analysis, ocrResult);
 
       // Then - verify lab values were added correctly
-      expect(analysis.Hematies).toEqual({ value: 4.5, unit: "T/L" });
+      expect(analysis["Hématies"]).toEqual({ value: 4.5, unit: "T/L" });
       expect(analysis.VGM).toEqual({ value: 0, unit: "fL" });
       expect(analysis.CCMH).toEqual({ value: null, unit: "g/dL" });
       expect(analysis.Leucocytes).toBeUndefined();
       expect(analysis.Plaquettes).toBeUndefined();
-      expect(analysis["Proteine C Reactive"]).toBeUndefined();
+      expect(analysis["Protéine C Reactive"]).toBeUndefined();
     });
   });
 });

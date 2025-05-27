@@ -53,7 +53,7 @@ export const LAB_VALUE_UNITS: Record<string, string> = {
   Lymphocytes: "giga/L",
   Monocytes: "giga/L",
   Plaquettes: "giga/L",
-  "Protetéine C Reactive": "mg/L",
+  "Protéine C Reactive": "mg/L",
   Ferritine: "μg/L",
   "Vitamine B9": "ng/mL",
   "Vitamine B12": "pg/mL",

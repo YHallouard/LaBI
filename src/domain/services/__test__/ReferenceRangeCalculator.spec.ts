@@ -121,7 +121,7 @@ describe("ReferenceRangeCalculator", () => {
 
   describe("CRP reference range", () => {
     test("should return standard reference range for male", () => {
-      const labKey = "Proteine C Reactive";
+      const labKey = "Protéine C Reactive";
       const analysisDate = new Date();
 
       const result = calculator.calculateReferenceRange(
@@ -135,7 +135,7 @@ describe("ReferenceRangeCalculator", () => {
     });
 
     test("should return female-specific reference range for female", () => {
-      const labKey = "Proteine C Reactive";
+      const labKey = "Protéine C Reactive";
       const analysisDate = new Date();
 
       const result = calculator.calculateReferenceRange(

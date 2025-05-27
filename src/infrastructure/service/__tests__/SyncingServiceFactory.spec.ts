@@ -1,8 +1,7 @@
 import { SyncingServiceFactory } from '../SyncingServiceFactory';
 import { Platform } from 'react-native';
-import { InMemoryMultipeerSyncService } from '../../../adapters/services/InMemoryMultipeerSyncService';
-import { IOSMultipeerSyncService } from '../../../adapters/services/IOSMultipeerSyncService';
-import { AndroidMultipeerSyncService } from '../../../adapters/services/AndroidMultipeerSyncService';
+import { InMemorySyncService } from '../../../adapters/services/InMemorySyncService';
+import { MultipeerSyncService } from '../../../adapters/services/MultipeerSyncService';
 
 // Mock the Platform module
 jest.mock('react-native', () => ({
@@ -17,9 +16,14 @@ jest.mock('expo-constants', () => ({
   appOwnership: 'standalone'
 }));
 
+// Mock expo-device
+jest.mock('expo-device', () => ({
+  isDevice: true
+}));
+
 // Mock react-native-device-info
 jest.mock('react-native-device-info', () => ({
-  getModel: jest.fn(() => 'Test iPhone'),
+  getModel: jest.fn(() => 'Test Device'),
   getManufacturer: jest.fn(() => 'Apple')
 }));
 
@@ -30,54 +34,58 @@ describe('SyncingServiceFactory', () => {
     (global as any).__DEV__ = false;
   });
 
-  it('should create InMemoryMultipeerSyncService when in Expo Go', () => {
+  it('should create InMemorySyncService when in Expo Go', () => {
     // Mock Expo Go environment
     require('expo-constants').appOwnership = 'expo';
     
     const service = SyncingServiceFactory.createSyncingService();
-    expect(service).toBeInstanceOf(InMemoryMultipeerSyncService);
+    expect(service).toBeInstanceOf(InMemorySyncService);
   });
 
-  it('should create InMemoryMultipeerSyncService when in development mode', () => {
-    // Set development mode flag
-    (global as any).__DEV__ = true;
+  it('should create InMemorySyncService when not on physical device', () => {
+    // Mock simulator/emulator environment
+    require('expo-device').isDevice = false;
+    require('expo-constants').appOwnership = 'standalone';
     
     const service = SyncingServiceFactory.createSyncingService();
-    expect(service).toBeInstanceOf(InMemoryMultipeerSyncService);
+    expect(service).toBeInstanceOf(InMemorySyncService);
   });
 
-  it('should create IOSMultipeerSyncService for iOS production', () => {
-    // Mock iOS production environment
+  it('should create MultipeerSyncService for iOS production on physical device', () => {
+    // Mock iOS production environment on physical device
     Platform.OS = 'ios';
     require('expo-constants').appOwnership = 'standalone';
+    require('expo-device').isDevice = true;
     (global as any).__DEV__ = false;
     
     const service = SyncingServiceFactory.createSyncingService();
-    expect(service).toBeInstanceOf(IOSMultipeerSyncService);
+    expect(service).toBeInstanceOf(MultipeerSyncService);
   });
 
-  it('should create AndroidMultipeerSyncService for Android production', () => {
-    // Mock Android production environment
+  it('should create MultipeerSyncService for Android production on physical device', () => {
+    // Mock Android production environment on physical device
     Platform.OS = 'android';
     require('expo-constants').appOwnership = 'standalone';
+    require('expo-device').isDevice = true;
     (global as any).__DEV__ = false;
     
     const service = SyncingServiceFactory.createSyncingService();
-    expect(service).toBeInstanceOf(AndroidMultipeerSyncService);
+    expect(service).toBeInstanceOf(MultipeerSyncService);
   });
 
-  it('should handle errors and fall back to InMemoryMultipeerSyncService', () => {
-    // Mock iOS production environment with an error
+  it('should handle errors and fall back to InMemorySyncService', () => {
+    // Mock production environment with an error
     Platform.OS = 'ios';
     require('expo-constants').appOwnership = 'standalone';
+    require('expo-device').isDevice = true;
     (global as any).__DEV__ = false;
     
-    // Mock an error when importing IOSMultipeerSyncService
-    jest.mock('../../../adapters/services/IOSMultipeerSyncService', () => {
+    // Mock an error when importing MultipeerSyncService
+    jest.mock('../../../adapters/services/MultipeerSyncService', () => {
       throw new Error('Module not found');
     });
     
     const service = SyncingServiceFactory.createSyncingService();
-    expect(service).toBeInstanceOf(InMemoryMultipeerSyncService);
+    expect(service).toBeInstanceOf(InMemorySyncService);
   });
 }); 

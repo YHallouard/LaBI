@@ -3,7 +3,7 @@ import { render, waitFor, act } from "@testing-library/react-native";
 import { View } from "react-native";
 import { ProfileRequiredModal } from "../ProfileRequiredModal";
 import { ProfileService } from "../../../application/services/ProfileService";
-import { CreateProfileModal } from "../../screens/CreateProfileModal";
+import { CreateProfileModal } from "../../screens/home/CreateProfileModal";
 
 jest.mock("../../../application/services/ProfileService");
 jest.mock("../../screens/CreateProfileModal", () => ({

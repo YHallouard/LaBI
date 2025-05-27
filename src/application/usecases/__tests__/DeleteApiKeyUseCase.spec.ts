@@ -1,11 +1,14 @@
 import { DeleteApiKeyUseCase } from '../DeleteApiKeyUseCase';
 import { InMemorySecureStore } from '../../../adapters/repositories/InMemorySecureStore';
 import { API_KEY_SECURE_STORE_KEY } from '../../../config/constants';
+import * as SecureStore from 'expo-secure-store';
 
-// Mock expo-secure-store to use our InMemorySecureStore
+// Mock the entire expo-secure-store module
 jest.mock('expo-secure-store', () => ({
-  deleteItemAsync: jest.fn(async (key: string) => InMemorySecureStore.deleteItemAsync(key))
+  deleteItemAsync: jest.fn()
 }));
+
+const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 
 // Mock console.log and console.error to avoid cluttering test output
 jest.spyOn(console, 'log').mockImplementation(() => {});
@@ -20,6 +23,14 @@ describe('DeleteApiKeyUseCase', () => {
     
     // Create the use case
     useCase = new DeleteApiKeyUseCase();
+
+    // Configure the mock to use InMemorySecureStore
+    mockSecureStore.deleteItemAsync.mockImplementation((key: string) => 
+      InMemorySecureStore.deleteItemAsync(key)
+    );
+
+    // Clear mock call history
+    jest.clearAllMocks();
   });
   
   afterEach(() => {

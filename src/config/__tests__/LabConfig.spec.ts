@@ -15,7 +15,7 @@ describe("LabConfig", () => {
     it("should contain all expected lab value keys", () => {
       // Given
       const expectedKeys = [
-        "Hematies",
+        "Hématies",
         "Hémoglobine",
         "Hématocrite",
         "VGM",
@@ -30,14 +30,14 @@ describe("LabConfig", () => {
         "Plaquettes",
         "Transaminases TGO",
         "Transaminases TGP",
-        "Proteine C Reactive",
+        "Protéine C Reactive",
         "Ferritine",
         "Vitamine B9",
         "Vitamine B12",
         "Glycémie",
         "Hémoglobine Glyquée",
-        "Cholesterol HDL",
-        "Cholesterol LDL",
+        "Cholestérol HDL",
+        "Cholestérol LDL",
         "Triglycérides",
         "Gamma GT",
         "Score de fibrose hépatique",
@@ -70,7 +70,7 @@ describe("LabConfig", () => {
 
     it("should have correct units for each lab value", () => {
       // Given/When/Then
-      expect(LAB_VALUE_UNITS["Hematies"]).toBe("T/L");
+      expect(LAB_VALUE_UNITS["Hématies"]).toBe("T/L");
       expect(LAB_VALUE_UNITS["Hémoglobine"]).toBe("g/dL");
       expect(LAB_VALUE_UNITS["Hématocrite"]).toBe("%");
       expect(LAB_VALUE_UNITS["VGM"]).toBe("fl");
@@ -83,14 +83,14 @@ describe("LabConfig", () => {
       expect(LAB_VALUE_UNITS["Lymphocytes"]).toBe("giga/L");
       expect(LAB_VALUE_UNITS["Monocytes"]).toBe("giga/L");
       expect(LAB_VALUE_UNITS["Plaquettes"]).toBe("giga/L");
-      expect(LAB_VALUE_UNITS["Proteine C Reactive"]).toBe("mg/L");
+      expect(LAB_VALUE_UNITS["Protéine C Reactive"]).toBe("mg/L");
       expect(LAB_VALUE_UNITS["Ferritine"]).toBe("μg/L");
       expect(LAB_VALUE_UNITS["Vitamine B9"]).toBe("ng/mL");
       expect(LAB_VALUE_UNITS["Vitamine B12"]).toBe("pg/mL");
       expect(LAB_VALUE_UNITS["Glycémie"]).toBe("g/l");
       expect(LAB_VALUE_UNITS["Hémoglobine Glyquée"]).toBe("%");
-      expect(LAB_VALUE_UNITS["Cholesterol HDL"]).toBe("g/l");
-      expect(LAB_VALUE_UNITS["Cholesterol LDL"]).toBe("g/l");
+      expect(LAB_VALUE_UNITS["Cholestérol HDL"]).toBe("g/l");
+      expect(LAB_VALUE_UNITS["Cholestérol LDL"]).toBe("g/l");
       expect(LAB_VALUE_UNITS["Triglycérides"]).toBe("g/l");
       expect(LAB_VALUE_UNITS["Transaminases TGO"]).toBe("U/L");
       expect(LAB_VALUE_UNITS["Transaminases TGP"]).toBe("U/L");
@@ -133,7 +133,7 @@ describe("LabConfig", () => {
 
     it("should have correct reference ranges for each lab value", () => {
       // Given/When/Then
-      expect(LAB_VALUE_DEFAULT_RANGES["Hematies"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Hématies"]).toEqual({
         min: 4.28,
         max: 6.0,
       });
@@ -185,7 +185,7 @@ describe("LabConfig", () => {
         min: 150.0,
         max: 400.0,
       });
-      expect(LAB_VALUE_DEFAULT_RANGES["Proteine C Reactive"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Protéine C Reactive"]).toEqual({
         min: 0.0,
         max: 5.0,
       });
@@ -206,14 +206,14 @@ describe("LabConfig", () => {
         max: 1.06,
       });
       expect(LAB_VALUE_DEFAULT_RANGES["Hémoglobine Glyquée"]).toEqual({
-        min: 4.0,
-        max: 6.0,
+        min: 4,
+        max: 6,
       });
-      expect(LAB_VALUE_DEFAULT_RANGES["Cholesterol HDL"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Cholestérol HDL"]).toEqual({
         min: 0.4,
-        max: 10.0,
+        max: 10,
       });
-      expect(LAB_VALUE_DEFAULT_RANGES["Cholesterol LDL"]).toEqual({
+      expect(LAB_VALUE_DEFAULT_RANGES["Cholestérol LDL"]).toEqual({
         min: 0.0,
         max: 1.6,
       });
@@ -223,15 +223,15 @@ describe("LabConfig", () => {
       });
       expect(LAB_VALUE_DEFAULT_RANGES["Transaminases TGO"]).toEqual({
         min: 0.0,
-        max: 40.0,
+        max: 40,
       });
       expect(LAB_VALUE_DEFAULT_RANGES["Transaminases TGP"]).toEqual({
         min: 0.0,
-        max: 40.0,
+        max: 40,
       });
       expect(LAB_VALUE_DEFAULT_RANGES["Gamma GT"]).toEqual({
         min: 0.0,
-        max: 38.0,
+        max: 38,
       });
       expect(LAB_VALUE_DEFAULT_RANGES["Score de fibrose hépatique"]).toEqual({
         min: 0.0,

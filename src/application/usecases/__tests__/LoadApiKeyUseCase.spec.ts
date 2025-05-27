@@ -1,11 +1,13 @@
 import { LoadApiKeyUseCase } from "../LoadApiKeyUseCase";
 import { InMemorySecureStore } from "../../../adapters/repositories/InMemorySecureStore";
+import * as SecureStore from "expo-secure-store";
 
+// Mock the entire expo-secure-store module
 jest.mock("expo-secure-store", () => ({
-  getItemAsync: jest.fn(async (key: string) =>
-    InMemorySecureStore.getItemAsync(key)
-  ),
+  getItemAsync: jest.fn(),
 }));
+
+const mockSecureStore = SecureStore as jest.Mocked<typeof SecureStore>;
 
 let consoleLogSpy: jest.SpyInstance;
 let consoleErrorSpy: jest.SpyInstance;
@@ -24,6 +26,14 @@ describe("LoadApiKeyUseCase", () => {
     // Setup console spies
     consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
     consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    // Configure the mock to use InMemorySecureStore
+    mockSecureStore.getItemAsync.mockImplementation((key: string) => 
+      InMemorySecureStore.getItemAsync(key)
+    );
+
+    // Clear mock call history
+    jest.clearAllMocks();
   });
 
   afterEach(() => {

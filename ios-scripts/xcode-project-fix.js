@@ -41,6 +41,10 @@ if (fs.existsSync(iosDir)) {
         console.log('Script sandboxing already disabled');
       }
       
+      // Add multipeer connectivity permissions to Info.plist
+      console.log('Adding multipeer connectivity permissions to Info.plist...');
+      addMultipeerPermissions(iosDir);
+      
       // Set permissions for all shell scripts
       console.log('Setting permissions for all shell scripts...');
       try {
@@ -66,4 +70,66 @@ if (fs.existsSync(iosDir)) {
   }
 } else {
   console.error('iOS directory still not found after prebuild');
+}
+
+function addMultipeerPermissions(iosDir) {
+  const infoPlistPath = path.join(iosDir, 'Hma/Info.plist');
+  
+  if (!fs.existsSync(infoPlistPath)) {
+    console.error('Info.plist not found at:', infoPlistPath);
+    return;
+  }
+  
+  try {
+    let plistContent = fs.readFileSync(infoPlistPath, 'utf8');
+    
+    // Check if permissions are already present
+    const hasLocalNetwork = plistContent.includes('NSLocalNetworkUsageDescription');
+    const hasBonjourServices = plistContent.includes('NSBonjourServices');
+    
+    if (hasLocalNetwork && hasBonjourServices) {
+      console.log('Multipeer connectivity permissions already present in Info.plist');
+      return;
+    }
+    
+    // Find the insertion point (before the closing </dict> tag)
+    const insertionPoint = plistContent.lastIndexOf('  </dict>');
+    
+    if (insertionPoint === -1) {
+      console.error('Could not find insertion point in Info.plist');
+      return;
+    }
+    
+    let permissionsToAdd = '';
+    
+    // Add NSLocalNetworkUsageDescription if not present
+    if (!hasLocalNetwork) {
+      permissionsToAdd += `    <key>NSLocalNetworkUsageDescription</key>
+    <string>$(PRODUCT_NAME) uses local network to sync data between devices</string>
+`;
+    }
+    
+    // Add NSBonjourServices if not present
+    if (!hasBonjourServices) {
+      permissionsToAdd += `    <key>NSBonjourServices</key>
+    <array>
+      <string>_hemea-sync._tcp</string>
+    </array>
+`;
+    }
+    
+    // Insert the permissions
+    if (permissionsToAdd) {
+      const modifiedContent = 
+        plistContent.substring(0, insertionPoint) +
+        permissionsToAdd +
+        plistContent.substring(insertionPoint);
+      
+      fs.writeFileSync(infoPlistPath, modifiedContent);
+      console.log('Successfully added multipeer connectivity permissions to Info.plist');
+    }
+    
+  } catch (error) {
+    console.error('Error modifying Info.plist:', error.message);
+  }
 } 

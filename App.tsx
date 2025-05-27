@@ -16,13 +16,13 @@ import {
   StackNavigationProp,
   StackScreenProps,
 } from "@react-navigation/stack";
-import { ChartScreen } from "./src/presentation/screens/ChartScreen";
-import { HomeScreen } from "./src/presentation/screens/HomeScreen";
-import { UploadScreen } from "./src/presentation/screens/UploadScreen";
-import { SettingsScreen } from "./src/presentation/screens/SettingsScreen";
-import { ApiKeySettingsScreen } from "./src/presentation/screens/ApiKeySettingsScreen";
-import { DatabaseSettingsScreen } from "./src/presentation/screens/DatabaseSettingsScreen";
-import { ProfileScreen } from "./src/presentation/screens/ProfileScreen";
+import { ChartScreen } from "./src/presentation/screens/charts/ChartScreen";
+import { HomeScreen } from "./src/presentation/screens/home/HomeScreen";
+import { UploadScreen } from "./src/presentation/screens/upload/UploadScreen";
+import { SettingsScreen } from "./src/presentation/screens/settings/SettingsScreen";
+import { ApiKeySettingsScreen } from "./src/presentation/screens/settings/ApiKeySettingsScreen";
+import { DatabaseSettingsScreen } from "./src/presentation/screens/settings/DatabaseSettingsScreen";
+import { ProfileScreen } from "./src/presentation/screens/settings/ProfileScreen";
 import {
   GetAnalysesUseCase,
   GetAnalysisByIdUseCase,
@@ -43,7 +43,7 @@ import {
   Easing,
   Platform,
 } from "react-native";
-import AnalysisDetailsScreen from "./src/presentation/screens/AnalysisDetailsScreen";
+import AnalysisDetailsScreen from "./src/presentation/screens/home/AnalysisDetailsScreen";
 import { SaveApiKeyUseCase } from "./src/application/usecases/SaveApiKeyUseCase";
 import { LoadApiKeyUseCase } from "./src/application/usecases/LoadApiKeyUseCase";
 import { DeleteApiKeyUseCase } from "./src/application/usecases/DeleteApiKeyUseCase";
@@ -55,12 +55,12 @@ import {
   UploadStackParamList,
   RootTabParamList,
 } from "./src/types/navigation";
-import { HelpCenterScreen } from "./src/presentation/screens/HelpCenterScreen";
-import { PrivacySecurityScreen } from "./src/presentation/screens/PrivacySecurityScreen";
-import { AboutScreen } from "./src/presentation/screens/AboutScreen";
+import { HelpCenterScreen } from "./src/presentation/screens/settings/HelpCenterScreen";
+import { PrivacySecurityScreen } from "./src/presentation/screens/settings/PrivacySecurityScreen";
+import { AboutScreen } from "./src/presentation/screens/settings/AboutScreen";
 import { LoadingOverlay } from "./src/presentation/components/LoadingOverlay";
-import { PrivacyPolicyWebViewScreen } from "./src/presentation/screens/PrivacyPolicyWebViewScreen";
-import { MistralApiKeyTutorialScreen } from "./src/presentation/screens/MistralApiKeyTutorialScreen";
+import { PrivacyPolicyWebViewScreen } from "./src/presentation/screens/settings/PrivacyPolicyWebViewScreen";
+import { MistralApiKeyTutorialScreen } from "./src/presentation/screens/settings/MistralApiKeyTutorialScreen";
 import { ResetDatabaseUseCase } from "./src/application/usecases/ResetDatabaseUseCase";
 import {
   SafeAreaProvider,
@@ -72,7 +72,7 @@ import { ProfileRequiredModal } from "./src/presentation/components/ProfileRequi
 import { initializeApp } from "./src/infrastructure/AppInitializer";
 import { RepositoryFactory } from "./src/infrastructure/repositories/RepositoryFactory";
 import { colorPalette, theme } from "./src/config/themes";
-import { SyncScreen } from "./src/presentation/screens/SyncScreen";
+import { SyncScreen } from "./src/presentation/screens/settings/SyncScreen";
 
 const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
 const ChartStackNavigator = createStackNavigator<ChartStackParamList>();

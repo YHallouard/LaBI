@@ -91,19 +91,29 @@ describe("MistralOcrService", () => {
         };
       });
 
-      // Mock chat completion response
-      mockComplete.mockResolvedValue({
-        choices: [
-          {
-            message: {
-              content: JSON.stringify({
-                DATE: "2023-06-15",
-                ...mockLabValues,
-              }),
+      // Mock date extraction response
+      mockComplete
+        .mockResolvedValueOnce({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  DATE: "2023-06-15",
+                }),
+              },
             },
-          },
-        ],
-      });
+          ],
+        })
+        // Mock category responses - one for each category
+        .mockResolvedValue({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify(mockLabValues),
+              },
+            },
+          ],
+        });
 
       // When
       const result = await service.extractDataFromPdf(mockPdfPath);
@@ -129,12 +139,20 @@ describe("MistralOcrService", () => {
         fileId: "mock-file-id",
       });
 
-      // Verify chat completion was called
-      expect(mockComplete).toHaveBeenCalledWith(
+      // Verify multiple chat completion calls were made (date + categories)
+      expect(mockComplete).toHaveBeenCalled();
+      expect(mockComplete.mock.calls.length).toBeGreaterThan(1);
+
+      // Verify the first call is for date extraction with mistral-small-latest
+      expect(mockComplete).toHaveBeenNthCalledWith(
+        1,
         expect.objectContaining({
-          model: "mistral-large-latest",
+          model: "mistral-small-latest",
           messages: expect.arrayContaining([
-            expect.objectContaining({ role: "system" }),
+            expect.objectContaining({ 
+              role: "system",
+              content: expect.stringContaining("Extract only the DATE")
+            }),
             expect.objectContaining({
               role: "user",
               content: expect.arrayContaining([
@@ -314,7 +332,7 @@ describe("MistralOcrService", () => {
       // Create a response with only some lab values and null values
       const partialResponse = {
         DATE: "2023-06-15",
-        Hematies: { value: 4.5, unit: "T/L" },
+        "Hématies": { value: 4.5, unit: "T/L" },
         "Vitamine B12": null, // Explicitly null
         // Other values missing
       };
@@ -340,7 +358,7 @@ describe("MistralOcrService", () => {
 
         // Add all lab values
         LAB_VALUE_KEYS.forEach((key) => {
-          if (key === "Hematies") {
+          if (key === "Hématies") {
             result[key] = { value: 4.5, unit: "T/L" };
           } else if (key === "Vitamine B12") {
             result[key] = null;
@@ -360,8 +378,8 @@ describe("MistralOcrService", () => {
 
       // Then - verify parsed values
       expect(result.extractedDate.toISOString()).toContain("2023-06-15");
-      expect((result.Hematies as LabValue).value).toBe(4.5);
-      expect((result.Hematies as LabValue).unit).toBe("T/L");
+      expect((result["Hématies"] as LabValue).value).toBe(4.5);
+      expect((result["Hématies"] as LabValue).unit).toBe("T/L");
       expect(result["Vitamine B12"]).toBeNull(); // Should preserve null
 
       // Verify all keys are present in the result
@@ -382,8 +400,8 @@ describe("MistralOcrService", () => {
             message: {
               content: JSON.stringify({
                 DATE: "2023-06-15",
-                Hematies: { value: 4.5 }, // No unit
-                "Proteine C Reactive": { value: 5.2, unit: "mg/L" },
+                "Hématies": { value: 4.5 }, // No unit
+                "Protéine C Reactive": { value: 5.2, unit: "mg/L" },
               }),
             },
           },
@@ -394,7 +412,7 @@ describe("MistralOcrService", () => {
       const result = await service.extractDataFromPdf(mockPdfPath);
 
       // Then - verify the unit was added from LAB_VALUE_UNITS
-      expect((result.Hematies as LabValue).unit).toBe("T/L"); // Should use default unit
+      expect((result["Hématies"] as LabValue).unit).toBe("T/L"); // Should use default unit
     });
 
     it("should handle invalid or missing date in API response", async () => {
@@ -409,7 +427,7 @@ describe("MistralOcrService", () => {
             message: {
               content: JSON.stringify({
                 DATE: "not-a-date",
-                Hematies: { value: 4.5, unit: "T/L" },
+                "Hématies": { value: 4.5, unit: "T/L" },
               }),
             },
           },
@@ -447,7 +465,7 @@ describe("MistralOcrService", () => {
           {
             message: {
               content: JSON.stringify({
-                Hematies: { value: 4.5, unit: "T/L" },
+                "Hématies": { value: 4.5, unit: "T/L" },
                 // No DATE field
               }),
             },

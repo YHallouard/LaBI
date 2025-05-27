@@ -1,44 +1,29 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import renderer from 'react-test-renderer';
 import { HemeaLogo } from '../HemeaLogo';
 
 describe('HemeaLogo Component', () => {
   it('should render correctly with default size', () => {
-    // Given
-    const { getByText, getByTestId } = render(<HemeaLogo />);
-
-    // When
-    const logoText = getByText('Héméa');
-    const dropIcon = getByTestId('water-icon');
-
+    // Given & When
+    const tree = renderer.create(<HemeaLogo />).toJSON();
+    
     // Then
-    expect(logoText).toBeTruthy();
-    expect(dropIcon).toBeTruthy();
+    expect(tree).toMatchSnapshot();
   });
 
   it('should render correctly with small size', () => {
-    // Given
-    const { getByText, getByTestId } = render(<HemeaLogo size="small" />);
-
-    // When
-    const logoText = getByText('Héméa');
-    const dropIcon = getByTestId('water-icon');
-
+    // Given & When  
+    const tree = renderer.create(<HemeaLogo size="small" />).toJSON();
+    
     // Then
-    expect(logoText).toBeTruthy();
-    expect(dropIcon).toBeTruthy();
+    expect(tree).toMatchSnapshot();
   });
 
   it('should render correctly with large size', () => {
-    // Given
-    const { getByText, getByTestId } = render(<HemeaLogo size="large" />);
-
-    // When
-    const logoText = getByText('Héméa');
-    const dropIcon = getByTestId('water-icon');
-
+    // Given & When
+    const tree = renderer.create(<HemeaLogo size="large" />).toJSON();
+    
     // Then
-    expect(logoText).toBeTruthy();
-    expect(dropIcon).toBeTruthy();
+    expect(tree).toMatchSnapshot();
   });
 }); 

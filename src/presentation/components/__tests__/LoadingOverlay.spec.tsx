@@ -5,11 +5,15 @@ import { Animated } from 'react-native';
 
 // Mock the AppImage component
 jest.mock('../AppImage', () => ({
-  AppImage: (props: any) => React.createElement('mock-app-image', { 'data-testid': 'app-image', ...props }),
+  AppImage: (props: any) => {
+    const React = require('react');
+    return React.createElement('mock-app-image', { 'data-testid': 'app-image', ...props });
+  },
 }));
 
 // Mock the SVG components
 jest.mock('react-native-svg', () => {
+  const React = require('react');
   const mockComponents = {
     default: (props: any) => React.createElement('mock-svg', { 'data-testid': 'svg', ...props }),
     Circle: (props: any) => React.createElement('mock-circle', { 'data-testid': 'circle', ...props }),

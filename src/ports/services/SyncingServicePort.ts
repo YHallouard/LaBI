@@ -31,11 +31,13 @@ export interface SyncingServicePort {
   startScanning(): Promise<void>;
   stopScanning(): Promise<void>;
   getDiscoveredDevices(): SyncDeviceInfo[];
+  clearDiscoveredDevices(): void;
   connectToDevice(deviceId: string): Promise<boolean>;
   sendData(data: any): Promise<boolean>;
   receiveData(): Promise<any>;
   onDeviceDiscovered(callback: (device: SyncDeviceInfo) => void): void;
   onConnectionStateChanged(callback: (connected: boolean, deviceId?: string) => void): void;
   onTransferProgress(callback: (progress: SyncProgress) => void): void;
+  setAutoDataReceptionCallback(callback: (data: any) => void): void;
   disconnect(): Promise<void>;
 } 

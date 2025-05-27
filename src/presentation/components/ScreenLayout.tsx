@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     backgroundColor: 'transparent',
-    paddingTop: 8,
+    paddingTop: 0,
+    marginTop: 0
   },
 });
