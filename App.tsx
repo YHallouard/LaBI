@@ -1001,18 +1001,40 @@ const styles = StyleSheet.create({
   headerButton: {
     marginRight: 15,
   },
-  tabBar: {
-    height: 65,
-    paddingBottom: 5,
-    paddingTop: 5,
-    borderTopWidth: 1,
-    borderTopColor: colorPalette.neutral.lighter,
-    backgroundColor: colorPalette.neutral.white,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+  //tabBar: {
+  //  height: 65,
+  //  paddingBottom: 5,
+  //  paddingTop: 5,
+  //  borderTopWidth: 1,
+  //  borderTopColor: colorPalette.neutral.lighter,
+  //  backgroundColor: colorPalette.neutral.white,
+  //  elevation: 5,
+  //  shadowColor: "#000",
+  //  shadowOffset: { width: 0, height: -1 },
+  //  shadowOpacity: 0.1,
+  //  shadowRadius: 3,
+  //},
+  tabBar : {
+    position: "absolute",
+    bottom: 40,
+    left: 20,
+    right: 20,
+    elevation: 0,
+    backgroundColor: '#fff',
+    borderRadius: 40,
+    height: 70,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowOffset: {
+      width: 10,
+      height: 10
+    },
+    shadowRadius: 10, 
+    // ...Platform.select({
+    //   android: {
+    //     elevation: 5,
+    //   }
+    // })
   },
   uploadTabButton: {
     top: -20,
