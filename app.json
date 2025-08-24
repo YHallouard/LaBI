@@ -14,7 +14,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.hemea"
+      "bundleIdentifier": "com.anonymous.hemea",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to allow you to select and upload a profile picture for your health profile."
+      }
     },
     "android": {
       "edgeToEdgeEnabled": true,
@@ -22,7 +25,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.hemea"
+      "package": "com.hemea.app"
     },
     "web": {
       "favicon": "./assets/favicon.png"

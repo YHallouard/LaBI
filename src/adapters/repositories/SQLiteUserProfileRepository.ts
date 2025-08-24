@@ -5,7 +5,7 @@ import { Database } from "../infrastructure/SQLiteDatabaseStorage";
 
 export class SQLiteUserProfileRepository implements UserProfileRepository {
   private readonly tableName = "user_profile";
-  private db: Database | null = null;
+  private db!: Database;
   private initialized: Promise<void>;
 
   constructor(private readonly dbStorage: DatabaseStoragePort) {
@@ -41,12 +41,7 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     }
   }
 
-   
   private async isTableExisting(): Promise<boolean> {
-    if (!this.db) {
-      throw new Error("Database not initialized");
-    }
-    
     const tableCheck = await this.db.getAllAsync(`
       SELECT name FROM sqlite_master 
       WHERE type='table' AND name='${this.tableName}'
@@ -59,12 +54,8 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
 
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   private async fetchProfileData(): Promise<any | null> {
-    if (!this.db) {
-      throw new Error("Database not initialized");
-    }
-    
     const query = `
-      SELECT id, firstName, lastName, birthDate, gender, profileImage
+      SELECT id, firstName, lastName, birthDate, gender, profileImage, pinnedMetrics
       FROM ${this.tableName}
       LIMIT 1
     `;
@@ -90,6 +81,9 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
         : new Date(),
       gender: profileData.gender as Gender,
       profileImage: profileData.profileImage,
+      pinnedMetrics: profileData.pinnedMetrics
+        ? JSON.parse(profileData.pinnedMetrics)
+        : [],
     };
   }
 
@@ -138,12 +132,7 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     }
   }
 
-   
   private async checkProfileExists(): Promise<boolean> {
-    if (!this.db) {
-      throw new Error("Database not initialized");
-    }
-    
     const checkQuery = `SELECT COUNT(*) as count FROM ${this.tableName}`;
     const checkResult = await this.db.getAllAsync(checkQuery);
     return (
@@ -155,6 +144,9 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     const profileImageSQL = this.formatProfileImageForSQL(
       userProfile.profileImage
     );
+    const pinnedMetricsSQL = this.formatPinnedMetricsForSQL(
+      userProfile.pinnedMetrics
+    );
 
     const updateQuery = `
       UPDATE ${this.tableName} SET 
@@ -162,28 +154,32 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
       lastName = '${userProfile.lastName}',
       birthDate = '${userProfile.birthDate.toISOString()}',
       gender = '${userProfile.gender}',
-      profileImage = ${profileImageSQL}
+      profileImage = ${profileImageSQL},
+      pinnedMetrics = ${pinnedMetricsSQL}
     `;
 
-    await this.db?.execAsync(updateQuery);
+    await this.db.execAsync(updateQuery);
   }
 
   private async insertNewProfile(userProfile: UserProfile): Promise<void> {
     const profileImageSQL = this.formatProfileImageForSQL(
       userProfile.profileImage
     );
+    const pinnedMetricsSQL = this.formatPinnedMetricsForSQL(
+      userProfile.pinnedMetrics
+    );
 
     const insertQuery = `
       INSERT INTO ${this.tableName} 
-      (firstName, lastName, birthDate, gender, profileImage) 
+      (firstName, lastName, birthDate, gender, profileImage, pinnedMetrics) 
       VALUES 
       ('${userProfile.firstName}', '${
       userProfile.lastName
     }', '${userProfile.birthDate.toISOString()}', '${userProfile.gender}', 
-       ${profileImageSQL})
+       ${profileImageSQL}, ${pinnedMetricsSQL})
     `;
 
-    await this.db?.execAsync(insertQuery);
+    await this.db.execAsync(insertQuery);
 
     await this.retrieveAndSetNewProfileId(userProfile);
   }
@@ -195,11 +191,17 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     return sanitizedImage ? `'${sanitizedImage}'` : "NULL";
   }
 
-  private async retrieveAndSetNewProfileId(userProfile: UserProfile): Promise<void> {
-    if (!this.db) {
-      throw new Error("Database not initialized");
+  private formatPinnedMetricsForSQL(pinnedMetrics?: string[]): string {
+    if (!pinnedMetrics) {
+      return "NULL";
     }
-    
+    const jsonString = JSON.stringify(pinnedMetrics);
+    return `'${this.sanitizeString(jsonString)}'`;
+  }
+
+  private async retrieveAndSetNewProfileId(
+    userProfile: UserProfile
+  ): Promise<void> {
     const idQuery = `SELECT last_insert_rowid() as id`;
     const idResult = await this.db.getAllAsync(idQuery);
 
@@ -222,12 +224,7 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     }
   }
 
-   
   private async deleteAllProfiles(): Promise<void> {
-    if (!this.db) {
-      throw new Error("Database not initialized");
-    }
-    
     const query = `DELETE FROM ${this.tableName}`;
     await this.db.execAsync(query);
   }

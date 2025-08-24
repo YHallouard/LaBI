@@ -16,7 +16,7 @@ module.exports = {
     'node'
   ],
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-.*|@testing-library|expo-.*|@expo)/)',
+    'node_modules/(?!(react-native|@react-native|react-native-.*|@testing-library|expo-.*|@expo|@react-navigation)/)',
   ],
   moduleNameMapper: {
     '^.+\\.(css|less|scss)$': 'identity-obj-proxy',

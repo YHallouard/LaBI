@@ -1,215 +1,678 @@
-import React, { useState, useEffect } from "react";
-import { NavigationContainer } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { createStackNavigator } from "@react-navigation/stack";
+import React from "react";
+import { NavigationContainer, useNavigation } from "@react-navigation/native";
+import {
+  createStackNavigator,
+  StackScreenProps,
+  TransitionPresets,
+} from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
-import { RootStackParamList, RootTabParamList } from "./types";
-import { HomeScreen } from "../screens/HomeScreen";
-import { UploadScreen } from "../screens/UploadScreen";
-import { ChartScreen } from "../screens/ChartScreen";
+import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+
+// Screens
+import { HomeScreen } from "../screens/home/HomeScreen";
+import { UploadScreen } from "../screens/upload/UploadScreen";
+import { ChartScreen } from "../screens/charts/ChartScreen";
+import { SettingsScreen } from "../screens/settings/SettingsScreen";
+import { ApiKeySettingsScreen } from "../screens/settings/ApiKeySettingsScreen";
+import { DatabaseSettingsScreen } from "../screens/settings/DatabaseSettingsScreen";
+import { ProfileScreen } from "../screens/settings/ProfileScreen";
+import { HelpCenterScreen } from "../screens/settings/HelpCenterScreen";
+import { PrivacySecurityScreen } from "../screens/settings/PrivacySecurityScreen";
+import { AboutScreen } from "../screens/settings/AboutScreen";
+import { PrivacyPolicyWebViewScreen } from "../screens/settings/PrivacyPolicyWebViewScreen";
+import { MistralApiKeyTutorialScreen } from "../screens/settings/MistralApiKeyTutorialScreen";
+import { SyncScreen } from "../screens/settings/SyncScreen";
+import AnalysisDetailsScreen from "../screens/home/AnalysisDetailsScreen";
+import { AllAnalysesScreen } from "../screens/home/AllAnalysesScreen";
+
+import {
+  HemeaLogo,
+  TabLayout,
+  ProfileRequiredModal,
+  TimeRangeProvider,
+} from "../components";
+import { TabBarProvider } from "../contexts/TabBarContext";
+
 import {
   GetAnalysesUseCase,
+  GetAnalysisByIdUseCase,
   GetLabTestDataUseCase,
-} from "../../application/usecases/GetAnalysesUseCase";
-import { AnalyzePdfUseCase } from "../../application/usecases/AnalyzePdfUseCase";
-import { BiologicalAnalysisRepository } from "../../ports/repositories/BiologicalAnalysisRepository";
-import { OcrService } from "../../ports/services/OcrService";
-import AnalysisDetailsScreen from "../screens/AnalysisDetailsScreen";
-import { GetAnalysisByIdUseCase } from "../../application/usecases/GetAnalysesUseCase";
-import { UpdateAnalysisUseCase } from "../../application/usecases/UpdateAnalysisUseCase";
-import { DeleteAnalysisUseCase } from "../../application/usecases/DeleteAnalysisUseCase";
-import { CalculateStatisticsUseCase } from "../../application/usecases/CalculateStatisticsUseCase";
-import { RepositoryFactory } from "../../infrastructure/repositories/RepositoryFactory";
-import { GetReferenceRangeUseCase } from "../../application/usecases/GetReferenceRangeUseCase";
-import { ReferenceRangeCalculator } from "../../domain/services/ReferenceRangeCalculator";
-import { Alert } from "react-native";
-import { colorPalette } from "../../config/themes";
+} from "../../domain/usecases/GetAnalysesUseCase";
+import { AnalyzePdfUseCase } from "../../domain/usecases/AnalyzePdfUseCase";
+import { UpdateAnalysisUseCase } from "../../domain/usecases/UpdateAnalysisUseCase";
+import { DeleteAnalysisUseCase } from "../../domain/usecases/DeleteAnalysisUseCase";
+import { SaveApiKeyUseCase } from "../../domain/usecases/SaveApiKeyUseCase";
+import { LoadApiKeyUseCase } from "../../domain/usecases/LoadApiKeyUseCase";
+import { DeleteApiKeyUseCase } from "../../domain/usecases/DeleteApiKeyUseCase";
+import { CalculateStatisticsUseCase } from "../../domain/usecases/CalculateStatisticsUseCase";
+import { ResetDatabaseUseCase } from "../../domain/usecases/ResetDatabaseUseCase";
+import { GetReferenceRangeUseCase } from "../../domain/usecases/GetReferenceRangeUseCase";
+import { GetPinnedMetricsUseCase } from "../../domain/usecases/GetPinnedMetricsUseCase";
+import { SavePinnedMetricsUseCase } from "../../domain/usecases/SavePinnedMetricsUseCase";
+import { CalculateHealthMagnitudeUseCase } from "../../domain/usecases/CalculateHealthMagnitudeUseCase";
+import { RetrieveUserProfileUseCase } from "../../domain/usecases/RetrieveUserProfileUseCase";
+import { GetUserAgeUseCase } from "../../domain/usecases/GetUserAgeUseCase";
 
-const Tab = createBottomTabNavigator<RootTabParamList>();
-const Stack = createStackNavigator<RootStackParamList>();
+import { ProfileService } from "../../domain/services/ProfileService";
 
-export const AppNavigator: React.FC = () => {
-  const [loading, setLoading] = useState(true);
-  const [useCases, setUseCases] = useState<AppUseCases | null>(null);
+import {
+  HomeStackParamList,
+  ChartStackParamList,
+  UploadStackParamList,
+} from "../../types/navigation";
+import { colorPalette, theme } from "../../config/themes";
 
-  useEffect(() => {
-    const initializeApp = async () => {
-      try {
-        // Use the repository factory to get encrypted repository
-        const repository = await RepositoryFactory.getBiologicalAnalysisRepository();
-        const userProfileRepository = await RepositoryFactory.getUserProfileRepository();
-        
-        // Create the reference range calculator and service
-        const referenceRangeCalculator = new ReferenceRangeCalculator();
-        const getReferenceRangeUseCase = new GetReferenceRangeUseCase(
-          referenceRangeCalculator,
-          userProfileRepository
-        );
-        
-        await getReferenceRangeUseCase.initialize();
-        
-        const appUseCases = initializeUseCases(repository, null, getReferenceRangeUseCase);
-        setUseCases(appUseCases);
-      } catch (error) {
-        console.error("Error initializing app:", error);
-        Alert.alert(
-          "Initialization Error",
-          "There was a problem starting the app. Please try again."
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
+const HomeStackNavigator = createStackNavigator<HomeStackParamList>();
+const ChartStackNavigator = createStackNavigator<ChartStackParamList>();
+const UploadStackNavigator = createStackNavigator<UploadStackParamList>();
 
-    initializeApp();
-  }, []);
+export interface AppNavigatorProps {
+  getAnalysesUseCase: GetAnalysesUseCase | null;
+  getAnalysisByIdUseCase: GetAnalysisByIdUseCase | null;
+  updateAnalysisUseCase: UpdateAnalysisUseCase | null;
+  deleteAnalysisUseCase: DeleteAnalysisUseCase | null;
+  analyzePdfUseCase: AnalyzePdfUseCase | null;
+  saveApiKeyUseCase: SaveApiKeyUseCase | null;
+  loadApiKeyUseCase: LoadApiKeyUseCase | null;
+  deleteApiKeyUseCase: DeleteApiKeyUseCase | null;
+  getLabTestDataUseCase: GetLabTestDataUseCase | null;
+  calculateStatisticsUseCase: CalculateStatisticsUseCase | null;
+  resetDatabaseUseCase: ResetDatabaseUseCase | null;
+  getReferenceRangeUseCase: GetReferenceRangeUseCase | null;
+  getPinnedMetricsUseCase: GetPinnedMetricsUseCase | null;
+  savePinnedMetricsUseCase: SavePinnedMetricsUseCase | null;
+  calculateHealthMagnitudeUseCase: CalculateHealthMagnitudeUseCase | null;
+  retrieveUserProfileUseCase: RetrieveUserProfileUseCase | null;
+  getUserAgeUseCase: GetUserAgeUseCase | null;
+  isLoading: boolean;
+  apiKeyError: string | null;
+  appError: string | null;
+  forceReload: number;
+  onApiKeyDeleted: () => void;
+  onApiKeySaved: (apiKey: string) => Promise<void>;
+  onManualReload: () => void;
+  checkAndLoadApiKey: () => Promise<void>;
+}
+
+type NavigateToSettingsFunction = () => void;
+
+const SettingsButton = (): React.ReactElement => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const navigation = useNavigation<any>();
+
+  const navigateToSettings: NavigateToSettingsFunction = () =>
+    navigation.navigate("Home", { screen: "SettingsScreen" });
 
   return (
-    <NavigationContainer>
-      <Tab.Navigator screenOptions={configureTabScreenOptions}>
-        <Tab.Screen
-          name="Home"
-          component={renderHomeStack(useCases)}
-          options={{ headerShown: false }}
-        />
-        <Tab.Screen
-          name="Upload"
-          options={{ title: "Upload Report", headerShown: true }}
-        >
-          {(props) => (
-            <UploadScreen
-              {...props}
-              analyzePdfUseCase={useCases?.analyzePdfUseCase || null}
-              isLoadingApiKey={false}
-              apiKeyError={"API key not configured. Please set up your API key in Settings."}
-              checkAndLoadApiKey={async () => Promise.resolve()}
-            />
-          )}
-        </Tab.Screen>
-        <Tab.Screen name="Charts" options={{ title: "Analysis Charts" }}>
-          {(props) => (
-            useCases ? (
-              <ChartScreen
-                {...props}
-                getAnalysesUseCase={useCases.getAnalysesUseCase}
-                getLabTestDataUseCase={useCases.getLabTestDataUseCase}
-                calculateStatisticsUseCase={useCases.calculateStatisticsUseCase}
-                getReferenceRangeUseCase={useCases.getReferenceRangeUseCase}
-              />
-            ) : (
-              <></>
-            )
-          )}
-        </Tab.Screen>
-      </Tab.Navigator>
-    </NavigationContainer>
+    <TouchableOpacity onPress={navigateToSettings} style={styles.headerButton}>
+      <Ionicons
+        name="settings-outline"
+        size={24}
+        color={theme.buttons.info.backgroundColor}
+      />
+    </TouchableOpacity>
   );
 };
 
-interface AppUseCases {
-  getAnalysesUseCase: GetAnalysesUseCase;
-  analyzePdfUseCase: AnalyzePdfUseCase | null;
-  getAnalysisByIdUseCase: GetAnalysisByIdUseCase;
-  updateAnalysisUseCase: UpdateAnalysisUseCase;
-  deleteAnalysisUseCase: DeleteAnalysisUseCase;
-  getLabTestDataUseCase: GetLabTestDataUseCase;
-  calculateStatisticsUseCase: CalculateStatisticsUseCase;
-  getReferenceRangeUseCase: GetReferenceRangeUseCase;
-}
+const ErrorView = ({
+  errorMessage,
+}: {
+  errorMessage: string;
+}): React.ReactElement => (
+  <View style={styles.centeredLoader}>
+    <Text style={styles.errorText}>{errorMessage}</Text>
+  </View>
+);
 
-const initializeUseCases = (
-  repository: BiologicalAnalysisRepository,
-  ocrService: OcrService | null,
-  getReferenceRangeUseCase: GetReferenceRangeUseCase
-): AppUseCases => {
-  const getAnalysesUseCase = new GetAnalysesUseCase(repository);
-  const analyzePdfUseCase = ocrService ? new AnalyzePdfUseCase(ocrService, repository) : null;
-  const getAnalysisByIdUseCase = new GetAnalysisByIdUseCase(repository);
-  const updateAnalysisUseCase = new UpdateAnalysisUseCase(repository);
-  const deleteAnalysisUseCase = new DeleteAnalysisUseCase(repository);
-  const getLabTestDataUseCase = new GetLabTestDataUseCase();
-  const calculateStatisticsUseCase = new CalculateStatisticsUseCase();
-
-  return {
+export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
+  ({
     getAnalysesUseCase,
-    analyzePdfUseCase,
     getAnalysisByIdUseCase,
     updateAnalysisUseCase,
     deleteAnalysisUseCase,
+    analyzePdfUseCase,
+    saveApiKeyUseCase,
+    loadApiKeyUseCase,
+    deleteApiKeyUseCase,
     getLabTestDataUseCase,
     calculateStatisticsUseCase,
+    resetDatabaseUseCase,
     getReferenceRangeUseCase,
-  };
-};
-
-const renderHomeStack = (useCases: AppUseCases | null) => {
-  if (!useCases) return () => null;
-
-  const HomeStackComponent = () => (
-    <Stack.Navigator>
-      <Stack.Screen name="Home" options={{ title: "My Analyses" }}>
-        {(props) => (
-          <HomeScreen
-            {...props}
-            getAnalysesUseCase={useCases.getAnalysesUseCase}
-            deleteAnalysisUseCase={useCases.deleteAnalysisUseCase}
-          />
-        )}
-      </Stack.Screen>
-      <Stack.Screen
-        name="AnalysisDetails"
-        options={{ title: "Analysis Details" }}
-      >
-        {(props) => (
-          <AnalysisDetailsScreen
-            {...props}
-            getAnalysisByIdUseCase={useCases.getAnalysisByIdUseCase}
-            updateAnalysisUseCase={useCases.updateAnalysisUseCase}
-            getReferenceRangeUseCase={useCases.getReferenceRangeUseCase}
-          />
-        )}
-      </Stack.Screen>
-    </Stack.Navigator>
-  );
-
-  HomeStackComponent.displayName = "HomeStackComponent";
-  return HomeStackComponent;
-};
-
-const configureTabScreenOptions = ({ route }: { route: { name: string } }) => ({
-  tabBarIcon: ({
-    focused,
-    color,
-    size,
-  }: {
-    focused: boolean;
-    color: string;
-    size: number;
+    getPinnedMetricsUseCase,
+    savePinnedMetricsUseCase,
+    calculateHealthMagnitudeUseCase,
+    retrieveUserProfileUseCase,
+    getUserAgeUseCase,
+    isLoading,
+    apiKeyError,
+    appError,
+    forceReload,
+    onApiKeyDeleted,
+    onApiKeySaved,
+    onManualReload,
+    checkAndLoadApiKey,
   }) => {
-    return createTabIcon(route.name, focused, color, size);
-  },
-  tabBarActiveTintColor: colorPalette.primary.main,
-  tabBarInactiveTintColor: colorPalette.neutral.light,
-});
+    const createHomeStack = React.useMemo((): (() => React.ReactElement) => {
+      const HomeStackComponent = (): React.ReactElement => (
+        <HomeStackNavigator.Navigator
+          screenOptions={{
+            headerShown: true,
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+            headerTitleAlign: "center",
+            headerStyle: {
+              backgroundColor: colorPalette.neutral.white,
+              shadowColor: colorPalette.neutral.main,
+              shadowOpacity: 0.1,
+            },
+            headerTintColor: theme.buttons.info.backgroundColor,
+            gestureEnabled: true,
+            gestureResponseDistance: 50,
+            ...TransitionPresets.SlideFromRightIOS,
+            transitionSpec: {
+              open: {
+                animation: "timing",
+                config: {
+                  duration: 300,
+                },
+              },
+              close: {
+                animation: "timing",
+                config: {
+                  duration: 300,
+                },
+              },
+            },
+            cardStyleInterpolator: ({ current, layouts }) => {
+              return {
+                cardStyle: {
+                  transform: [
+                    {
+                      translateX: current.progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [layouts.screen.width, 0],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                  ],
+                },
+                overlayStyle: {
+                  opacity: current.progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, 0.5],
+                    extrapolate: "clamp",
+                  }),
+                },
+              };
+            },
+            headerStyleInterpolator: ({ current, layouts }) => {
+              return {
+                leftLabelStyle: {
+                  transform: [
+                    {
+                      translateX: current.progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-100, 0],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                  ],
+                },
+                titleStyle: {
+                  opacity: current.progress.interpolate({
+                    inputRange: [0, 0.2, 0.8, 1],
+                    outputRange: [0, 0, 1, 1],
+                    extrapolate: "clamp",
+                  }),
+                  transform: [
+                    {
+                      translateX: current.progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [layouts.screen.width * 0.1, 0],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                  ],
+                },
+                backgroundStyle: {
+                  transform: [
+                    {
+                      translateX: current.progress.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [layouts.screen.width, 0],
+                        extrapolate: "clamp",
+                      }),
+                    },
+                  ],
+                },
+              };
+            },
+          }}
+        >
+          <HomeStackNavigator.Screen
+            name="HomeScreen"
+            options={{
+              headerTitle: "",
+              headerRight: () => <SettingsButton />,
+              headerTitleAlign: "center",
+              headerStyle: {
+                backgroundColor: colorPalette.neutral.white,
+                shadowOpacity: 0,
+                elevation: 0,
+              },
+            }}
+          >
+            {(props: StackScreenProps<HomeStackParamList, "HomeScreen">) => {
+              if (
+                !getAnalysesUseCase ||
+                !getLabTestDataUseCase ||
+                !calculateStatisticsUseCase ||
+                !getReferenceRangeUseCase ||
+                !getPinnedMetricsUseCase ||
+                !savePinnedMetricsUseCase ||
+                !calculateHealthMagnitudeUseCase ||
+                !retrieveUserProfileUseCase ||
+                !getUserAgeUseCase
+              ) {
+                return (
+                  <ErrorView errorMessage="Required services are not available for Home." />
+                );
+              }
+              return (
+                <HomeScreen
+                  {...props}
+                  getAnalysesUseCase={getAnalysesUseCase}
+                  getLabTestDataUseCase={getLabTestDataUseCase}
+                  calculateStatisticsUseCase={calculateStatisticsUseCase}
+                  getReferenceRangeUseCase={getReferenceRangeUseCase}
+                  getPinnedMetricsUseCase={getPinnedMetricsUseCase}
+                  savePinnedMetricsUseCase={savePinnedMetricsUseCase}
+                  calculateHealthMagnitudeUseCase={
+                    calculateHealthMagnitudeUseCase
+                  }
+                  retrieveUserProfileUseCase={retrieveUserProfileUseCase}
+                  getUserAgeUseCase={getUserAgeUseCase}
+                />
+              );
+            }}
+          </HomeStackNavigator.Screen>
+          <HomeStackNavigator.Screen
+            name="AllAnalysesScreen"
+            options={{
+              headerTitle: "All Analyses",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+          >
+            {(
+              props: StackScreenProps<HomeStackParamList, "AllAnalysesScreen">
+            ) => {
+              if (!getAnalysesUseCase || !deleteAnalysisUseCase) {
+                return (
+                  <ErrorView errorMessage="Application is not properly initialized" />
+                );
+              }
+              return (
+                <AllAnalysesScreen
+                  {...props}
+                  getAnalysesUseCase={getAnalysesUseCase}
+                  deleteAnalysisUseCase={deleteAnalysisUseCase}
+                />
+              );
+            }}
+          </HomeStackNavigator.Screen>
+          <HomeStackNavigator.Screen
+            name="AnalysisDetails"
+            options={{
+              headerTitle: "Analysis Details",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+          >
+            {(
+              props: StackScreenProps<HomeStackParamList, "AnalysisDetails">
+            ) => {
+              if (
+                !getAnalysisByIdUseCase ||
+                !updateAnalysisUseCase ||
+                !deleteAnalysisUseCase ||
+                !getReferenceRangeUseCase
+              ) {
+                return (
+                  <ErrorView errorMessage="Application is not properly initialized" />
+                );
+              }
+              return (
+                <AnalysisDetailsScreen
+                  {...props}
+                  getAnalysisByIdUseCase={getAnalysisByIdUseCase}
+                  updateAnalysisUseCase={updateAnalysisUseCase}
+                  deleteAnalysisUseCase={deleteAnalysisUseCase}
+                  getReferenceRangeUseCase={getReferenceRangeUseCase}
+                />
+              );
+            }}
+          </HomeStackNavigator.Screen>
+          <HomeStackNavigator.Screen
+            name="SettingsScreen"
+            options={{
+              headerTitle: "Settings",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+          >
+            {(
+              props: StackScreenProps<HomeStackParamList, "SettingsScreen">
+            ) => {
+              if (
+                !saveApiKeyUseCase ||
+                !loadApiKeyUseCase ||
+                !deleteApiKeyUseCase ||
+                !resetDatabaseUseCase
+              ) {
+                return (
+                  <ErrorView errorMessage="Application is not properly initialized" />
+                );
+              }
+              return <SettingsScreen {...props} />;
+            }}
+          </HomeStackNavigator.Screen>
+          <HomeStackNavigator.Screen
+            name="HelpCenterScreen"
+            options={{
+              headerTitle: "Help Center",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+            component={HelpCenterScreen}
+          />
+          <HomeStackNavigator.Screen
+            name="PrivacySecurityScreen"
+            options={{
+              headerTitle: "Privacy & Security",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+            component={PrivacySecurityScreen}
+          />
+          <HomeStackNavigator.Screen
+            name="AboutScreen"
+            options={{
+              headerTitle: "About",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+            component={AboutScreen}
+          />
+          <HomeStackNavigator.Screen
+            name="PrivacyPolicyWebView"
+            options={{
+              headerTitle: "Privacy Policy",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+            component={PrivacyPolicyWebViewScreen}
+          />
+          <HomeStackNavigator.Screen
+            name="MistralApiKeyTutorial"
+            options={{
+              headerTitle: "API Key Tutorial",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+            component={MistralApiKeyTutorialScreen}
+          />
+          <HomeStackNavigator.Screen
+            name="ApiKeySettingsScreen"
+            options={{
+              headerTitle: "API Key Settings",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+          >
+            {(
+              props: StackScreenProps<
+                HomeStackParamList,
+                "ApiKeySettingsScreen"
+              >
+            ) => {
+              if (
+                !saveApiKeyUseCase ||
+                !loadApiKeyUseCase ||
+                !deleteApiKeyUseCase
+              ) {
+                return (
+                  <ErrorView errorMessage="Application is not properly initialized" />
+                );
+              }
+              return (
+                <ApiKeySettingsScreen
+                  {...props}
+                  saveApiKeyUseCase={saveApiKeyUseCase}
+                  loadApiKeyUseCase={loadApiKeyUseCase}
+                  deleteApiKeyUseCase={deleteApiKeyUseCase}
+                  onApiKeyDeleted={onApiKeyDeleted}
+                  onApiKeySaved={onApiKeySaved}
+                  onManualReload={onManualReload}
+                />
+              );
+            }}
+          </HomeStackNavigator.Screen>
+          <HomeStackNavigator.Screen
+            name="DatabaseSettingsScreen"
+            options={{
+              headerTitle: "Database Settings",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+          >
+            {(
+              props: StackScreenProps<
+                HomeStackParamList,
+                "DatabaseSettingsScreen"
+              >
+            ) => {
+              if (!resetDatabaseUseCase) {
+                return (
+                  <ErrorView errorMessage="Application is not properly initialized" />
+                );
+              }
 
-const createTabIcon = (
-  routeName: string,
-  focused: boolean,
-  color: string,
-  size: number
-) => {
-  const iconName = getIconNameForRoute(routeName, focused);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return <Ionicons name={iconName as any} size={size} color={color} />;
-};
+              return (
+                <DatabaseSettingsScreen
+                  {...props}
+                  resetDatabaseUseCase={resetDatabaseUseCase}
+                  onManualReload={onManualReload}
+                />
+              );
+            }}
+          </HomeStackNavigator.Screen>
+          <HomeStackNavigator.Screen
+            name="ProfileScreen"
+            options={{
+              headerTitle: "User Profile",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+            component={ProfileScreen}
+          />
+          <HomeStackNavigator.Screen
+            name="SyncScreen"
+            options={{
+              headerTitle: "Device Sync",
+              headerBackTitle: " ",
+              headerLeftContainerStyle: { paddingLeft: 10 },
+            }}
+            component={SyncScreen}
+          />
+        </HomeStackNavigator.Navigator>
+      );
+      HomeStackComponent.displayName = "HomeStackComponent";
+      return HomeStackComponent;
+    }, [
+      getAnalysesUseCase,
+      deleteAnalysisUseCase,
+      getAnalysisByIdUseCase,
+      updateAnalysisUseCase,
+      saveApiKeyUseCase,
+      loadApiKeyUseCase,
+      deleteApiKeyUseCase,
+      resetDatabaseUseCase,
+      getReferenceRangeUseCase,
+      getPinnedMetricsUseCase,
+      savePinnedMetricsUseCase,
+      calculateHealthMagnitudeUseCase,
+      retrieveUserProfileUseCase,
+      getUserAgeUseCase,
+      onApiKeyDeleted,
+      onApiKeySaved,
+      onManualReload,
+    ]);
 
-const getIconNameForRoute = (routeName: string, focused: boolean): string => {
-  if (routeName === "Home") {
-    return focused ? "home" : "home-outline";
-  } else if (routeName === "Upload") {
-    return focused ? "add-circle" : "add-circle-outline";
-  } else if (routeName === "Charts") {
-    return focused ? "bar-chart" : "bar-chart-outline";
+    const createChartStack = React.useMemo((): (() => React.ReactElement) => {
+      const ChartStackComponent = (): React.ReactElement => (
+        <ChartStackNavigator.Navigator
+          screenOptions={{
+            headerShown: true,
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+            headerTitleAlign: "center",
+            headerStyle: {
+              backgroundColor: colorPalette.neutral.white,
+              shadowColor: colorPalette.neutral.main,
+              shadowOpacity: 0.1,
+            },
+            headerTintColor: theme.buttons.info.backgroundColor,
+          }}
+        >
+          <ChartStackNavigator.Screen
+            name="ChartScreen"
+            options={{
+              headerTitle: () => <HemeaLogo />,
+              headerRight: () => <SettingsButton />,
+            }}
+          >
+            {(props: StackScreenProps<ChartStackParamList, "ChartScreen">) => {
+              if (
+                !getAnalysesUseCase ||
+                !getLabTestDataUseCase ||
+                !calculateStatisticsUseCase ||
+                !getReferenceRangeUseCase
+              ) {
+                return (
+                  <ErrorView errorMessage="Application is not properly initialized" />
+                );
+              }
+              return (
+                <ChartScreen
+                  {...props}
+                  getAnalysesUseCase={getAnalysesUseCase}
+                  getLabTestDataUseCase={getLabTestDataUseCase}
+                  calculateStatisticsUseCase={calculateStatisticsUseCase}
+                  getReferenceRangeUseCase={getReferenceRangeUseCase}
+                />
+              );
+            }}
+          </ChartStackNavigator.Screen>
+        </ChartStackNavigator.Navigator>
+      );
+      ChartStackComponent.displayName = "ChartStackComponent";
+      return ChartStackComponent;
+    }, [
+      getAnalysesUseCase,
+      getLabTestDataUseCase,
+      calculateStatisticsUseCase,
+      getReferenceRangeUseCase,
+    ]);
+
+    const createUploadStack = React.useMemo((): (() => React.ReactElement) => {
+      const UploadStackComponent = (): React.ReactElement => (
+        <UploadStackNavigator.Navigator
+          screenOptions={{
+            headerShown: true,
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+            headerTitleAlign: "center",
+            headerStyle: {
+              backgroundColor: colorPalette.neutral.white,
+              shadowColor: colorPalette.neutral.main,
+              shadowOpacity: 0.1,
+            },
+            headerTintColor: theme.buttons.info.backgroundColor,
+          }}
+        >
+          <UploadStackNavigator.Screen
+            name="UploadScreen"
+            options={{
+              headerTitle: () => <HemeaLogo />,
+              headerRight: () => <SettingsButton />,
+            }}
+          >
+            {(
+              props: StackScreenProps<UploadStackParamList, "UploadScreen">
+            ) => (
+              <UploadScreen
+                {...props}
+                analyzePdfUseCase={analyzePdfUseCase}
+                isLoadingApiKey={isLoading}
+                apiKeyError={apiKeyError}
+                checkAndLoadApiKey={checkAndLoadApiKey}
+              />
+            )}
+          </UploadStackNavigator.Screen>
+        </UploadStackNavigator.Navigator>
+      );
+      UploadStackComponent.displayName = "UploadStackComponent";
+      return UploadStackComponent;
+    }, [analyzePdfUseCase, isLoading, apiKeyError, checkAndLoadApiKey]);
+
+    if (appError) {
+      return <ErrorView errorMessage={appError} />;
+    }
+
+    return (
+      <SafeAreaProvider>
+        <NavigationContainer key={forceReload}>
+          <ProfileRequiredModal profileService={ProfileService.getInstance()}>
+            <TimeRangeProvider>
+              <TabBarProvider>
+                <TabLayout
+                  homeStack={createHomeStack}
+                  uploadStack={createUploadStack}
+                  chartStack={createChartStack}
+                />
+              </TabBarProvider>
+            </TimeRangeProvider>
+          </ProfileRequiredModal>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    );
   }
-  return "help-circle-outline";
-};
+);
+
+AppNavigator.displayName = "AppNavigator";
+
+const styles = StyleSheet.create({
+  centeredLoader: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: colorPalette.neutral.background,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: colorPalette.neutral.light,
+  },
+  errorText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: colorPalette.primary.main,
+    textAlign: "center",
+    padding: 20,
+  },
+  headerButton: {
+    marginRight: 15,
+  },
+});

@@ -8,4 +8,5 @@ export interface UserProfile {
   birthDate: Date;
   gender: Gender;
   profileImage?: string;
+  pinnedMetrics?: string[];
 }

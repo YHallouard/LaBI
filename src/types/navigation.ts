@@ -1,5 +1,6 @@
 export type HomeStackParamList = {
   HomeScreen: undefined;
+  AllAnalysesScreen: undefined;
   AnalysisDetails: { analysisId: string };
   SettingsScreen: undefined;
   HelpCenterScreen: undefined;
@@ -13,6 +14,12 @@ export type HomeStackParamList = {
   SyncScreen: undefined;
 };
 
+export type RootTabParamList = {
+  Home: undefined;
+  Upload: undefined;
+  Charts: undefined;
+};
+
 export type ChartStackParamList = {
   ChartScreen: undefined;
 };
@@ -20,16 +27,4 @@ export type ChartStackParamList = {
 export type UploadStackParamList = {
   UploadScreen: undefined;
   Settings: undefined;
-};
-
-export type RootTabParamList = {
-  Home: undefined;
-  Upload: undefined;
-  Charts: undefined;
-};
-
-export type RootStackParamList = {
-  Home: undefined;
-  UploadPdf: undefined;
-  AnalysisDetails: { analysisId: string };
 };

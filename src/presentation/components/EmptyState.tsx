@@ -2,11 +2,11 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../types/navigation";
 import { colorPalette } from "../../config/themes";
+import { ParamListBase } from "@react-navigation/native";
 
 interface EmptyStateProps {
-  navigation: StackNavigationProp<HomeStackParamList, "HomeScreen">;
+  navigation: StackNavigationProp<ParamListBase>;
   message: string;
   subMessage: string;
   iconName: keyof typeof Ionicons.glyphMap;

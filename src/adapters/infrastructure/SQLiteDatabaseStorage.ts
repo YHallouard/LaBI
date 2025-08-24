@@ -2,6 +2,7 @@ import * as FileSystem from "expo-file-system";
 import { DatabaseStoragePort } from "../../ports/infrastructure/DatabaseStoragePort";
 import * as SQLite from "expo-sqlite";
 import { Alert } from "react-native";
+import { LabValue } from "../../domain/entities/BiologicalAnalysis";
 
 export type Database = SQLite.SQLiteDatabase;
 
@@ -23,7 +24,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     this.dbName = dbName;
     this.dbDirectory = `${FileSystem.documentDirectory}SQLite`;
     this.dbPath = `${this.dbDirectory}/${this.dbName}`;
-    
+
     this.validateEncryptionKeyExists(encryptionKey);
     this.encryptionKey = encryptionKey!;
     this.startPeriodicConnectionHealthChecks();
@@ -31,7 +32,8 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
 
   private validateEncryptionKeyExists(encryptionKey?: string): void {
     if (!encryptionKey) {
-      const errorMessage = "Encryption key must be provided for secure database access";
+      const errorMessage =
+        "Encryption key must be provided for secure database access";
       Alert.alert("Database Error", errorMessage);
       throw new Error(errorMessage);
     }
@@ -57,9 +59,11 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   }
 
   private shouldPerformHealthCheck(): boolean {
-    return this.dbInstance !== null && 
-           !this.isOperationInProgress && 
-           this.hasConnectionCheckThresholdPassed();
+    return (
+      this.dbInstance !== null &&
+      !this.isOperationInProgress &&
+      this.hasConnectionCheckThresholdPassed()
+    );
   }
 
   private hasConnectionCheckThresholdPassed(): boolean {
@@ -76,6 +80,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     try {
       await this.testConnectionWithSimpleQuery();
     } catch (error) {
+      console.error("Error validating and repairing connection:", error);
       await this.repairBrokenConnection();
     }
   }
@@ -111,7 +116,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private async startNewInitialization(): Promise<Database> {
     this.markOperationInProgress();
     this.initializationPromise = this.performCompleteInitialization();
-    
+
     try {
       return await this.initializationPromise;
     } finally {
@@ -159,7 +164,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private async prepareExistingConnectionForUse(): Promise<void> {
     await this.ensureAllRequiredTablesExist(this.dbInstance!);
     // Only for Dev
-    await this.populateTestDataForDevelopment(this.dbInstance!);
+    // await this.populateTestDataForDevelopment(this.dbInstance!);
   }
 
   private async createFreshDatabaseConnection(): Promise<Database> {
@@ -168,10 +173,10 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     try {
       await this.ensureStorageDirectoryExists();
       await this.logDatabaseExistenceStatus();
-      
+
       const db = await this.openAndConfigureDatabase();
       await this.setupDatabaseStructure(db);
-      
+
       this.dbInstance = db;
       return db;
     } catch (error) {
@@ -186,8 +191,42 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
 
   private async setupDatabaseStructure(db: Database): Promise<void> {
     await this.ensureAllRequiredTablesExist(db);
-    // Only for Dev
-    await this.populateTestDataForDevelopment(db);
+    await this.handleMigrations(db);
+    if (__DEV__) {
+      await this.populateTestDataForDevelopment(db);
+    }
+  }
+
+  private async handleMigrations(db: Database): Promise<void> {
+    const hasPinnedMetrics = await this.columnExists(
+      db,
+      "user_profile",
+      "pinnedMetrics"
+    );
+    if (!hasPinnedMetrics) {
+      console.log("Column 'pinnedMetrics' not found, running migration...");
+      try {
+        await db.execAsync(
+          "ALTER TABLE user_profile ADD COLUMN pinnedMetrics TEXT;"
+        );
+        console.log("Migration successful: Added 'pinnedMetrics' column.");
+      } catch (error) {
+        console.error(
+          "Failed to run migration to add 'pinnedMetrics' column:",
+          error
+        );
+        throw error;
+      }
+    }
+  }
+  private async columnExists(
+    db: Database,
+    tableName: string,
+    columnName: string
+  ): Promise<boolean> {
+    const result = await db.getAllAsync(`PRAGMA table_info(${tableName})`);
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    return result.some((col: any) => col.name === columnName);
   }
 
   private async handleDatabaseCreationError(error: unknown): Promise<Database> {
@@ -211,22 +250,27 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   }
 
   private showDatabaseErrorToUser(error: unknown): void {
-    const message = error instanceof Error ? error.message : "Unknown database error";
+    const message =
+      error instanceof Error ? error.message : "Unknown database error";
     Alert.alert("Database Error", `Failed to initialize database: ${message}`);
   }
 
   private async retryDatabaseInitializationAfterCleanup(): Promise<Database> {
     this.logRetryAttempt();
     this.incrementRetryCount();
-    
+
     await this.waitBeforeRetry();
     await this.cleanupDatabaseBeforeRetry();
-    
+
     return this.initializeDatabase();
   }
 
   private logRetryAttempt(): void {
-    console.log(`Retrying database initialization (attempt ${this.retryCount + 1}/${this.maxRetries})...`);
+    console.log(
+      `Retrying database initialization (attempt ${this.retryCount + 1}/${
+        this.maxRetries
+      })...`
+    );
   }
 
   private incrementRetryCount(): void {
@@ -276,18 +320,20 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   }
 
   private async configurePerformancePragmas(db: Database): Promise<void> {
-    await db.execAsync('PRAGMA journal_mode = WAL;');
-    await db.execAsync('PRAGMA synchronous = NORMAL;');
-    await db.execAsync('PRAGMA temp_store = MEMORY;');
-    await db.execAsync('PRAGMA mmap_size = 30000000000;');
+    await db.execAsync("PRAGMA journal_mode = WAL;");
+    await db.execAsync("PRAGMA synchronous = NORMAL;");
+    await db.execAsync("PRAGMA temp_store = MEMORY;");
+    await db.execAsync("PRAGMA mmap_size = 30000000000;");
   }
 
   private async verifyEncryptionIsWorking(db: Database): Promise<void> {
     try {
-      await db.execAsync('SELECT count(*) FROM sqlite_master;');
+      await db.execAsync("SELECT count(*) FROM sqlite_master;");
     } catch (error) {
-      const errorMessage = 'Database encryption failed: Invalid encryption key or database corruption';
+      const errorMessage =
+        "Database encryption failed: Invalid encryption key or database corruption";
       Alert.alert("Encryption Error", errorMessage);
+      console.error("Encryption Error:", error);
       throw new Error(errorMessage);
     }
   }
@@ -295,10 +341,13 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private async ensureAllRequiredTablesExist(db: Database): Promise<void> {
     const requiredTableNames = this.getRequiredTableNames();
     const existingTableNames = await this.getExistingTableNames(db);
-    const missingTableNames = this.findMissingTableNames(requiredTableNames, existingTableNames);
-    
+    const missingTableNames = this.findMissingTableNames(
+      requiredTableNames,
+      existingTableNames
+    );
+
     this.logExistingTablesFound(existingTableNames);
-    
+
     if (this.hasMissingTables(missingTableNames)) {
       await this.createMissingTables(db, missingTableNames);
     } else {
@@ -315,14 +364,19 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     return existingTables.map((t) => t.name);
   }
 
-  private async getExistingTablesFromDatabase(db: Database): Promise<Array<{ name: string }>> {
+  private async getExistingTablesFromDatabase(
+    db: Database
+  ): Promise<Array<{ name: string }>> {
     return await db.getAllAsync<{ name: string }>(
       'SELECT name FROM sqlite_master WHERE type="table" AND name NOT LIKE "sqlite_%"'
     );
   }
 
-  private findMissingTableNames(required: string[], existing: string[]): string[] {
-    return required.filter(table => !existing.includes(table));
+  private findMissingTableNames(
+    required: string[],
+    existing: string[]
+  ): string[] {
+    return required.filter((table) => !existing.includes(table));
   }
 
   private logExistingTablesFound(existingTableNames: string[]): void {
@@ -333,13 +387,20 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     return missingTableNames.length > 0;
   }
 
-  private async createMissingTables(db: Database, missingTableNames: string[]): Promise<void> {
+  private async createMissingTables(
+    db: Database,
+    missingTableNames: string[]
+  ): Promise<void> {
     this.logMissingTablesFound(missingTableNames);
     await this.createAllRequiredTables(db);
   }
 
   private logMissingTablesFound(missingTableNames: string[]): void {
-    console.log(`Missing required tables: ${missingTableNames.join(", ")}. Creating tables...`);
+    console.log(
+      `Missing required tables: ${missingTableNames.join(
+        ", "
+      )}. Creating tables...`
+    );
   }
 
   private logAllRequiredTablesExist(): void {
@@ -368,7 +429,9 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     }
   }
 
-  private async createBiologicalAnalysesTableWithDelay(db: Database): Promise<void> {
+  private async createBiologicalAnalysesTableWithDelay(
+    db: Database
+  ): Promise<void> {
     await this.createBiologicalAnalysesTable(db);
     await this.waitBetweenTableCreations();
   }
@@ -389,7 +452,10 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private handleTableCreationError(error: unknown): void {
     console.error("Error creating tables:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    Alert.alert("Table Creation Error", `Failed to create database tables: ${message}`);
+    Alert.alert(
+      "Table Creation Error",
+      `Failed to create database tables: ${message}`
+    );
   }
 
   private async createBiologicalAnalysesTable(db: Database): Promise<void> {
@@ -412,7 +478,8 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
         lastName TEXT NOT NULL,
         birthDate TEXT,
         gender TEXT,
-        profileImage TEXT
+        profileImage TEXT,
+        pinnedMetrics TEXT
       )
     `);
     console.log("User profile table created");
@@ -424,16 +491,19 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     this.ensureAllRequiredTablesWereCreated(createdTables);
   }
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   private async getCreatedRequiredTables(db: Database): Promise<any[]> {
     return await db.getAllAsync(
       'SELECT name FROM sqlite_master WHERE type="table" AND name IN ("biological_analyses", "user_profile")'
     );
   }
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   private logCreatedTablesFound(createdTables: any[]): void {
     console.log("Tables found:", JSON.stringify(createdTables));
   }
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   private ensureAllRequiredTablesWereCreated(createdTables: any[]): void {
     if (createdTables.length < 2) {
       const errorMessage = "Not all tables were created successfully";
@@ -443,27 +513,30 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   }
 
   private async populateTestDataForDevelopment(db: Database): Promise<void> {
-    await this.insertMissingTestAnalyses(db);
-  }
-
-  private async insertMissingTestAnalyses(db: Database): Promise<void> {
     const testAnalyses = this.createTestAnalysesData();
     let insertedCount = 0;
-    
+
     for (const analysis of testAnalyses) {
-      const wasInserted = await this.insertTestAnalysisIfNotExists(db, analysis);
+      const wasInserted = await this.insertTestAnalysisIfNotExists(
+        db,
+        analysis
+      );
       if (wasInserted) {
         insertedCount++;
       }
     }
-    
+
     this.logInsertedTestAnalysesCount(insertedCount);
   }
 
-  private async insertTestAnalysisIfNotExists(db: Database, analysis: any): Promise<boolean> {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  private async insertTestAnalysisIfNotExists(
+    db: Database,
+    analysis: any
+  ): Promise<boolean> {
     try {
       const analysisExists = await this.checkIfAnalysisExists(db, analysis.id);
-      
+
       if (!analysisExists) {
         await this.insertSingleAnalysis(db, analysis);
         return true;
@@ -477,14 +550,19 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
 
   private logInsertedTestAnalysesCount(insertedCount: number): void {
     if (insertedCount > 0) {
-      console.log(`Added ${insertedCount} missing test analyses to the database`);
+      console.log(
+        `Added ${insertedCount} missing test analyses to the database`
+      );
     }
   }
 
-  private async checkIfAnalysisExists(db: Database, id: string): Promise<boolean> {
+  private async checkIfAnalysisExists(
+    db: Database,
+    id: string
+  ): Promise<boolean> {
     try {
       const result = await db.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM biological_analyses WHERE id = ?", 
+        "SELECT COUNT(*) as count FROM biological_analyses WHERE id = ?",
         [id]
       );
       return (result?.count || 0) > 0;
@@ -494,7 +572,11 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     }
   }
 
-  private async insertSingleAnalysis(db: Database, analysis: any): Promise<void> {
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  private async insertSingleAnalysis(
+    db: Database,
+    analysis: any
+  ): Promise<void> {
     try {
       await db.runAsync(
         `INSERT INTO biological_analyses (id, date, pdf_source, lab_values) 
@@ -506,7 +588,10 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     }
   }
 
-  private handleAnalysisInsertionError(error: unknown, analysisId: string): void {
+  private handleAnalysisInsertionError(
+    error: unknown,
+    analysisId: string
+  ): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (errorMessage.includes("UNIQUE constraint failed")) {
       console.log(`Analysis ${analysisId} already exists, skipping insertion`);
@@ -515,6 +600,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     }
   }
 
+  /* eslint-disable @typescript-eslint/no-explicit-any */
   private createTestAnalysesData(): Array<any> {
     return [
       this.createTestAnalysis("test-analysis-1", 0, {
@@ -522,25 +608,145 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
         "Vitamine B9": { value: 15.2, unit: "ng/mL" },
         TSH: { value: 2.1, unit: "mUI/L" },
       }),
-      this.createTestAnalysis("test-analysis-2", 19 * 12 * 30 * 24 * 60 * 60 * 1000, {
-        Hématies: { value: 3.8, unit: "T/L" },
-        "Vitamine B9": { value: 4.3, unit: "ng/mL" },
-        TSH: { value: 2.5, unit: "mUI/L" },
+      this.createTestAnalysis("test-analysis-16", 30 * 24 * 60 * 60 * 1000, {
+        Hématies: { value: 4.8, unit: "T/L" },
+        "Vitamine B9": { value: 15.2, unit: "ng/mL" },
+        TSH: { value: 2.1, unit: "mUI/L" },
       }),
-      this.createTestAnalysis("test-analysis-3", 9 * 12 * 30 * 24 * 60 * 60 * 1000, {
-        Hématies: { value: 6.0, unit: "T/L" },
-        "Vitamine B9": { value: 1.2, unit: "ng/mL" },
-        TSH: { value: 6.7, unit: "mUI/L" },
-      }),
-      this.createTestAnalysis("test-analysis-4", 29 * 12 * 30 * 24 * 60 * 60 * 1000, {
-        Hématies: { value: 5.1, unit: "T/L" },
-        "Vitamine B9": { value: 8.7, unit: "ng/mL" },
-        TSH: { value: 3.8, unit: "mUI/L" },
-      }),
+      this.createTestAnalysis(
+        "test-analysis-2",
+        19 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 3.8, unit: "T/L" },
+          "Vitamine B9": { value: 4.3, unit: "ng/mL" },
+          TSH: { value: 2.5, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-3",
+        9 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 6.0, unit: "T/L" },
+          "Vitamine B9": { value: 1.2, unit: "ng/mL" },
+          TSH: { value: 6.7, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-4",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-5",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-6",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-7",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-8",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-9",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-10",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-11",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-12",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-13",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-14",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
+      this.createTestAnalysis(
+        "test-analysis-15",
+        29 * 12 * 30 * 24 * 60 * 60 * 1000,
+        {
+          Hématies: { value: 5.1, unit: "T/L" },
+          "Vitamine B9": { value: 8.7, unit: "ng/mL" },
+          TSH: { value: 3.8, unit: "mUI/L" },
+        }
+      ),
     ];
   }
 
-  private createTestAnalysis(id: string, pastTimeMs: number, labValues: any): any {
+  private createTestAnalysis(
+    id: string,
+    pastTimeMs: number,
+    labValues: Record<string, LabValue>
+  ): Record<string, string | null> {
     return {
       id,
       date: new Date(Date.now() - pastTimeMs).toISOString().split("T")[0],
@@ -549,7 +755,11 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     };
   }
 
-  async executeSql(db: Database, sql: string, params: any[] = []): Promise<void> {
+  async executeSql(
+    db: Database,
+    sql: string,
+    params: any[] = []
+  ): Promise<void> {
     return this.executeWithRetryMechanism(async () => {
       const validDb = await this.ensureValidDatabaseConnection(db);
       if (params.length > 0) {
@@ -560,23 +770,29 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     });
   }
 
-  async querySql(db: Database, sql: string, params: any[] = []): Promise<any[]> {
+  async querySql(
+    db: Database,
+    sql: string,
+    params: any[] = []
+  ): Promise<any[]> {
     return this.executeWithRetryMechanism(async () => {
       const validDb = await this.ensureValidDatabaseConnection(db);
       return await validDb.getAllAsync(sql, params);
     });
   }
 
-  private async executeWithRetryMechanism<T>(operation: () => Promise<T>): Promise<T> {
+  private async executeWithRetryMechanism<T>(
+    operation: () => Promise<T>
+  ): Promise<T> {
     let lastError: Error | null = null;
-    
+
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         this.markOperationInProgress();
         return await operation();
       } catch (error) {
         lastError = error as Error;
-        
+
         if (this.isRecoverableError(error)) {
           await this.handleRecoverableError(attempt);
         } else {
@@ -586,17 +802,21 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
         this.markOperationComplete();
       }
     }
-    
+
     this.handleFinalRetryFailure(lastError);
     throw lastError;
   }
 
   private isRecoverableError(error: unknown): boolean {
-    return error instanceof Error && error.message.includes('NullPointerException');
+    return (
+      error instanceof Error && error.message.includes("NullPointerException")
+    );
   }
 
   private async handleRecoverableError(attempt: number): Promise<void> {
-    console.log(`Database operation failed (attempt ${attempt + 1}/3), retrying...`);
+    console.log(
+      `Database operation failed (attempt ${attempt + 1}/3), retrying...`
+    );
     this.dbInstance = null;
     await this.waitWithExponentialBackoff(attempt);
     await this.initializeDatabase();
@@ -611,7 +831,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   }
 
   private handleFinalRetryFailure(lastError: Error | null): void {
-    const errorMessage = 'Database operation failed after retries';
+    const errorMessage = "Database operation failed after retries";
     Alert.alert("Database Error", errorMessage);
     throw lastError || new Error(errorMessage);
   }
@@ -621,7 +841,10 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
       await db.getFirstAsync("SELECT 1");
       return db;
     } catch (error) {
-      console.log("Provided database instance is invalid, getting fresh instance...");
+      console.log(
+        "Provided database instance is invalid, getting fresh instance...",
+        error
+      );
       return await this.getDatabase();
     }
   }
@@ -800,10 +1023,10 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
 
   private findAllDatabaseRelatedFiles(directoryContents: string[]): string[] {
     const relatedPatterns = this.getDatabaseFilePatterns();
-    
+
     return directoryContents
-      .filter(file => this.fileMatchesAnyPattern(file, relatedPatterns))
-      .map(file => `${this.dbDirectory}/${file}`);
+      .filter((file) => this.fileMatchesAnyPattern(file, relatedPatterns))
+      .map((file) => `${this.dbDirectory}/${file}`);
   }
 
   private getDatabaseFilePatterns(): string[] {
@@ -816,7 +1039,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   }
 
   private fileMatchesAnyPattern(fileName: string, patterns: string[]): boolean {
-    return patterns.some(pattern => fileName.includes(pattern));
+    return patterns.some((pattern) => fileName.includes(pattern));
   }
 
   private async deleteAllFoundFiles(filePaths: string[]): Promise<void> {
@@ -825,9 +1048,11 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     }
   }
 
-  private async deleteSingleFileIgnoringErrors(filePath: string): Promise<void> {
-    await FileSystem.deleteAsync(filePath, { idempotent: true }).catch(
-      (err) => console.warn(`Failed to delete ${filePath}:`, err)
+  private async deleteSingleFileIgnoringErrors(
+    filePath: string
+  ): Promise<void> {
+    await FileSystem.deleteAsync(filePath, { idempotent: true }).catch((err) =>
+      console.warn(`Failed to delete ${filePath}:`, err)
     );
   }
 
@@ -853,8 +1078,9 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private async performCompleteReset(db: Database): Promise<void> {
     await this.dropAllExistingTables(db);
     await this.recreateAllTables(db);
-    // Only for dev
-    await this.populateTestDataForDevelopment(db);
+    if (__DEV__) {
+      await this.populateTestDataForDevelopment(db);
+    }
     await this.verifyResetWasSuccessful(db);
   }
 
@@ -880,19 +1106,31 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     return await this.initializeDatabase();
   }
 
-  private handleRecoveryFailure(originalError: unknown, recoveryError: unknown): void {
+  private handleRecoveryFailure(
+    originalError: unknown,
+    recoveryError: unknown
+  ): void {
     console.error("Recovery from reset error failed:", recoveryError);
-    const message = originalError instanceof Error ? originalError.message : "Database reset failed";
+    const message =
+      originalError instanceof Error
+        ? originalError.message
+        : "Database reset failed";
     Alert.alert("Database Reset Error", message);
   }
 
   private async verifyResetWasSuccessful(db: Database): Promise<void> {
     const tables = await this.getAllUserTables(db);
-    const tableNames = tables.map(t => t.name);
-    console.log(`Database reset complete. Found ${tables.length} tables: ${tableNames.join(", ")}`);
+    const tableNames = tables.map((t) => t.name);
+    console.log(
+      `Database reset complete. Found ${
+        tables.length
+      } tables: ${tableNames.join(", ")}`
+    );
   }
 
-  private async getAllUserTables(db: Database): Promise<Array<{ name: string }>> {
+  private async getAllUserTables(
+    db: Database
+  ): Promise<Array<{ name: string }>> {
     return await db.getAllAsync<{ name: string }>(
       'SELECT name FROM sqlite_master WHERE type="table" AND name NOT LIKE "sqlite_%"'
     );
@@ -908,13 +1146,19 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     }
   }
 
-  private async dropEachTableIndividually(db: Database, tables: Array<{ name: string }>): Promise<void> {
+  private async dropEachTableIndividually(
+    db: Database,
+    tables: Array<{ name: string }>
+  ): Promise<void> {
     for (const table of tables) {
       await this.dropSingleTable(db, table.name);
     }
   }
 
-  private async dropSingleTable(db: Database, tableName: string): Promise<void> {
+  private async dropSingleTable(
+    db: Database,
+    tableName: string
+  ): Promise<void> {
     await db.execAsync(`DROP TABLE IF EXISTS ${tableName}`);
     console.log(`Table ${tableName} dropped`);
   }
@@ -946,7 +1190,10 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
 
   private handleUserProfileResetError(error: unknown): void {
     console.error("Error resetting user profile table:", error);
-    const message = error instanceof Error ? error.message : "Failed to reset user profile table";
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to reset user profile table";
     Alert.alert("Table Reset Error", message);
   }
 
@@ -956,20 +1203,23 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     return await this.exportAllTableData(db, allTableNames);
   }
 
-  private async exportAllTableData(db: Database, tableNames: string[]): Promise<Record<string, any[]>> {
+  private async exportAllTableData(
+    db: Database,
+    tableNames: string[]
+  ): Promise<Record<string, any[]>> {
     const exportedData: Record<string, any[]> = {};
-    
+
     for (const tableName of tableNames) {
       const tableRows = await this.getAllRowsFromTable(db, tableName);
       exportedData[tableName] = tableRows;
     }
-    
+
     return exportedData;
   }
 
   async importData(data: any): Promise<void> {
     const db = await this.getDatabase();
-    
+
     try {
       await this.importEachTableData(db, data);
     } catch (error) {
@@ -990,10 +1240,14 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     return Array.isArray(rows) && rows.length > 0;
   }
 
-  private async importSingleTableData(db: Database, tableName: string, rows: any[]): Promise<void> {
+  private async importSingleTableData(
+    db: Database,
+    tableName: string,
+    rows: any[]
+  ): Promise<void> {
     const firstRow = rows[0];
     const columnNames = this.extractColumnNamesForImport(firstRow);
-    
+
     for (const row of rows) {
       await this.insertOrReplaceRow(db, tableName, columnNames, row);
     }
@@ -1003,33 +1257,43 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     return Object.keys(firstRow);
   }
 
-  private async insertOrReplaceRow(db: Database, tableName: string, columnNames: string[], row: any): Promise<void> {
-    const columnString = columnNames.join(', ');
-    const valuePlaceholders = columnNames.map(() => '?').join(', ');
-    const values = columnNames.map(col => row[col]);
-    
+  private async insertOrReplaceRow(
+    db: Database,
+    tableName: string,
+    columnNames: string[],
+    row: any
+  ): Promise<void> {
+    const columnString = columnNames.join(", ");
+    const valuePlaceholders = columnNames.map(() => "?").join(", ");
+    const values = columnNames.map((col) => row[col]);
+
     const insertQuery = `INSERT OR REPLACE INTO ${tableName} (${columnString}) VALUES (${valuePlaceholders})`;
     await this.executeSql(db, insertQuery, values);
   }
 
   private handleDataImportError(error: unknown): void {
-    console.error('Error during import:', error);
-    const message = error instanceof Error ? error.message : "Data import failed";
+    console.error("Error during import:", error);
+    const message =
+      error instanceof Error ? error.message : "Data import failed";
     Alert.alert("Import Error", message);
   }
 
   private async getAllTableNames(db: Database): Promise<string[]> {
     try {
-      const query = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'";
+      const query =
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE 'android_%'";
       const result = await this.querySql(db, query);
-      return result.map(row => row.name);
+      return result.map((row) => row.name);
     } catch (error) {
-      console.error('Error getting tables:', error);
+      console.error("Error getting tables:", error);
       throw error;
     }
   }
 
-  private async getAllRowsFromTable(db: Database, tableName: string): Promise<any[]> {
+  private async getAllRowsFromTable(
+    db: Database,
+    tableName: string
+  ): Promise<any[]> {
     try {
       const query = `SELECT * FROM ${tableName}`;
       return await this.querySql(db, query);
@@ -1039,5 +1303,3 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
     }
   }
 }
-
-

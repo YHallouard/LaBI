@@ -1,34 +1,46 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Svg, { Path, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { colorPalette } from '../../config/themes';
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import Svg, { Path, Defs, LinearGradient, Stop } from "react-native-svg";
+import { colorPalette } from "../../config/themes";
 
-export type HemeaLogoSize = 'small' | 'medium' | 'large';
+export type HemeaLogoSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
 export interface HemeaLogoProps {
   size?: HemeaLogoSize;
 }
 
 const getLogoFontSize = (size: HemeaLogoSize): number => {
   switch (size) {
-    case 'small': return 24;
-    case 'large': return 36;
-    case 'medium':
-    default: return 30;
+    case "small":
+      return 24;
+    case "large":
+      return 36;
+    case "xlarge":
+      return 48;
+    case "xxlarge":
+      return 120;
+    case "medium":
+    default:
+      return 30;
   }
 };
 
 const getDropIconSize = (size: HemeaLogoSize): number => {
   switch (size) {
-    case 'small': return 16;
-    case 'large': return 30;
-    case 'medium':
-    default: return 24;
+    case "small":
+      return 16;
+    case "large":
+      return 30;
+    case "xlarge":
+      return 42;
+    case "xxlarge":
+      return 120;
+    case "medium":
+    default:
+      return 24;
   }
 };
 
-export const HemeaLogo: React.FC<HemeaLogoProps> = ({ 
-  size = 'medium'
-}) => {
+export const HemeaLogo: React.FC<HemeaLogoProps> = ({ size = "medium" }) => {
   const fontSize = getLogoFontSize(size);
   const dropSize = getDropIconSize(size);
 
@@ -38,10 +50,19 @@ export const HemeaLogo: React.FC<HemeaLogoProps> = ({
       <View style={styles.dropIcon}>
         <Svg width={dropSize} height={dropSize} viewBox="0 0 24 24">
           <Defs>
-            <LinearGradient id="dropGradient" x1="100%" y1="100%" x2="0%" y2="0%">
+            <LinearGradient
+              id="dropGradient"
+              x1="100%"
+              y1="100%"
+              x2="0%"
+              y2="0%"
+            >
               <Stop offset="0%" stopColor={colorPalette.gradient.red} />
               <Stop offset="30%" stopColor={colorPalette.gradient.redPurple} />
-              <Stop offset="100%" stopColor={colorPalette.gradient.purpleLight} />
+              <Stop
+                offset="100%"
+                stopColor={colorPalette.gradient.purpleLight}
+              />
             </LinearGradient>
           </Defs>
           <Path
@@ -57,16 +78,16 @@ export const HemeaLogo: React.FC<HemeaLogoProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   logoText: {
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: colorPalette.neutral.main,
-    fontFamily: 'Inter',
+    fontFamily: "Inter",
   },
   dropIcon: {
     marginLeft: -4,
-  }
+  },
 });

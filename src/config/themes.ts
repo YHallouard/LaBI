@@ -2,38 +2,39 @@
 export const colorPalette = {
   // Primary colors
   primary: {
-    main: '#2C7BE5', // Main blue color (preserved)
-    light: '#EFF5FD', // Light calming background
-    dark: '#4484B2', // Dark blue for contrast
+    main: "#2C7BE5", // Main blue color (preserved)
+    light: "#EFF5FD", // Light calming background
+    dark: "#4484B2", // Dark blue for contrast
   },
   // Secondary colors
   secondary: {
-    main: '#00B4A6', // Teal/turquoise - more vibrant than gray
-    light: '#E0F7F5', // Light teal for backgrounds
-    dark: '#007A6E', // Dark teal for contrast
+    main: "#00B4A6", // Teal/turquoise - more vibrant than gray
+    light: "#E0F7F5", // Light teal for backgrounds
+    dark: "#007A6E", // Dark teal for contrast
   },
   // Gradient transition colors between primary and secondary
   gradient: {
-    red: '#E5363F', // Red from logo gradient
-    redPurple: '#D94461', // Mid gradient point
-    purple: '#CE5283', // Violet red
-    purpleLight: '#C255DF', // Light purple
+    red: "#E5363F", // Red from logo gradient
+    redPurple: "#D94461", // Mid gradient point
+    purple: "#CE5283", // Violet red
+    purpleLight: "#C255DF", // Light purple
   },
   // Neutral colors
   neutral: {
-    main: '#212529', // Dark for text
-    light: '#ADB5BD', // Medium gray
-    lighter: '#f2f4f5', // Very light gray
-    white: '#FFFFFF',
-    background: '#F8F9FA', // Light background
+    main: "#212529", // Dark for text
+    light: "#ADB5BD", // Medium gray
+    lighter: "#f2f4f5", // Very light gray
+    white: "#FFFFFF",
+    dark: "#000000",
+    background: "#F8F9FA", // Light background
   },
   // Feedback colors
   feedback: {
-    success: '#6DD39A', // Unchanged green
-    warning: '#FFC107', // Yellow/orange for warnings
-    error: '#E5363F', // Red from logo gradient
-    info: '#2C7BE5', // Main blue for info
-    labWarning: '#CE5283', // Purple warning for lab values
+    success: "#6DD39A", // Unchanged green
+    warning: "#FFC107", // Yellow/orange for warnings
+    error: "#E5363F", // Red from logo gradient
+    info: "#2C7BE5", // Main blue for info
+    labWarning: "#CE5283", // Purple warning for lab values
   },
 };
 
@@ -42,7 +43,9 @@ export const generateAlpha = (hexColor: string, opacity: number): string => {
   // Ensure opacity is between 0 and 1
   const validOpacity = Math.min(1, Math.max(0, opacity));
   // Convert opacity to hex
-  const alpha = Math.round(validOpacity * 255).toString(16).padStart(2, '0');
+  const alpha = Math.round(validOpacity * 255)
+    .toString(16)
+    .padStart(2, "0");
   // Return hex color with alpha
   return `${hexColor}${alpha}`;
 };
@@ -77,7 +80,7 @@ export const theme = {
       borderColor: colorPalette.secondary.dark,
     },
     outline: {
-      backgroundColor: 'transparent',
+      backgroundColor: "transparent",
       textColor: colorPalette.primary.main,
       borderColor: colorPalette.primary.main,
     },
@@ -182,4 +185,4 @@ export const theme = {
   },
 };
 
-export default theme; 
+export default theme;

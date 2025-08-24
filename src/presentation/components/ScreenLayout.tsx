@@ -1,6 +1,14 @@
-import React, { ReactNode } from 'react';
-import { StyleSheet, View, SafeAreaView, ScrollView, RefreshControl, StyleProp, ViewStyle } from 'react-native';
-import { colorPalette } from '../../config/themes';
+import React, { ReactNode } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  RefreshControl,
+  StyleProp,
+  ViewStyle,
+} from "react-native";
+import { colorPalette } from "../../config/themes";
+import { Platform } from "react-native";
 
 type ScreenLayoutProps = {
   children: ReactNode;
@@ -19,24 +27,22 @@ export const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   scrollable = false,
   backgroundColor = colorPalette.neutral.background,
 }) => {
-  const containerStyle = { backgroundColor };
+  const containerStyle = [styles.container, { backgroundColor }];
 
   return (
-    <SafeAreaView style={[styles.container, containerStyle]}>
+    <View style={containerStyle} testID="screen-layout">
       {scrollable ? (
-        <ScrollableContent 
-          refreshing={refreshing} 
-          onRefresh={onRefresh} 
+        <ScrollableContent
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           style={style}
         >
           {children}
         </ScrollableContent>
       ) : (
-        <StaticContent style={style}>
-          {children}
-        </StaticContent>
+        <StaticContent style={style}>{children}</StaticContent>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -46,9 +52,7 @@ interface ContentProps {
 }
 
 const StaticContent: React.FC<ContentProps> = ({ children, style }) => (
-  <View style={[styles.contentContainer, style]}>
-    {children}
-  </View>
+  <View style={[styles.contentContainer, style]}>{children}</View>
 );
 
 interface ScrollableContentProps extends ContentProps {
@@ -56,11 +60,11 @@ interface ScrollableContentProps extends ContentProps {
   onRefresh?: () => void;
 }
 
-const ScrollableContent: React.FC<ScrollableContentProps> = ({ 
-  children, 
-  style, 
-  refreshing, 
-  onRefresh 
+const ScrollableContent: React.FC<ScrollableContentProps> = ({
+  children,
+  style,
+  refreshing,
+  onRefresh,
 }) => (
   <ScrollView
     style={styles.scrollView}
@@ -68,15 +72,14 @@ const ScrollableContent: React.FC<ScrollableContentProps> = ({
     showsVerticalScrollIndicator={false}
     refreshControl={createRefreshControl(refreshing, onRefresh)}
   >
-    <View style={[styles.contentContainer, style]}>
-      {children}
-    </View>
+    <View style={[styles.contentContainer, style]}>{children}</View>
+    <View style={styles.bottomSpacer} />
   </ScrollView>
 );
 
 const createRefreshControl = (refreshing: boolean, onRefresh?: () => void) => {
   if (!onRefresh) return undefined;
-  
+
   return (
     <RefreshControl
       refreshing={refreshing}
@@ -101,8 +104,14 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     flex: 1,
-    backgroundColor: 'transparent',
-    paddingTop: 0,
-    marginTop: 0
+    backgroundColor: "transparent",
+  },
+  bottomSpacer: {
+    height: 90,
+    ...Platform.select({
+      android: {
+        height: 120,
+      },
+    }),
   },
 });
