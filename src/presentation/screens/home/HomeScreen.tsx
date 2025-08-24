@@ -45,6 +45,7 @@ import { GetUserAgeUseCase } from "../../../domain/usecases/GetUserAgeUseCase";
 import { UserProfile } from "../../../domain/UserProfile";
 import AvatarImage from "../../components/AvatarImage";
 import { LinearGradient } from "expo-linear-gradient";
+import { ZoomInWrapper } from "../../components/ZoomInWrapper";
 
 type HomeScreenProps = {
   navigation: StackNavigationProp<HomeStackParamList, "HomeScreen">;
@@ -89,6 +90,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [userAge, setUserAge] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [hasAnimated, setHasAnimated] = useState(false);
 
   const isLargeScreen = screenWidth >= 1000;
   const largeHeaderHeight = isLargeScreen ? 220 : 100;
@@ -179,9 +181,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       setLoading(true);
       await loadAllData();
       setLoading(false);
+      if (!hasAnimated) {
+        setHasAnimated(true);
+      }
     };
     initialLoad();
-  }, [loadAllData]);
+  }, [loadAllData, hasAnimated]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -429,146 +434,143 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 <View style={styles.skeletonRow} />
                 <View style={styles.skeletonChart} />
               </View>
-            ) : userProfile ? (
-              <View style={styles.profileSection}>
-                <AvatarImage
-                  profileImage={userProfile.profileImage}
-                  firstName={userProfile.firstName}
-                  lastName={userProfile.lastName}
-                  style={styles.avatar}
-                />
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>
-                    {userProfile.firstName} {userProfile.lastName}
-                  </Text>
-                  <Text style={styles.profileDetails}>{userAge} ans</Text>
-                  <Text style={styles.profileDetails}>
-                    {analyses.length} Analyses enregistrées
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-            <Text style={styles.SectionTitle}>
-              Indice d&apos;Équilibre Biologique
-            </Text>
-            {loading ? (
-              <View style={styles.skeletonChart} />
             ) : (
-              healthMagnitudeData.length > 1 && (
-                <View style={styles.healthMagnitudeContainer}>
-                  <HealthMagnitudeChart
-                    data={healthMagnitudeData}
-                    chartDimensions={chartDimensions}
+              <ZoomInWrapper duration={600} delay={0}>
+                {userProfile ? (
+                  <View style={styles.profileSection}>
+                    <AvatarImage
+                      profileImage={userProfile.profileImage}
+                      firstName={userProfile.firstName}
+                      lastName={userProfile.lastName}
+                      style={styles.avatar}
+                    />
+                    <View style={styles.profileInfo}>
+                      <Text style={styles.profileName}>
+                        {userProfile.firstName} {userProfile.lastName}
+                      </Text>
+                      <Text style={styles.profileDetails}>{userAge} ans</Text>
+                      <Text style={styles.profileDetails}>
+                        {analyses.length} Analyses enregistrées
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+                <Text style={styles.SectionTitle}>
+                  Indice d&apos;Équilibre Biologique
+                </Text>
+                {healthMagnitudeData.length > 1 && (
+                  <View style={styles.healthMagnitudeContainer}>
+                    <HealthMagnitudeChart
+                      data={healthMagnitudeData}
+                      chartDimensions={chartDimensions}
+                    />
+                  </View>
+                )}
+                <Text style={styles.textBubble}>
+                  * L&apos;IEB représente l&apos;état global de vos analyses.
+                  Restez
+                  <Text style={{ fontWeight: "bold" }}>
+                    {" "}
+                    en dessous de 0.5{" "}
+                  </Text>
+                  pour être dans la zone normale. Plus l&apos;indice est bas,
+                  plus vos résultats sont équilibrés.
+                </Text>
+
+                <TouchableOpacity
+                  onPress={navigateToAllAnalyses}
+                  style={styles.allAnalysesDataButton}
+                >
+                  <View style={styles.iconContainer}>
+                    <Ionicons
+                      name="document"
+                      size={28}
+                      color={colorPalette.secondary.main}
+                    />
+                  </View>
+                  <Text style={styles.allAnalysesDataButtonText}>
+                    Afficher toutes les Analyses
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={24}
+                    color={colorPalette.neutral.white}
                   />
+                </TouchableOpacity>
+
+                <View style={styles.pinnedSection}>
+                  <Text style={styles.pinnedSectionTitle}>📌 Épinglés</Text>
+                  <TouchableOpacity onPress={() => setModalVisible(true)}>
+                    <Text style={styles.editButtonText}>Modifier</Text>
+                  </TouchableOpacity>
                 </View>
-              )
-            )}
-            <Text style={styles.textBubble}>
-              * L&apos;IEB représente l&apos;état global de vos analyses. Restez
-              <Text style={{ fontWeight: "bold" }}> en dessous de 0.5 </Text>
-              pour être dans la zone normale. Plus l&apos;indice est bas, plus
-              vos résultats sont équilibrés.
-            </Text>
 
-            <TouchableOpacity
-              onPress={navigateToAllAnalyses}
-              style={styles.allAnalysesDataButton}
-            >
-              <View style={styles.iconContainer}>
-                <Ionicons
-                  name="document"
-                  size={28}
-                  color={colorPalette.secondary.main}
-                />
-              </View>
-              <Text style={styles.allAnalysesDataButtonText}>
-                Afficher toutes les Analyses
-              </Text>
-              <Ionicons
-                name="chevron-forward"
-                size={24}
-                color={colorPalette.neutral.white}
-              />
-            </TouchableOpacity>
+                {(() => {
+                  const chartComponents = pinnedItems
+                    .map((item) => {
+                      const chartData = getFilteredDataForLabKey(item);
+                      if (chartData.length < 2) {
+                        return null;
+                      }
+                      return (
+                        <View key={item} style={styles.pinnedItem}>
+                          <ChartItem
+                            labKey={item}
+                            data={chartData}
+                            unit={LAB_VALUE_UNITS[item] || ""}
+                            getReferenceRangeUseCase={getReferenceRangeUseCase}
+                            calculateStatisticsUseCase={
+                              calculateStatisticsUseCase
+                            }
+                            chartDimensions={chartDimensions}
+                            formatDate={formatDate}
+                            showStats={false}
+                            showInfoButton={false}
+                          />
+                        </View>
+                      );
+                    })
+                    .filter(Boolean);
 
-            <View style={styles.pinnedSection}>
-              <Text style={styles.pinnedSectionTitle}>📌 Épinglés</Text>
-              <TouchableOpacity onPress={() => setModalVisible(true)}>
-                <Text style={styles.editButtonText}>Modifier</Text>
-              </TouchableOpacity>
-            </View>
+                  if (chartComponents.length > 0) {
+                    return chartComponents;
+                  }
 
-            {loading ? (
-              <>
-                <View style={styles.skeletonRow} />
-                <View style={styles.skeletonChart} />
-                <View style={styles.skeletonRow} />
-                <View style={styles.skeletonChart} />
-              </>
-            ) : (
-              (() => {
-                const chartComponents = pinnedItems
-                  .map((item) => {
-                    const chartData = getFilteredDataForLabKey(item);
-                    if (chartData.length < 2) {
-                      return null;
-                    }
+                  if (pinnedItems.length > 0) {
                     return (
-                      <View key={item} style={styles.pinnedItem}>
-                        <ChartItem
-                          labKey={item}
-                          data={chartData}
-                          unit={LAB_VALUE_UNITS[item] || ""}
-                          getReferenceRangeUseCase={getReferenceRangeUseCase}
-                          calculateStatisticsUseCase={
-                            calculateStatisticsUseCase
-                          }
-                          chartDimensions={chartDimensions}
-                          formatDate={formatDate}
-                          showStats={false}
-                          showInfoButton={false}
+                      <View style={styles.emptyStateContainer}>
+                        <Ionicons
+                          name="stats-chart-outline"
+                          size={48}
+                          color={colorPalette.neutral.light}
                         />
+                        <Text style={styles.emptyStateText}>
+                          No Recent Data
+                        </Text>
+                        <Text style={styles.emptyStateSubText}>
+                          No data available for the last 3 years for your pinned
+                          items.
+                        </Text>
                       </View>
                     );
-                  })
-                  .filter(Boolean);
+                  }
 
-                if (chartComponents.length > 0) {
-                  return chartComponents;
-                }
-
-                if (pinnedItems.length > 0) {
                   return (
                     <View style={styles.emptyStateContainer}>
                       <Ionicons
-                        name="stats-chart-outline"
+                        name="pin-outline"
                         size={48}
                         color={colorPalette.neutral.light}
                       />
-                      <Text style={styles.emptyStateText}>No Recent Data</Text>
+                      <Text style={styles.emptyStateText}>No Pinned Items</Text>
                       <Text style={styles.emptyStateSubText}>
-                        No data available for the last 3 years for your pinned
-                        items.
+                        Click &quot;Modifier&quot; to select analyses to display
+                        on your home screen.
                       </Text>
                     </View>
                   );
-                }
-
-                return (
-                  <View style={styles.emptyStateContainer}>
-                    <Ionicons
-                      name="pin-outline"
-                      size={48}
-                      color={colorPalette.neutral.light}
-                    />
-                    <Text style={styles.emptyStateText}>No Pinned Items</Text>
-                    <Text style={styles.emptyStateSubText}>
-                      Click &quot;Modifier&quot; to select analyses to display
-                      on your home screen.
-                    </Text>
-                  </View>
-                );
-              })()
+                })()}
+              </ZoomInWrapper>
             )}
           </View>
         </LinearGradient>

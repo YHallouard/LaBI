@@ -219,11 +219,7 @@ export default function App() {
   }
 
   if (!readyToRenderApp) {
-    return (
-      <View
-        style={{ flex: 1, backgroundColor: colorPalette.neutral.background }}
-      />
-    );
+    return <View style={{ flex: 1, backgroundColor: "#000000" }} />;
   }
 
   return (
