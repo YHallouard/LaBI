@@ -15,7 +15,7 @@ export const ZoomInWrapper: React.FC<ZoomInWrapperProps> = ({
   duration = 800,
   delay = 0,
   style,
-  initialScale = 0.99,
+  initialScale = 0.98,
   finalScale = 1,
 }) => {
   const scaleAnim = useRef(new Animated.Value(initialScale)).current;

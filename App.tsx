@@ -2,6 +2,7 @@ import "./src/infrastructure/polyfills";
 
 import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, Text } from "react-native";
+import * as SplashScreen from "expo-splash-screen";
 // LoadingOverlay removed; Home shows skeleton during data load
 import { initializeApp } from "./src/infrastructure/AppInitializer";
 import { RepositoryFactory } from "./src/infrastructure/repositories/RepositoryFactory";
@@ -53,11 +54,21 @@ type UseCasesBundle = {
   analyzePdfUseCase: AnalyzePdfUseCase | null;
 };
 
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
+
+// Set the animation options for smooth transition
+SplashScreen.setOptions({
+  duration: 500,
+  fade: true,
+});
+
 export default function App() {
   const [bundle, setBundle] = useState<UseCasesBundle | null>(null);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
   const [forceReload, setForceReload] = useState(0);
+  const [isAppInitialized, setIsAppInitialized] = useState(false);
 
   const isInitializing = useRef(false);
 
@@ -75,9 +86,15 @@ export default function App() {
       setBundle(useCases);
 
       await checkAndLoadApiKey(useCases.loadApiKey);
+
+      // Add a small delay for smooth transition
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      setIsAppInitialized(true);
     } catch (error) {
       console.error("Error during initialization", error);
       setAppError("Failed to initialize application. Please restart the app.");
+      setIsAppInitialized(true);
     } finally {
       isInitializing.current = false;
     }
@@ -206,7 +223,14 @@ export default function App() {
     startInitialization();
   };
 
-  const readyToRenderApp = !!bundle && !appError;
+  const readyToRenderApp = !!bundle && !appError && isAppInitialized;
+
+  // Hide splash screen when app is ready
+  useEffect(() => {
+    if (readyToRenderApp) {
+      SplashScreen.hideAsync();
+    }
+  }, [readyToRenderApp]);
 
   if (appError) {
     return (
@@ -219,7 +243,7 @@ export default function App() {
   }
 
   if (!readyToRenderApp) {
-    return <View style={{ flex: 1, backgroundColor: "#000000" }} />;
+    return null; // Let splash screen handle the display
   }
 
   return (
