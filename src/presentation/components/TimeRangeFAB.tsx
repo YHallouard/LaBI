@@ -194,8 +194,19 @@ export const TimeRangeFAB: React.FC<TimeRangeFABProps> = ({
         style={styles.mainButton}
         onPress={toggleMenu}
         pressColor={colorPalette.primary.dark}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <Animated.View style={{ transform: [{ rotate }] }}>
+        <Animated.View
+          style={{
+            transform: [{ rotate }],
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+            height: "100%",
+          }}
+          pointerEvents="none"
+        >
           <Ionicons
             name="time-outline"
             size={20}
@@ -226,7 +237,8 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 8,
+    elevation: 10,
+    zIndex: 10,
   },
   menuItem: {
     position: "absolute",

@@ -41,8 +41,8 @@ if (fs.existsSync(iosDir)) {
         console.log('Script sandboxing already disabled');
       }
       
-      // Add multipeer connectivity permissions to Info.plist
-      console.log('Adding multipeer connectivity permissions to Info.plist...');
+      // Add multipeer connectivity permissions to Info.plist (if not already configured via Expo)
+      console.log('Checking multipeer connectivity permissions in Info.plist...');
       addMultipeerPermissions(iosDir);
       
       // Set permissions for all shell scripts
@@ -88,7 +88,7 @@ function addMultipeerPermissions(iosDir) {
     const hasBonjourServices = plistContent.includes('NSBonjourServices');
     
     if (hasLocalNetwork && hasBonjourServices) {
-      console.log('Multipeer connectivity permissions already present in Info.plist');
+      console.log('Multipeer connectivity permissions already present in Info.plist (likely configured via Expo)');
       return;
     }
     
@@ -113,7 +113,7 @@ function addMultipeerPermissions(iosDir) {
     if (!hasBonjourServices) {
       permissionsToAdd += `    <key>NSBonjourServices</key>
     <array>
-      <string>_hemea-sync._tcp</string>
+      <string>_hemea-sync._tcp.</string>
     </array>
 `;
     }
