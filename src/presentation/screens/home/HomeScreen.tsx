@@ -91,10 +91,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [userAge, setUserAge] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [hasAnimated, setHasAnimated] = useState(false);
+  const [contentHeight, setContentHeight] = useState(
+    Dimensions.get("window").height
+  );
 
   const isLargeScreen = screenWidth >= 1000;
   const largeHeaderHeight = isLargeScreen ? 220 : 100;
   const smallHeaderAppearsAt = largeHeaderHeight - 40;
+
+  const fixedGradientHeight = 600;
 
   useFocusEffect(
     useCallback(() => {
@@ -403,8 +408,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       >
         <LinearGradient
           colors={[colorPalette.primary.main, colorPalette.neutral.background]}
-          locations={[0, 0.3]}
+          locations={[0, fixedGradientHeight / contentHeight]}
           style={styles.gradient}
+          onLayout={(event) => {
+            const { height } = event.nativeEvent.layout;
+            setContentHeight(height);
+          }}
         >
           <Animated.View
             style={[

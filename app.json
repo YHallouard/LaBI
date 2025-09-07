@@ -16,7 +16,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.hemea",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to allow you to select and upload a profile picture for your health profile."
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to allow you to select and upload a profile picture for your health profile.",
+        "NSLocalNetworkUsageDescription": "$(PRODUCT_NAME) uses local network to sync data between devices",
+        "NSBonjourServices": ["_hemea-sync._tcp."]
       }
     },
     "android": {
@@ -25,7 +27,13 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.anonymous.hemea"
+      "package": "com.anonymous.hemea",
+      "permissions": [
+        "android.permission.ACCESS_WIFI_STATE",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.CHANGE_WIFI_MULTICAST_STATE",
+        "android.permission.INTERNET"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
