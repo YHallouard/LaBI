@@ -4,17 +4,15 @@ import {
   Text,
   View,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
 } from "react-native";
-import * as DocumentPicker from "expo-document-picker";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { UploadStackParamList } from "../../types/navigation";
 import { AnalyzePdfUseCase } from "../../application/usecases/AnalyzePdfUseCase";
-import { ProcessingStepCallback } from "../../ports/services/ProgressProcessor";
+import { CreateManualAnalysisUseCase } from "../../application/usecases/CreateManualAnalysisUseCase";
+import { ReferenceRangeService } from "../../application/services/ReferenceRangeService";
 import { ScreenLayout } from "../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
-import { LAB_VALUE_CATEGORIES } from "../../config/LabConfig";
+import { ManualImportModal } from "../components/ManualImportModal";
 
 type UploadScreenProps = {
   navigation: StackNavigationProp<UploadStackParamList, "UploadScreen">;
@@ -22,6 +20,8 @@ type UploadScreenProps = {
   isLoadingApiKey: boolean;
   apiKeyError: string | null;
   checkAndLoadApiKey: () => Promise<void>;
+  createManualAnalysisUseCase: CreateManualAnalysisUseCase | null;
+  referenceRangeService: ReferenceRangeService | null;
 };
 
 export const UploadScreen: React.FC<UploadScreenProps> = ({
@@ -30,424 +30,270 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
   isLoadingApiKey,
   apiKeyError,
   checkAndLoadApiKey,
+  createManualAnalysisUseCase,
+  referenceRangeService,
 }) => {
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
+  const [manualVisible, setManualVisible] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const hasCheckedApiKey = useRef<boolean>(false);
-  const [processingStep, setProcessingStep] = useState<string | null>(null);
-  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
 
   useEffect(() => {
     if (!isLoadingApiKey && !hasCheckedApiKey.current && !analyzePdfUseCase) {
       hasCheckedApiKey.current = true;
       checkAndLoadApiKey();
     }
-
-    if (
-      !isLoadingApiKey &&
-      (analyzePdfUseCase !== null || apiKeyError !== null)
-    ) {
-      setIsInitialLoading(false);
-    }
-  }, [isLoadingApiKey, analyzePdfUseCase, apiKeyError]);
+  }, [isLoadingApiKey, analyzePdfUseCase]);
 
   const hasValidApiKey = (): boolean => {
     return !apiKeyError && Boolean(analyzePdfUseCase);
   };
 
-  const pickAndProcessDocument = async (): Promise<void> => {
-    if (isAnalyzing) return;
-
+  const handleAiImport = (): void => {
     if (!hasValidApiKey()) {
-      setErrorMessage(
-        apiKeyError || "API Key is not configured. Please set it in Settings."
-      );
+      (navigation as any).navigate("Home", { screen: "ApiKeySettingsScreen" });
       return;
     }
-
-    setIsAnalyzing(true);
-    setErrorMessage(null);
-
-    try {
-      const pdfUri = await selectPdfDocument();
-      if (!pdfUri) {
-        setIsAnalyzing(false);
-        return;
-      }
-
-      if (analyzePdfUseCase) {
-        await analyzePdfDocument(pdfUri, analyzePdfUseCase);
-      }
-    } catch (err) {
-      handleDocumentProcessingError(err);
-    } finally {
-      setIsAnalyzing(false);
-    }
+    navigation.navigate("AiImportScreen");
   };
 
-  const selectPdfDocument = async (): Promise<string | null> => {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: "application/pdf",
-      copyToCacheDirectory: true,
-    });
-
-    if (result.canceled || !result.assets || result.assets.length === 0) {
-      return null;
-    }
-
-    return result.assets[0].uri;
+  const handleManualSaved = (): void => {
+    setSuccessMessage("Analyse enregistrée avec succès");
+    setTimeout(() => setSuccessMessage(null), 4000);
   };
-
-  const analyzePdfDocument = async (
-    pdfUri: string,
-    useCase: AnalyzePdfUseCase
-  ): Promise<void> => {
-    const onProcessingStepStarted: ProcessingStepCallback = (step: string) => {
-      console.log(`Step started: ${step}`);
-      setProcessingStep(step);
-    };
-
-    const onProcessingStepCompleted: ProcessingStepCallback = (
-      step: string
-    ) => {
-      console.log(`Step completed: ${step}`);
-      setCompletedSteps((prev) => [...prev, step]);
-      setProcessingStep(null);
-    };
-
-    setCompletedSteps([]);
-
-    try {
-      useCase.onProcessingStepStarted(onProcessingStepStarted);
-      useCase.onProcessingStepCompleted(onProcessingStepCompleted);
-
-      await useCase.execute(pdfUri);
-
-      setSuccessMessage("Analysis extracted and saved successfully");
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } finally {
-      useCase.removeProcessingListeners();
-    }
-  };
-
-  /* eslint-disable @typescript-eslint/no-explicit-any */
-  /* eslint-disable @typescript-eslint/no-unused-vars */
-  const handleDocumentProcessingError = (err: any): void => {
-    Alert.alert("Error", "Failed to process PDF. Please check the logs.");
-  };
-
-  const navigateToSettings = (): void => {
-    (navigation as any).navigate("Home", { screen: "SettingsScreen" });
-  };
-
-  if (isLoadingApiKey || isInitialLoading) {
-    return <LoadingView />;
-  }
 
   return (
     <ScreenLayout scrollable={false}>
-      <View style={styles.contentWrapper}>
-        <Text style={styles.description}>
-          Select a PDF of your lab report to automatically extract and save the
-          data.
+      <View style={styles.container}>
+        <Text style={styles.title}>Comment veux-tu importer ?</Text>
+        <Text style={styles.subtitle}>
+          Choisis la méthode qui te convient.
         </Text>
 
         {successMessage && (
-          <View style={styles.successContainer}>
+          <View style={styles.successBanner}>
+            <Ionicons name="checkmark-circle" size={18} color="#00a86b" />
             <Text style={styles.successText}>{successMessage}</Text>
           </View>
         )}
 
-        {errorMessage && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>{errorMessage}</Text>
+        {!hasValidApiKey() && !isLoadingApiKey && (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning-outline" size={16} color="#856404" />
+            <Text style={styles.warningText}>
+              {apiKeyError || "Clé API Mistral non configurée."}
+            </Text>
           </View>
         )}
 
-        {!hasValidApiKey() && !errorMessage && (
-          <ApiKeyMissingMessage
-            apiKeyError={apiKeyError}
-            onNavigateToSettings={navigateToSettings}
-          />
-        )}
+        <ImportOptionCard
+          iconName="sparkles"
+          iconBgColor="#7c3aed"
+          title="Import par IA"
+          description="Importez un PDF, l'IA Mistral extrait automatiquement toutes les valeurs."
+          badge="★ Recommandé"
+          badgeColor="#00d97e"
+          footer="~30 sec"
+          footerIcon="time-outline"
+          onPress={handleAiImport}
+          disabled={isLoadingApiKey}
+        />
 
-        <TouchableOpacity
-          style={[
-            styles.uploadButton,
-            (!hasValidApiKey() || isAnalyzing) && styles.disabledButton,
-          ]}
-          onPress={pickAndProcessDocument}
-          disabled={!hasValidApiKey() || isAnalyzing}
-        >
-          {isAnalyzing ? (
-            <ActivityIndicator
-              size="small"
-              color="#ffffff"
-              style={styles.buttonSpinner}
-            />
-          ) : (
-            <Text style={styles.uploadButtonText}>Select & Analyze PDF</Text>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.infoText}>
-          {isAnalyzing
-            ? "Please wait while we process your document."
-            : "Tap the button above to select and process your PDF report."}
-        </Text>
-
-        {isAnalyzing && (
-          <ProcessingStepsIndicator
-            processingStep={processingStep}
-            completedSteps={completedSteps}
-          />
-        )}
+        <ImportOptionCard
+          iconName="pencil"
+          iconBgColor="#0d9488"
+          title="Import manuel"
+          description="Saisissez les valeurs vous-même, catégorie par catégorie."
+          badge="Plein contrôle"
+          badgeColor="#2c7be5"
+          footer={undefined}
+          footerIcon={undefined}
+          onPress={() => setManualVisible(true)}
+          disabled={!createManualAnalysisUseCase || !referenceRangeService}
+        />
       </View>
+
+      {createManualAnalysisUseCase && referenceRangeService && (
+        <ManualImportModal
+          visible={manualVisible}
+          onClose={() => setManualVisible(false)}
+          onSaved={handleManualSaved}
+          createManualAnalysisUseCase={createManualAnalysisUseCase}
+          referenceRangeService={referenceRangeService}
+        />
+      )}
     </ScreenLayout>
   );
 };
 
-type ApiKeyMissingMessageProps = {
-  apiKeyError: string | null;
-  onNavigateToSettings: () => void;
+type ImportOptionCardProps = {
+  iconName: keyof typeof Ionicons.glyphMap;
+  iconBgColor: string;
+  title: string;
+  description: string;
+  badge?: string;
+  badgeColor?: string;
+  footer?: string;
+  footerIcon?: keyof typeof Ionicons.glyphMap;
+  onPress: () => void;
+  disabled?: boolean;
 };
 
-const ApiKeyMissingMessage: React.FC<ApiKeyMissingMessageProps> = ({
-  apiKeyError,
-  onNavigateToSettings,
+const ImportOptionCard: React.FC<ImportOptionCardProps> = ({
+  iconName,
+  iconBgColor,
+  title,
+  description,
+  badge,
+  badgeColor,
+  footer,
+  footerIcon,
+  onPress,
+  disabled,
 }) => (
-  <View style={styles.errorContainer}>
-    <Text style={styles.errorText}>
-      {apiKeyError || "API Key is not configured. Please set it in Settings."}
-    </Text>
-    <TouchableOpacity
-      style={styles.settingsButton}
-      onPress={onNavigateToSettings}
-    >
-      <Ionicons
-        name="settings-outline"
-        size={16}
-        color="#ffffff"
-        style={styles.settingsIcon}
-      />
-      <Text style={styles.settingsButtonText}>Go to Settings</Text>
-    </TouchableOpacity>
-  </View>
-);
-
-const LoadingView = () => (
-  <ScreenLayout scrollable={false}>
-    <View style={styles.containerCentered}>
-      <ActivityIndicator size="large" color="#2c7be5" />
-      <Text style={styles.loadingText}>Loading configuration...</Text>
+  <TouchableOpacity
+    style={[styles.card, disabled && styles.cardDisabled]}
+    onPress={onPress}
+    disabled={disabled}
+    activeOpacity={0.75}
+  >
+    <View style={styles.cardTop}>
+      <View style={[styles.iconCircle, { backgroundColor: iconBgColor + "22" }]}>
+        <Ionicons name={iconName} size={24} color={iconBgColor} />
+      </View>
+      {badge && (
+        <View style={[styles.badge, { backgroundColor: badgeColor + "22" }]}>
+          <Text style={[styles.badgeText, { color: badgeColor }]}>{badge}</Text>
+        </View>
+      )}
     </View>
-  </ScreenLayout>
-);
 
-const ProcessingStepsIndicator = ({
-  processingStep,
-  completedSteps,
-}: {
-  processingStep: string | null;
-  completedSteps: string[];
-}) => {
-  const allSteps = [
-    "Uploading document",
-    "Extracting date",
-    ...Object.keys(LAB_VALUE_CATEGORIES).map(
-      (category) => `Analyzing ${category}`
-    ),
-    "Saving analysis",
-  ];
+    <Text style={styles.cardTitle}>{title}</Text>
+    <Text style={styles.cardDescription}>{description}</Text>
 
-  return (
-    <View style={styles.processingStepsContainer}>
-      {allSteps.map((step) => {
-        const isCompleted = completedSteps.includes(step);
-        const isInProgress = processingStep === step;
-
-        return (
-          <View key={step} style={styles.processingStepRow}>
-            {isCompleted ? (
-              <Ionicons name="checkmark-circle" size={24} color="#00d97e" />
-            ) : isInProgress ? (
-              <ActivityIndicator size="small" color="#2c7be5" />
-            ) : (
-              <Ionicons name="ellipse-outline" size={24} color="#95aac9" />
-            )}
-            <Text
-              style={[
-                styles.processingStepText,
-                isCompleted && styles.completedStepText,
-                isInProgress && styles.activeStepText,
-              ]}
-            >
-              {step}
-            </Text>
-          </View>
-        );
-      })}
+    <View style={styles.cardBottom}>
+      {footer && footerIcon && (
+        <View style={styles.footer}>
+          <Ionicons name={footerIcon} size={14} color="#5a7184" />
+          <Text style={styles.footerText}>{footer}</Text>
+        </View>
+      )}
+      <Ionicons name="chevron-forward" size={20} color="#95aac9" style={styles.chevron} />
     </View>
-  );
-};
+  </TouchableOpacity>
+);
 
 const styles = StyleSheet.create({
-  containerCentered: {
+  container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  contentWrapper: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
     padding: 20,
-    paddingTop: 40,
+    paddingTop: 32,
   },
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 15,
     color: "#12263f",
-    textAlign: "center",
+    marginBottom: 8,
   },
-  description: {
-    fontSize: 16,
+  subtitle: {
+    fontSize: 15,
     color: "#5a7184",
-    textAlign: "center",
-    marginBottom: 30,
-    lineHeight: 22,
+    marginBottom: 24,
   },
-  uploadButton: {
-    backgroundColor: "#2c7be5",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
+  successBanner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    minWidth: 200,
-  },
-  disabledButton: {
-    backgroundColor: "#a0c7f0",
-  },
-  uploadButtonText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "bold",
-    textAlign: "center",
-  },
-  buttonSpinner: {
-    marginRight: 10,
-  },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 16,
-    color: "#5a7184",
-  },
-  warningContainer: {
-    backgroundColor: "#fff3cd",
-    borderColor: "#ffeeba",
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 20,
-    width: "100%",
-    alignItems: "center",
-  },
-  warningText: {
-    color: "#856404",
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 5,
-  },
-  errorContainer: {
-    backgroundColor: "rgba(230, 55, 87, 0.1)",
-    borderColor: "#e63757",
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 20,
-    width: "100%",
-    alignItems: "center",
-  },
-  errorText: {
-    color: "#e63757",
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 5,
-  },
-  infoText: {
-    marginTop: 30,
-    fontSize: 14,
-    color: "#5a7184",
-    textAlign: "center",
-    paddingHorizontal: 10,
-  },
-  successContainer: {
     backgroundColor: "rgba(0, 217, 126, 0.1)",
     borderColor: "#00d97e",
     borderWidth: 1,
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 20,
-    width: "100%",
-    alignItems: "center",
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
   },
   successText: {
     color: "#00a86b",
     fontSize: 14,
-    textAlign: "center",
-    marginBottom: 5,
+    flex: 1,
   },
-  settingsButton: {
-    backgroundColor: "#2c7be5",
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+  warningBanner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 10,
+    backgroundColor: "#fff3cd",
+    borderColor: "#ffeeba",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
   },
-  settingsButtonText: {
-    color: "white",
+  warningText: {
+    color: "#856404",
     fontSize: 14,
-    fontWeight: "bold",
+    flex: 1,
   },
-  settingsIcon: {
-    marginRight: 8,
-  },
-  processingStepsContainer: {
-    marginTop: 20,
-    width: "100%",
+  card: {
     backgroundColor: "white",
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  processingStepRow: {
+  cardDisabled: {
+    opacity: 0.5,
+  },
+  cardTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  badgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#12263f",
+    marginBottom: 6,
+  },
+  cardDescription: {
+    fontSize: 14,
+    color: "#5a7184",
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  cardBottom: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: 6,
   },
-  processingStepText: {
-    marginLeft: 10,
-    fontSize: 14,
-    color: "#95aac9",
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flex: 1,
   },
-  completedStepText: {
-    color: "#00d97e",
-    fontWeight: "500",
+  footerText: {
+    fontSize: 13,
+    color: "#5a7184",
   },
-  activeStepText: {
-    color: "#2c7be5",
-    fontWeight: "bold",
+  chevron: {
+    marginLeft: "auto",
   },
 });
