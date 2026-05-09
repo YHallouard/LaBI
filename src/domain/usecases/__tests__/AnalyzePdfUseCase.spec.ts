@@ -8,14 +8,12 @@ import {
 import { OcrResult } from "../../../ports/services/OcrService";
 import { LAB_VALUE_KEYS } from "../../../config/LabConfig";
 import { AnalysisProgressAdapter } from "../../../adapters/services/AnalysisProgressAdapter";
+import { AgentEventBus } from "../../../application/agents/AgentEventBus";
 
 // Mock uuid
 jest.mock("uuid", () => ({
   v4: jest.fn().mockReturnValue("mocked-uuid"),
 }));
-
-// Mock setTimeout
-jest.useFakeTimers();
 
 describe("AnalyzePdfUseCase", () => {
   let repository: InMemoryBiologicalAnalysisRepository;
@@ -101,7 +99,6 @@ describe("AnalyzePdfUseCase", () => {
       useCase.onProcessingStepStarted(onStepStartedMock);
       useCase.onProcessingStepCompleted(onStepCompletedMock);
 
-      // Configure the InMemoryOcrService to use ProgressProcessor
       jest
         .spyOn(ocrService, "extractDataFromPdf")
         .mockImplementation(async (path, processor) => {
@@ -115,29 +112,39 @@ describe("AnalyzePdfUseCase", () => {
       // When
       await useCase.execute(mockPdfPath);
 
-      // Run the timers to process the setTimeout for "Uploading document to Mistral" completion
-      jest.runAllTimers();
-
-      // Then - verify the progress callbacks were called
-      // Uploading document step
-      expect(onStepStartedMock).toHaveBeenCalledWith(
-        "Uploading document to Mistral"
-      );
-      expect(onStepCompletedMock).toHaveBeenCalledWith(
-        "Uploading document to Mistral"
-      );
-
-      // Mock extraction step
+      // Then — upload events are now emitted by OcrService, not by the use case
       expect(onStepStartedMock).toHaveBeenCalledWith("Mock extraction");
       expect(onStepCompletedMock).toHaveBeenCalledWith("Mock extraction");
 
-      // Saving analysis step
       expect(onStepStartedMock).toHaveBeenCalledWith("Saving analysis");
       expect(onStepCompletedMock).toHaveBeenCalledWith("Saving analysis");
 
-      // Verify call counts - 3 steps, each with start and complete
-      expect(onStepStartedMock).toHaveBeenCalledTimes(3);
-      expect(onStepCompletedMock).toHaveBeenCalledTimes(3);
+      expect(onStepStartedMock).toHaveBeenCalledTimes(2);
+      expect(onStepCompletedMock).toHaveBeenCalledTimes(2);
+    });
+
+    it("emits saving analysis on event bus when ocr service exposes a bus", async () => {
+      const bus = new AgentEventBus();
+      const emitSpy = jest.spyOn(bus, "emit");
+      ocrService = new InMemoryOcrService(mockOcrResult, bus);
+      useCase = new AnalyzePdfUseCase(ocrService, repository);
+      jest.spyOn(ocrService, "extractDataFromPdf");
+
+      await useCase.execute(mockPdfPath);
+
+      expect(emitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "step.started",
+          label: "Saving analysis",
+        })
+      );
+      expect(emitSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "step.completed",
+          label: "Saving analysis",
+        })
+      );
+      emitSpy.mockRestore();
     });
 
     it("should not notify steps when callbacks are not provided", async () => {

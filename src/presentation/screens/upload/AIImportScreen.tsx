@@ -11,20 +11,23 @@ import * as DocumentPicker from "expo-document-picker";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { UploadStackParamList } from "../../../types/navigation";
 import { AnalyzePdfUseCase } from "../../../domain/usecases/AnalyzePdfUseCase";
-import { ProcessingStepCallback } from "../../../ports/services/ProgressProcessor";
 import { ScreenLayout } from "../../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
 import { LAB_VALUE_CATEGORIES } from "../../../config/LabConfig";
 import { colorPalette } from "../../../config/themes";
+import {
+  useAnalysisProgress,
+  AnalysisStepStatus,
+} from "../../hooks/useAnalysisProgress";
 
 const PROCESSING_STEPS = [
   "Uploading document to Mistral",
-  "Extracting date",
+  "Extracting analysis date",
   ...Object.keys(LAB_VALUE_CATEGORIES).map(
     (category) => `Analyzing ${category}`
   ),
   "Saving analysis",
-  "Delete Document From Mistral",
+  "Delete document from Mistral",
 ];
 
 type AIImportScreenProps = {
@@ -47,8 +50,22 @@ export const AIImportScreen: React.FC<AIImportScreenProps> = ({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
   const hasCheckedApiKey = useRef<boolean>(false);
-  const [processingStep, setProcessingStep] = useState<string | null>(null);
-  const [completedSteps, setCompletedSteps] = useState<string[]>([]);
+  const lastRunSucceededRef = useRef<boolean>(false);
+  const prevIsAnalyzingRef = useRef<boolean>(false);
+
+  const eventBus = analyzePdfUseCase?.getEventBus?.();
+  const { stepStates, reset } = useAnalysisProgress(eventBus, PROCESSING_STEPS);
+
+  useEffect(() => {
+    const analysisRunEnded =
+      prevIsAnalyzingRef.current === true && isAnalyzing === false;
+    if (analysisRunEnded && lastRunSucceededRef.current) {
+      setSuccessMessage("Analysis extracted and saved successfully");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      lastRunSucceededRef.current = false;
+    }
+    prevIsAnalyzingRef.current = isAnalyzing;
+  }, [isAnalyzing]);
 
   useEffect(() => {
     if (!isLoadingApiKey && !hasCheckedApiKey.current && !analyzePdfUseCase) {
@@ -115,44 +132,11 @@ export const AIImportScreen: React.FC<AIImportScreenProps> = ({
     pdfUri: string,
     useCase: AnalyzePdfUseCase
   ): Promise<void> => {
-    const onProcessingStepStarted: ProcessingStepCallback = (step: string) => {
-      console.log(`Step started: ${step}`);
-      setProcessingStep(step);
-    };
-
-    const onProcessingStepCompleted: ProcessingStepCallback = (
-      step: string
-    ) => {
-      console.log(`Step completed: ${step}`);
-      setCompletedSteps((prev) => [...prev, step]);
-      setProcessingStep(null);
-
-      setTimeout(() => {
-        if (completedSteps.length + 1 === PROCESSING_STEPS.length) {
-          setSuccessMessage("Analysis extracted and saved successfully");
-          setTimeout(() => setSuccessMessage(null), 5000);
-        }
-      }, 100);
-    };
-
-    setCompletedSteps([]);
-
+    reset();
+    lastRunSucceededRef.current = false;
     try {
-      useCase.onProcessingStepStarted(onProcessingStepStarted);
-      useCase.onProcessingStepCompleted(onProcessingStepCompleted);
-
       await useCase.execute(pdfUri);
-
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const missingSteps = PROCESSING_STEPS.filter(
-        (step) => !completedSteps.includes(step)
-      );
-
-      if (missingSteps.length === 0) {
-        setSuccessMessage("Analysis extracted and saved successfully");
-        setTimeout(() => setSuccessMessage(null), 5000);
-      }
+      lastRunSucceededRef.current = true;
     } finally {
       useCase.removeProcessingListeners();
     }
@@ -224,12 +208,7 @@ export const AIImportScreen: React.FC<AIImportScreenProps> = ({
             : "Tap the button above to select and process your PDF report."}
         </Text>
 
-        {isAnalyzing && (
-          <ProcessingStepsIndicator
-            processingStep={processingStep}
-            completedSteps={completedSteps}
-          />
-        )}
+        {isAnalyzing && <ProcessingStepsIndicator stepStates={stepStates} />}
       </View>
     </ScreenLayout>
   );
@@ -273,21 +252,23 @@ const LoadingView = () => (
 );
 
 const ProcessingStepsIndicator = ({
-  processingStep,
-  completedSteps,
+  stepStates,
 }: {
-  processingStep: string | null;
-  completedSteps: string[];
+  stepStates: Map<string, AnalysisStepStatus>;
 }) => (
   <View style={styles.processingStepsContainer}>
     {PROCESSING_STEPS.map((step) => {
-      const isCompleted = completedSteps.includes(step);
-      const isInProgress = processingStep === step;
+      const status = stepStates.get(step) ?? "pending";
+      const isCompleted = status === "completed";
+      const isInProgress = status === "in_progress";
+      const isFailed = status === "failed";
 
       return (
         <View key={step} style={styles.processingStepRow}>
           {isCompleted ? (
             <Ionicons name="checkmark-circle" size={24} color="#00d97e" />
+          ) : isFailed ? (
+            <Ionicons name="alert-circle" size={24} color="#e63757" />
           ) : isInProgress ? (
             <ActivityIndicator size="small" color="#2c7be5" />
           ) : (
@@ -298,6 +279,7 @@ const ProcessingStepsIndicator = ({
               styles.processingStepText,
               isCompleted && styles.completedStepText,
               isInProgress && styles.activeStepText,
+              isFailed && styles.failedStepText,
             ]}
           >
             {step}
@@ -441,5 +423,9 @@ const styles = StyleSheet.create({
   activeStepText: {
     color: "#2c7be5",
     fontWeight: "bold",
+  },
+  failedStepText: {
+    color: "#e63757",
+    fontWeight: "600",
   },
 });

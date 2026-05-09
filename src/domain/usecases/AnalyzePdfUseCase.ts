@@ -5,7 +5,7 @@ import { OcrService, OcrResult } from "../../ports/services/OcrService";
 import { LAB_VALUE_KEYS } from "../../config/LabConfig";
 import { AnalysisProgressAdapter } from "../../adapters/services/AnalysisProgressAdapter";
 import { ProcessingStepCallback } from "../../ports/services/ProgressProcessor";
-import { AgentEventBus } from "../agents/AgentEventBus";
+import { AgentEventBus } from "../../application/agents/AgentEventBus";
 
 export class AnalyzePdfUseCase {
   private processingStepStartedCallback: ProcessingStepCallback | null = null;
@@ -45,18 +45,33 @@ export class AnalyzePdfUseCase {
     }
   }
 
+  private emitStepStartedOnBus(label: string, stepId: string): void {
+    this.ocrService.getEventBus?.()?.emit({
+      type: "step.started",
+      stepId,
+      label,
+    });
+  }
+
+  private emitStepCompletedOnBus(
+    label: string,
+    stepId: string,
+    durationMs: number
+  ): void {
+    this.ocrService.getEventBus?.()?.emit({
+      type: "step.completed",
+      stepId,
+      label,
+      durationMs,
+    });
+  }
+
   async execute(pdfPath: string): Promise<BiologicalAnalysis> {
     try {
-      this.notifyStepStarted("Uploading document");
-
       const progressProcessor = new AnalysisProgressAdapter(
         (step) => this.notifyStepStarted(step),
         (step) => this.notifyStepCompleted(step)
       );
-
-      setTimeout(() => {
-        this.notifyStepCompleted("Uploading document");
-      }, 1000);
 
       const ocrResult = await this.ocrService.extractDataFromPdf(
         pdfPath,
@@ -71,9 +86,13 @@ export class AnalyzePdfUseCase {
 
       this.addLabValuesToAnalysis(analysis, ocrResult);
 
-      this.notifyStepStarted("Saving analysis");
+      const savingLabel = "Saving analysis";
+      const savingStepId = "saving-analysis";
+      this.notifyStepStarted(savingLabel);
+      this.emitStepStartedOnBus(savingLabel, savingStepId);
       await this.repository.save(analysis);
-      this.notifyStepCompleted("Saving analysis");
+      this.emitStepCompletedOnBus(savingLabel, savingStepId, 0);
+      this.notifyStepCompleted(savingLabel);
 
       return analysis;
     } catch (error) {

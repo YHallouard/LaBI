@@ -12,7 +12,7 @@ import { UserProfileRepository } from "../../ports/repositories/UserProfileRepos
 import { ProfileServicePort } from "../../ports/services/ProfileServicePort";
 import { BiologicalAnalysis } from "../../domain/entities/BiologicalAnalysis";
 import { UserProfile } from "../../domain/UserProfile";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 // import { InMemorySyncService } from '../../adapters/services/InMemorySyncService';
 
 export interface SyncProgressCallback {

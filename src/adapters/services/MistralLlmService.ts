@@ -29,8 +29,8 @@ export class MistralLlmService implements LlmService {
       schema,
       maxRetries: 0,
       temperature: options?.temperature ?? 0,
+      system: ctx.systemPrompt,
       messages: [
-        { role: "system", content: ctx.systemPrompt },
         {
           role: "user",
           content: [

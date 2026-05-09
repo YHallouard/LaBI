@@ -39,7 +39,9 @@ jest.mock('expo-file-system', () => ({
   downloadAsync: jest.fn(),
   getInfoAsync: jest.fn(),
   makeDirectoryAsync: jest.fn(),
+  writeAsStringAsync: jest.fn(),
   deleteAsync: jest.fn(),
+  readDirectoryAsync: jest.fn(),
 }));
 
 // Mock @react-navigation/native
@@ -155,6 +157,16 @@ jest.mock('react-native-svg', () => {
 
 // Additional React Native mocks for better testing
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
+
+jest.mock('react-native/Libraries/Components/Keyboard/Keyboard', () => ({
+  addListener: jest.fn().mockReturnValue({ remove: jest.fn() }),
+  removeListener: jest.fn(),
+  removeAllListeners: jest.fn(),
+  dismiss: jest.fn(),
+  scheduleLayoutAnimation: jest.fn(),
+  isVisible: jest.fn().mockReturnValue(false),
+  metrics: jest.fn().mockReturnValue(undefined),
+}));
 
 // Only mock modules that are actually used in the project
 global.jest = jest; 

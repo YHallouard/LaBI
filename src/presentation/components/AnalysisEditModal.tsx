@@ -394,6 +394,7 @@ export const AnalysisEditModal: React.FC<AnalysisEditModalProps> = ({
                 value={editedDate}
                 mode="date"
                 display={Platform.OS === "ios" ? "inline" : "default"}
+                themeVariant="light"
                 onChange={(event, selectedDate) => {
                   const currentDate = selectedDate || editedDate;
                   setShowDatePicker(Platform.OS === "ios");

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Héméa",
     "slug": "Héméa",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -25,7 +25,7 @@
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#2C7BE5"
       },
       "package": "com.anonymous.hemea",
       "permissions": [
@@ -73,7 +73,8 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

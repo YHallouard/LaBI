@@ -13,5 +13,5 @@ export interface OcrService {
     pdfPath: string,
     progressProcessor?: ProgressProcessor
   ): Promise<OcrResult>;
-  getEventBus?(): AgentEventBus;
+  getEventBus?(): AgentEventBus | undefined;
 }

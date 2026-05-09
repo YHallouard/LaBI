@@ -165,7 +165,7 @@ export class CreateHealthMagnitudeChartsUseCase {
           ];
 
     return pointsToShow.map((point) => {
-      const timeRange = maxTime - minTime;
+      const timeRange = maxTime - minTime || 1;
       const x =
         paddingLeft +
         ((point.date.getTime() - minTime) / timeRange) * graphWidth;
@@ -196,7 +196,7 @@ export class CreateHealthMagnitudeChartsUseCase {
     } = chartDimensions;
     const graphHeight = height - paddingTop - paddingBottom;
 
-    const valueRange = maxValue - minValue;
+    const valueRange = maxValue - minValue || 1;
     const step = valueRange / 4;
 
     return Array.from({ length: 5 }).map((_, index) => {

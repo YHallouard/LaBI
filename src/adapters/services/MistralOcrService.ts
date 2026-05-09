@@ -40,12 +40,46 @@ export class MistralOcrService implements OcrService {
   ): Promise<OcrResult> {
     const unsubscribe = this.bridgeBusToProgressProcessor(progressProcessor);
 
+    let fileId: string | undefined;
     try {
-      const signedUrl = await this.fileUploader.uploadAndGetSignedUrl(pdfPath);
+      this.bus.emit({
+        type: "step.started",
+        stepId: "upload-to-mistral",
+        label: "Uploading document to Mistral",
+      });
+      const uploadResult = await this.fileUploader.uploadAndGetSignedUrl(
+        pdfPath
+      );
+      fileId = uploadResult.fileId;
+      this.bus.emit({
+        type: "step.completed",
+        stepId: "upload-to-mistral",
+        label: "Uploading document to Mistral",
+        durationMs: 0,
+      });
+
       const agent = new LabExtractionAgent(this.llmService, this.bus);
-      const result = await agent.run(signedUrl.url);
+      const result = await agent.run(uploadResult.signedUrl.url);
       return this.toOcrResult(result);
     } finally {
+      if (fileId) {
+        this.bus.emit({
+          type: "step.started",
+          stepId: "delete-from-mistral",
+          label: "Delete document from Mistral",
+        });
+        try {
+          await this.fileUploader.deleteFile(fileId);
+        } catch {
+          /* best-effort cleanup */
+        }
+        this.bus.emit({
+          type: "step.completed",
+          stepId: "delete-from-mistral",
+          label: "Delete document from Mistral",
+          durationMs: 0,
+        });
+      }
       unsubscribe();
     }
   }
@@ -77,9 +111,10 @@ export class MistralOcrService implements OcrService {
       if (typeof value.value !== "number") continue;
       result[key] = {
         value: value.value,
-        unit: value.unit && value.unit.length > 0
-          ? value.unit
-          : LAB_VALUE_UNITS[key] ?? "",
+        unit:
+          value.unit && value.unit.length > 0
+            ? value.unit
+            : LAB_VALUE_UNITS[key] ?? "",
       };
     }
   }

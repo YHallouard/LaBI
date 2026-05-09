@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Mistral } from "@mistralai/mistralai";
 
 export interface UploadedFile {
@@ -7,6 +7,11 @@ export interface UploadedFile {
 
 export interface SignedUrl {
   url: string;
+}
+
+export interface UploadResult {
+  fileId: string;
+  signedUrl: SignedUrl;
 }
 
 export class MistralFileUploader {
@@ -18,7 +23,7 @@ export class MistralFileUploader {
     this.client = new Mistral({ apiKey });
   }
 
-  async uploadAndGetSignedUrl(pdfPath: string): Promise<SignedUrl> {
+  async uploadAndGetSignedUrl(pdfPath: string): Promise<UploadResult> {
     const base64String = await this.readPdfAsBase64(pdfPath);
     const file = {
       name: "document.pdf",
@@ -26,7 +31,21 @@ export class MistralFileUploader {
       data: base64String,
     };
     const uploaded = await this.uploadFile(file);
-    return await this.getSignedUrlForFile(uploaded.id);
+    const signedUrl = await this.getSignedUrlForFile(uploaded.id);
+    return { fileId: uploaded.id, signedUrl };
+  }
+
+  async deleteFile(fileId: string): Promise<void> {
+    const response = await fetch(`https://api.mistral.ai/v1/files/${fileId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${this.apiKey}`,
+        Accept: "application/json",
+      },
+    });
+    if (!response.ok) {
+      console.warn(`Failed to delete file ${fileId}: ${response.statusText}`);
+    }
   }
 
   private async readPdfAsBase64(pdfPath: string): Promise<string> {

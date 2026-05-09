@@ -1,11 +1,19 @@
 import { OcrResult, OcrService } from "../../ports/services/OcrService";
 import { ProgressProcessor } from "../../ports/services/ProgressProcessor";
+import type { AgentEventBus } from "../../application/agents/AgentEventBus";
 
 export class InMemoryOcrService implements OcrService {
   private defaultResults: Partial<OcrResult>;
 
-  constructor(defaultResults?: Partial<OcrResult>) {
+  constructor(
+    defaultResults?: Partial<OcrResult>,
+    private readonly eventBus?: AgentEventBus
+  ) {
     this.defaultResults = defaultResults || this.createDefaultOcrResults();
+  }
+
+  getEventBus(): AgentEventBus | undefined {
+    return this.eventBus;
   }
 
   private createDefaultOcrResults(): Partial<OcrResult> {

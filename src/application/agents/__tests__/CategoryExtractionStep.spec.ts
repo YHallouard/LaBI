@@ -5,9 +5,10 @@ import { CategoryExtractionDTO } from "../../../domain/schemas/LabSchemas";
 
 const noDelayRetry = { maxAttempts: 3, baseDelayMs: 0, maxDelayMs: 0 };
 
-function makeFakeLlm(
-  impl: (attempt: number) => Promise<unknown>
-): { service: LlmService; calls: number } {
+function makeFakeLlm(impl: (attempt: number) => Promise<unknown>): {
+  service: LlmService;
+  calls: number;
+} {
   let calls = 0;
   const service: LlmService = {
     async generateObject() {
@@ -50,10 +51,9 @@ describe("CategoryExtractionStep", () => {
 
     const valueEvents = events.filter((e) => e.type === "value.extracted");
     expect(valueEvents).toHaveLength(2);
-    expect(valueEvents.map((e) => (e.type === "value.extracted" ? e.labKey : null))).toEqual([
-      "Hematies",
-      "Hémoglobine",
-    ]);
+    expect(
+      valueEvents.map((e) => (e.type === "value.extracted" ? e.labKey : null))
+    ).toEqual(["Hematies", "Hémoglobine"]);
   });
 
   it("does not emit value.extracted for null biomarkers", async () => {
@@ -137,7 +137,7 @@ describe("CategoryExtractionStep", () => {
 
   it("falls back to expected unit when LLM omits the unit field", async () => {
     const { service } = makeFakeLlm(async () => ({
-      Hematies: { value: 4.5, unit: "" },
+      Hématies: { value: 4.5, unit: "" },
       Hémoglobine: null,
     }));
     const bus = new AgentEventBus();
@@ -148,7 +148,7 @@ describe("CategoryExtractionStep", () => {
       service,
       docUrl,
       categoryName,
-      ["Hematies"],
+      ["Hématies"],
       bus,
       noDelayRetry
     );

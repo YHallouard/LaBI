@@ -11,16 +11,21 @@ jest.mock("@mistralai/mistralai", () => ({
 
 jest.mock("../MistralFileUploader", () => ({
   MistralFileUploader: jest.fn().mockImplementation(() => ({
-    uploadAndGetSignedUrl: jest
-      .fn()
-      .mockResolvedValue({ url: "https://signed.example.com/x" }),
+    uploadAndGetSignedUrl: jest.fn().mockResolvedValue({
+      fileId: "file-123",
+      signedUrl: { url: "https://signed.example.com/x" },
+    }),
+    deleteFile: jest.fn().mockResolvedValue(undefined),
   })),
 }));
 
 import { MistralOcrService } from "../MistralOcrService";
 import { MistralFileUploader } from "../MistralFileUploader";
 import { LlmService } from "../../../ports/services/LlmService";
-import { AgentEventBus, AgentEvent } from "../../../application/agents/AgentEventBus";
+import {
+  AgentEventBus,
+  AgentEvent,
+} from "../../../application/agents/AgentEventBus";
 import { LAB_VALUE_CATEGORIES } from "../../../config/LabConfig";
 import { LabValue } from "../../../domain/entities/BiologicalAnalysis";
 
@@ -57,9 +62,11 @@ describe("MistralOcrService (refactored)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (MistralFileUploader as jest.Mock).mockImplementation(() => ({
-      uploadAndGetSignedUrl: jest
-        .fn()
-        .mockResolvedValue({ url: "https://signed.example.com/x" }),
+      uploadAndGetSignedUrl: jest.fn().mockResolvedValue({
+        fileId: "file-123",
+        signedUrl: { url: "https://signed.example.com/x" },
+      }),
+      deleteFile: jest.fn().mockResolvedValue(undefined),
     }));
   });
 
@@ -136,17 +143,22 @@ describe("MistralOcrService (refactored)", () => {
     await service.extractDataFromPdf(pdfPath);
 
     expect(events.some((e) => e.type === "analysis.completed")).toBe(true);
-    expect(events.filter((e) => e.type === "value.extracted").length).toBeGreaterThan(0);
+    expect(
+      events.filter((e) => e.type === "value.extracted").length
+    ).toBeGreaterThan(0);
   });
 
   it("propagates upload errors", async () => {
     (MistralFileUploader as jest.Mock).mockImplementation(() => ({
       uploadAndGetSignedUrl: jest.fn().mockRejectedValue(new Error("net down")),
+      deleteFile: jest.fn().mockResolvedValue(undefined),
     }));
     const service = new MistralOcrService(apiKey, {
       llmService: buildSuccessfulFakeLlm(),
     });
 
-    await expect(service.extractDataFromPdf(pdfPath)).rejects.toThrow("net down");
+    await expect(service.extractDataFromPdf(pdfPath)).rejects.toThrow(
+      "net down"
+    );
   });
 });

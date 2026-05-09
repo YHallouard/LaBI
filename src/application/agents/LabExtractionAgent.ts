@@ -27,32 +27,38 @@ export class LabExtractionAgent {
       this.retryPolicy
     );
 
-    let extractedDate: Date;
-    try {
-      extractedDate = await dateStep.run();
-    } catch {
-      extractedDate = new Date();
-    }
-
     const categories = Object.entries(LAB_VALUE_CATEGORIES);
+    const categorySteps = categories.map(
+      ([category, labKeys]) =>
+        new CategoryExtractionStep(
+          this.llmService,
+          documentUrl,
+          category,
+          labKeys,
+          this.bus,
+          this.retryPolicy
+        )
+    );
+
+    const [dateResult, ...categoryResults] = await Promise.allSettled([
+      dateStep.run(),
+      ...categorySteps.map((step) => step.run()),
+    ]);
+
+    const extractedDate =
+      dateResult.status === "fulfilled" ? dateResult.value : new Date();
+
     const byCategory: Record<string, CategoryExtractionDTO> = {};
     const missingCategories: string[] = [];
 
-    for (const [category, labKeys] of categories) {
-      const step = new CategoryExtractionStep(
-        this.llmService,
-        documentUrl,
-        category,
-        labKeys,
-        this.bus,
-        this.retryPolicy
-      );
-      try {
-        byCategory[category] = await step.run();
-      } catch {
+    categories.forEach(([category], i) => {
+      const result = categoryResults[i];
+      if (result.status === "fulfilled") {
+        byCategory[category] = result.value;
+      } else {
         missingCategories.push(category);
       }
-    }
+    });
 
     if (missingCategories.length === categories.length) {
       throw new Error(
