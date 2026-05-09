@@ -5,6 +5,7 @@ import { OcrService, OcrResult } from "../../ports/services/OcrService";
 import { LAB_VALUE_KEYS } from "../../config/LabConfig";
 import { AnalysisProgressAdapter } from "../../adapters/services/AnalysisProgressAdapter";
 import { ProcessingStepCallback } from "../../ports/services/ProgressProcessor";
+import { AgentEventBus } from "../agents/AgentEventBus";
 
 export class AnalyzePdfUseCase {
   private processingStepStartedCallback: ProcessingStepCallback | null = null;
@@ -28,6 +29,10 @@ export class AnalyzePdfUseCase {
     this.processingStepCompletedCallback = null;
   }
 
+  getEventBus(): AgentEventBus | undefined {
+    return this.ocrService.getEventBus?.();
+  }
+
   private notifyStepStarted(step: string): void {
     if (this.processingStepStartedCallback) {
       this.processingStepStartedCallback(step);
@@ -42,37 +47,30 @@ export class AnalyzePdfUseCase {
 
   async execute(pdfPath: string): Promise<BiologicalAnalysis> {
     try {
-      // Start the extraction process
       this.notifyStepStarted("Uploading document");
 
-      // Create a progress adapter to track OCR progress
       const progressProcessor = new AnalysisProgressAdapter(
         (step) => this.notifyStepStarted(step),
         (step) => this.notifyStepCompleted(step)
       );
 
-      // Mark upload as complete after a short delay
       setTimeout(() => {
         this.notifyStepCompleted("Uploading document");
       }, 1000);
 
-      // Extract data with progress tracking
       const ocrResult = await this.ocrService.extractDataFromPdf(
         pdfPath,
         progressProcessor
       );
 
-      // Create and save the analysis
       const analysis: BiologicalAnalysis = {
         id: uuidv4(),
         date: ocrResult.extractedDate,
         pdfSource: pdfPath,
       };
 
-      // Add all the lab values to the analysis
       this.addLabValuesToAnalysis(analysis, ocrResult);
 
-      // Save the analysis
       this.notifyStepStarted("Saving analysis");
       await this.repository.save(analysis);
       this.notifyStepCompleted("Saving analysis");
@@ -89,8 +87,9 @@ export class AnalyzePdfUseCase {
     ocrResult: OcrResult
   ): void {
     LAB_VALUE_KEYS.forEach((key) => {
-      if (ocrResult[key] !== undefined && ocrResult[key] !== null) {
-        (analysis as Record<string, unknown>)[key] = ocrResult[key];
+      const value = ocrResult[key];
+      if (value !== undefined && value !== null && !(value instanceof Date)) {
+        (analysis as Record<string, unknown>)[key] = value;
       }
     });
   }
