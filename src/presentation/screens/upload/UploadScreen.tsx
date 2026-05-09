@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { UploadStackParamList } from "../../../types/navigation";
 import { CreateAnalysisUseCase } from "../../../domain/usecases/CreateAnalysisUseCase";
+import { CreateManualAnalysisUseCase } from "../../../domain/usecases/CreateManualAnalysisUseCase";
 import { GetReferenceRangeUseCase } from "../../../domain/usecases/GetReferenceRangeUseCase";
 import { createEmptyBiologicalAnalysis } from "../../../domain/entities/BiologicalAnalysis";
 import { ScreenLayout } from "../../components/ScreenLayout";
@@ -14,12 +15,14 @@ import { colorPalette } from "../../../config/themes";
 type UploadScreenProps = {
   navigation: StackNavigationProp<UploadStackParamList, "UploadScreen">;
   createAnalysisUseCase: CreateAnalysisUseCase;
+  createManualAnalysisUseCase: CreateManualAnalysisUseCase | null;
   getReferenceRangeUseCase: GetReferenceRangeUseCase;
 };
 
 export const UploadScreen: React.FC<UploadScreenProps> = ({
   navigation,
   createAnalysisUseCase,
+  createManualAnalysisUseCase: _createManualAnalysisUseCase,
   getReferenceRangeUseCase,
 }) => {
   const [showManualModal, setShowManualModal] = useState(false);
@@ -62,7 +65,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
         analysis={emptyAnalysis}
         title="Saisir manuellement"
         getReferenceRangeUseCase={getReferenceRangeUseCase}
-        onSave={(analysis) => createAnalysisUseCase.execute(analysis)}
+        onSave={async (analysis) => { await createAnalysisUseCase.execute(analysis); }}
         onSaved={() => {
           setShowManualModal(false);
           navigation.navigate("UploadScreen");

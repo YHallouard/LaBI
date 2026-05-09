@@ -50,6 +50,7 @@ import { CalculateStatisticsUseCase } from "../../domain/usecases/CalculateStati
 import { ResetDatabaseUseCase } from "../../domain/usecases/ResetDatabaseUseCase";
 import { GetReferenceRangeUseCase } from "../../domain/usecases/GetReferenceRangeUseCase";
 import { CreateAnalysisUseCase } from "../../domain/usecases/CreateAnalysisUseCase";
+import { CreateManualAnalysisUseCase } from "../../domain/usecases/CreateManualAnalysisUseCase";
 import { GetPinnedMetricsUseCase } from "../../domain/usecases/GetPinnedMetricsUseCase";
 import { SavePinnedMetricsUseCase } from "../../domain/usecases/SavePinnedMetricsUseCase";
 import { CalculateHealthMagnitudeUseCase } from "../../domain/usecases/CalculateHealthMagnitudeUseCase";
@@ -88,6 +89,7 @@ export interface AppNavigatorProps {
   retrieveUserProfileUseCase: RetrieveUserProfileUseCase | null;
   getUserAgeUseCase: GetUserAgeUseCase | null;
   createAnalysisUseCase: CreateAnalysisUseCase | null;
+  createManualAnalysisUseCase: CreateManualAnalysisUseCase | null;
   isLoading: boolean;
   apiKeyError: string | null;
   appError: string | null;
@@ -148,6 +150,7 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
     retrieveUserProfileUseCase,
     getUserAgeUseCase,
     createAnalysisUseCase,
+    createManualAnalysisUseCase,
     isLoading,
     apiKeyError,
     appError,
@@ -625,6 +628,7 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
                 <UploadScreen
                   {...props}
                   createAnalysisUseCase={createAnalysisUseCase}
+                  createManualAnalysisUseCase={createManualAnalysisUseCase}
                   getReferenceRangeUseCase={getReferenceRangeUseCase}
                 />
               );
@@ -660,6 +664,7 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
       apiKeyError,
       checkAndLoadApiKey,
       createAnalysisUseCase,
+      createManualAnalysisUseCase,
       getReferenceRangeUseCase,
     ]);
 
