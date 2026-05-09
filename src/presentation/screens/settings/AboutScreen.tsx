@@ -24,7 +24,7 @@ export const AboutScreen: React.FC = () => {
         <View style={styles.logoContainer}>
           <View style={styles.logoBackground}>
             <AppImage
-              imagePath="adaptive-icon"
+              imagePath="app-icon"
               style={styles.logo}
               resizeMode="contain"
             />

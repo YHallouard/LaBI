@@ -14,7 +14,10 @@ import {
   GetAnalysisByIdUseCase,
   GetLabTestDataUseCase,
 } from "./src/domain/usecases/GetAnalysesUseCase";
-import { AnalyzePdfUseCase } from "./src/domain/usecases/AnalyzePdfUseCase";
+import { AnalyzePdfUseCase } from "./src/application/usecases/AnalyzePdfUseCase";
+import { CreateManualAnalysisUseCase } from "./src/application/usecases/CreateManualAnalysisUseCase";
+import { AiImportScreen } from "./src/presentation/screens/AiImportScreen";
+import { SQLiteBiologicalAnalysisRepository } from "./src/adapters/repositories/SQLiteBiologicalAnalysisRepository";
 import { MistralOcrService } from "./src/adapters/services/MistralOcrService";
 import { UpdateAnalysisUseCase } from "./src/domain/usecases/UpdateAnalysisUseCase";
 import { DeleteAnalysisUseCase } from "./src/domain/usecases/DeleteAnalysisUseCase";
@@ -30,6 +33,7 @@ import { SavePinnedMetricsUseCase } from "./src/domain/usecases/SavePinnedMetric
 import { CalculateHealthMagnitudeUseCase } from "./src/domain/usecases/CalculateHealthMagnitudeUseCase";
 import { RetrieveUserProfileUseCase } from "./src/domain/usecases/RetrieveUserProfileUseCase";
 import { GetUserAgeUseCase } from "./src/domain/usecases/GetUserAgeUseCase";
+import { CreateAnalysisUseCase } from "./src/domain/usecases/CreateAnalysisUseCase";
 import { getDatabaseStorage } from "./src/infrastructure/database/DatabaseInitializer";
 
 // overlay timings removed
@@ -51,6 +55,7 @@ type UseCasesBundle = {
   calculateHealthMagnitudeUseCase: CalculateHealthMagnitudeUseCase;
   retrieveUserProfileUseCase: RetrieveUserProfileUseCase;
   getUserAgeUseCase: GetUserAgeUseCase;
+  createAnalysis: CreateAnalysisUseCase;
   analyzePdfUseCase: AnalyzePdfUseCase | null;
 };
 
@@ -118,6 +123,9 @@ export default function App() {
     const deleteAnalysis = new DeleteAnalysisUseCase(
       biologicalAnalysisRepository
     );
+    const createAnalysis = new CreateAnalysisUseCase(
+      biologicalAnalysisRepository
+    );
     const getLabTestData = new GetLabTestDataUseCase();
     const saveApiKey = new SaveApiKeyUseCase();
     const loadApiKey = new LoadApiKeyUseCase();
@@ -151,6 +159,8 @@ export default function App() {
     );
     const getUserAgeUseCase = new GetUserAgeUseCase();
 
+    const createManualAnalysis = new CreateManualAnalysisUseCase(repository);
+
     return {
       getAnalyses,
       getAnalysisById,
@@ -168,6 +178,7 @@ export default function App() {
       calculateHealthMagnitudeUseCase,
       retrieveUserProfileUseCase,
       getUserAgeUseCase,
+      createAnalysis,
       analyzePdfUseCase: null,
     };
   };
@@ -269,6 +280,7 @@ export default function App() {
           }
           retrieveUserProfileUseCase={bundle.retrieveUserProfileUseCase}
           getUserAgeUseCase={bundle.getUserAgeUseCase}
+          createAnalysisUseCase={bundle.createAnalysis}
           isLoading={false}
           apiKeyError={apiKeyError}
           appError={appError}

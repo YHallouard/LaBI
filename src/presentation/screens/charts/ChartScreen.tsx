@@ -1365,8 +1365,8 @@ function createDynamicReferenceAreaPaths(
   } = dimensions;
   const graphWidth = width - paddingLeft - paddingRight;
   const graphHeight = height - paddingTop - paddingBottom;
-  const valueRange = maxValue - minValue;
-  const timeRange = maxTime - minTime;
+  const valueRange = maxValue - minValue || 1;
+  const timeRange = maxTime - minTime || 1;
 
   // Ensure reference ranges are sorted by timestamp
   const sortedRanges = [...referenceRanges].sort(
@@ -1464,7 +1464,7 @@ function createVerticalGridLines(
         ];
 
   return pointsToShow.map((point, index) => {
-    const timeRange = maxTime - minTime;
+    const timeRange = maxTime - minTime || 1;
     const x =
       paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
 
@@ -1509,7 +1509,7 @@ function createHorizontalGridLines(
   } = dimensions;
   const graphHeight = height - paddingTop - paddingBottom;
 
-  const valueRange = maxValue - minValue;
+  const valueRange = maxValue - minValue || 1;
   const step = valueRange / 4;
 
   return Array.from({ length: 5 }).map((_, index) => {
@@ -1566,11 +1566,11 @@ function createDataPoints(
   );
 
   return dataPoints.map((point, index) => {
-    const timeRange = maxTime - minTime;
+    const timeRange = maxTime - minTime || 1;
     const x =
       paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
 
-    const valueRange = maxValue - minValue;
+    const valueRange = maxValue - minValue || 1;
     const y =
       height -
       paddingBottom -
@@ -1611,9 +1611,8 @@ function createDataPoints(
           timestamp <= nextRange.timestamp
         ) {
           // Calculate how far along we are between the two reference points (0 to 1)
-          const ratio =
-            (timestamp - currentRange.timestamp) /
-            (nextRange.timestamp - currentRange.timestamp);
+          const timeDelta = nextRange.timestamp - currentRange.timestamp || 1;
+          const ratio = (timestamp - currentRange.timestamp) / timeDelta;
 
           // Interpolate the min and max values
           const min =

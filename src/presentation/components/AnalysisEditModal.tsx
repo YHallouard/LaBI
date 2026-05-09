@@ -25,18 +25,18 @@ import {
   LAB_VALUE_UNITS,
   LAB_VALUE_CATEGORIES,
 } from "../../config/LabConfig";
-import { UpdateAnalysisUseCase } from "../../domain/usecases/UpdateAnalysisUseCase";
 import { GetReferenceRangeUseCase } from "../../domain/usecases/GetReferenceRangeUseCase";
 import { ResponsiveSectionList } from ".";
 import { colorPalette } from "../../config/themes";
 
 interface AnalysisEditModalProps {
   visible: boolean;
-  analysis: BiologicalAnalysis | null;
-  updateAnalysisUseCase: UpdateAnalysisUseCase;
+  analysis: BiologicalAnalysis;
+  title?: string;
   getReferenceRangeUseCase: GetReferenceRangeUseCase;
+  onSave: (analysis: BiologicalAnalysis) => Promise<void>;
+  onSaved?: (analysis: BiologicalAnalysis) => void;
   onClose: () => void;
-  onSave: (updatedAnalysis: BiologicalAnalysis) => void;
 }
 
 const DecimalInput = ({
@@ -79,10 +79,11 @@ const DecimalInput = ({
 export const AnalysisEditModal: React.FC<AnalysisEditModalProps> = ({
   visible,
   analysis,
-  updateAnalysisUseCase,
+  title = "Edit Analysis",
   getReferenceRangeUseCase,
-  onClose,
   onSave,
+  onSaved,
+  onClose,
 }) => {
   const [editedValues, setEditedValues] = useState<Record<string, LabValue>>(
     {}
@@ -222,13 +223,11 @@ export const AnalysisEditModal: React.FC<AnalysisEditModalProps> = ({
   };
 
   const handleSave = async () => {
-    if (!analysis) return;
-
     try {
       setSaving(true);
       const updatedAnalysis = createUpdatedAnalysis();
-      await updateAnalysisUseCase.execute(updatedAnalysis);
-      onSave(updatedAnalysis);
+      await onSave(updatedAnalysis);
+      onSaved?.(updatedAnalysis);
       onClose();
     } catch (err) {
       console.error("Failed to save changes:", err);
@@ -336,8 +335,6 @@ export const AnalysisEditModal: React.FC<AnalysisEditModalProps> = ({
     []
   );
 
-  if (!analysis) return null;
-
   const formattedDate = editedDate.toLocaleDateString("fr-FR");
 
   return (
@@ -356,7 +353,7 @@ export const AnalysisEditModal: React.FC<AnalysisEditModalProps> = ({
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
 
-          <Text style={styles.title}>Edit Analysis</Text>
+          <Text style={styles.title}>{title}</Text>
 
           <TouchableOpacity
             onPress={handleSave}
@@ -397,6 +394,7 @@ export const AnalysisEditModal: React.FC<AnalysisEditModalProps> = ({
                 value={editedDate}
                 mode="date"
                 display={Platform.OS === "ios" ? "inline" : "default"}
+                themeVariant="light"
                 onChange={(event, selectedDate) => {
                   const currentDate = selectedDate || editedDate;
                   setShowDatePicker(Platform.OS === "ios");

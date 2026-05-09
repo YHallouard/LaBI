@@ -12,6 +12,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 // Screens
 import { HomeScreen } from "../screens/home/HomeScreen";
 import { UploadScreen } from "../screens/upload/UploadScreen";
+import { AIImportScreen } from "../screens/upload/AIImportScreen";
 import { ChartScreen } from "../screens/charts/ChartScreen";
 import { SettingsScreen } from "../screens/settings/SettingsScreen";
 import { ApiKeySettingsScreen } from "../screens/settings/ApiKeySettingsScreen";
@@ -48,6 +49,7 @@ import { DeleteApiKeyUseCase } from "../../domain/usecases/DeleteApiKeyUseCase";
 import { CalculateStatisticsUseCase } from "../../domain/usecases/CalculateStatisticsUseCase";
 import { ResetDatabaseUseCase } from "../../domain/usecases/ResetDatabaseUseCase";
 import { GetReferenceRangeUseCase } from "../../domain/usecases/GetReferenceRangeUseCase";
+import { CreateAnalysisUseCase } from "../../domain/usecases/CreateAnalysisUseCase";
 import { GetPinnedMetricsUseCase } from "../../domain/usecases/GetPinnedMetricsUseCase";
 import { SavePinnedMetricsUseCase } from "../../domain/usecases/SavePinnedMetricsUseCase";
 import { CalculateHealthMagnitudeUseCase } from "../../domain/usecases/CalculateHealthMagnitudeUseCase";
@@ -85,6 +87,7 @@ export interface AppNavigatorProps {
   calculateHealthMagnitudeUseCase: CalculateHealthMagnitudeUseCase | null;
   retrieveUserProfileUseCase: RetrieveUserProfileUseCase | null;
   getUserAgeUseCase: GetUserAgeUseCase | null;
+  createAnalysisUseCase: CreateAnalysisUseCase | null;
   isLoading: boolean;
   apiKeyError: string | null;
   appError: string | null;
@@ -144,6 +147,7 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
     calculateHealthMagnitudeUseCase,
     retrieveUserProfileUseCase,
     getUserAgeUseCase,
+    createAnalysisUseCase,
     isLoading,
     apiKeyError,
     appError,
@@ -611,8 +615,33 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
           >
             {(
               props: StackScreenProps<UploadStackParamList, "UploadScreen">
+            ) => {
+              if (!createAnalysisUseCase || !getReferenceRangeUseCase) {
+                return (
+                  <ErrorView errorMessage="Application is not properly initialized" />
+                );
+              }
+              return (
+                <UploadScreen
+                  {...props}
+                  createAnalysisUseCase={createAnalysisUseCase}
+                  getReferenceRangeUseCase={getReferenceRangeUseCase}
+                />
+              );
+            }}
+          </UploadStackNavigator.Screen>
+
+          <UploadStackNavigator.Screen
+            name="AIImportScreen"
+            options={{
+              headerTitle: "Import par IA",
+              headerRight: () => <SettingsButton />,
+            }}
+          >
+            {(
+              props: StackScreenProps<UploadStackParamList, "AIImportScreen">
             ) => (
-              <UploadScreen
+              <AIImportScreen
                 {...props}
                 analyzePdfUseCase={analyzePdfUseCase}
                 isLoadingApiKey={isLoading}
@@ -625,7 +654,14 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
       );
       UploadStackComponent.displayName = "UploadStackComponent";
       return UploadStackComponent;
-    }, [analyzePdfUseCase, isLoading, apiKeyError, checkAndLoadApiKey]);
+    }, [
+      analyzePdfUseCase,
+      isLoading,
+      apiKeyError,
+      checkAndLoadApiKey,
+      createAnalysisUseCase,
+      getReferenceRangeUseCase,
+    ]);
 
     if (appError) {
       return <ErrorView errorMessage={appError} />;

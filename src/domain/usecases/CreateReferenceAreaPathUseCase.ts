@@ -25,8 +25,8 @@ export class CreateReferenceAreaPathUseCase {
     } = dimensions;
     const graphWidth = width - paddingLeft - paddingRight;
     const graphHeight = height - paddingTop - paddingBottom;
-    const valueRange = maxValue - minValue;
-    const timeRange = maxTime - minTime;
+    const valueRange = maxValue - minValue || 1;
+    const timeRange = maxTime - minTime || 1;
 
     const sortedRanges = [...referenceRanges].sort(
       (a, b) => a.timestamp - b.timestamp

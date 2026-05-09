@@ -63,8 +63,8 @@ export function createLinePath(
     } = dimensions;
     const graphWidth = width - paddingLeft - paddingRight;
     const graphHeight = height - paddingTop - paddingBottom;
-    const timeRange = maxTime - minTime;
-    const valueRange = maxValue - minValue;
+    const timeRange = maxTime - minTime || 1;
+    const valueRange = maxValue - minValue || 1;
 
     const x =
       paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
@@ -139,8 +139,8 @@ export function createDynamicReferenceAreaPaths(
   } = dimensions;
   const graphWidth = width - paddingLeft - paddingRight;
   const graphHeight = height - paddingTop - paddingBottom;
-  const valueRange = maxValue - minValue;
-  const timeRange = maxTime - minTime;
+  const valueRange = maxValue - minValue || 1;
+  const timeRange = maxTime - minTime || 1;
 
   const sortedRanges = [...referenceRanges].sort(
     (a, b) => a.timestamp - b.timestamp
@@ -223,11 +223,11 @@ export function createDataPoints(
   );
 
   return dataPoints.map((point, index) => {
-    const timeRange = maxTime - minTime;
+    const timeRange = maxTime - minTime || 1;
     const x =
       paddingLeft + ((point.timestamp - minTime) / timeRange) * graphWidth;
 
-    const valueRange = maxValue - minValue;
+    const valueRange = maxValue - minValue || 1;
     const y =
       height -
       paddingBottom -
@@ -261,9 +261,8 @@ export function createDataPoints(
           timestamp >= currentRange.timestamp &&
           timestamp <= nextRange.timestamp
         ) {
-          const ratio =
-            (timestamp - currentRange.timestamp) /
-            (nextRange.timestamp - currentRange.timestamp);
+          const timeDelta = nextRange.timestamp - currentRange.timestamp || 1;
+          const ratio = (timestamp - currentRange.timestamp) / timeDelta;
 
           const min =
             currentRange.min + ratio * (nextRange.min - currentRange.min);
