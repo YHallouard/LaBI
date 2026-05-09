@@ -26,5 +26,5 @@ export type ChartStackParamList = {
 
 export type UploadStackParamList = {
   UploadScreen: undefined;
-  Settings: undefined;
+  AIImportScreen: undefined;
 };

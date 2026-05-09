@@ -307,14 +307,17 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
           stickySectionHeadersEnabled={false}
         />
 
-        <AnalysisEditModal
-          visible={editModalVisible}
-          analysis={analysis}
-          updateAnalysisUseCase={updateAnalysisUseCase}
-          getReferenceRangeUseCase={getReferenceRangeUseCase}
-          onClose={() => setEditModalVisible(false)}
-          onSave={handleAnalysisUpdated}
-        />
+        {analysis && (
+          <AnalysisEditModal
+            visible={editModalVisible}
+            analysis={analysis}
+            title="Edit Analysis"
+            getReferenceRangeUseCase={getReferenceRangeUseCase}
+            onSave={async (updated) => { await updateAnalysisUseCase.execute(updated); }}
+            onSaved={handleAnalysisUpdated}
+            onClose={() => setEditModalVisible(false)}
+          />
+        )}
       </View>
     </ScreenLayout>
   );

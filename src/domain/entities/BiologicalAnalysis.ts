@@ -11,3 +11,7 @@ export interface BiologicalAnalysis {
   // Dynamically include all lab values using index signature
   [key: string]: string | Date | LabValue | null | undefined;
 }
+
+export function createEmptyBiologicalAnalysis(generateId: () => string): BiologicalAnalysis {
+  return { id: generateId(), date: new Date() };
+}

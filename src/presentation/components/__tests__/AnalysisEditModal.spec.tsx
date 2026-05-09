@@ -3,6 +3,7 @@ import { render, fireEvent, waitFor, act } from "@testing-library/react-native";
 import { AnalysisEditModal } from "../AnalysisEditModal";
 import { BiologicalAnalysis } from "../../../domain/entities/BiologicalAnalysis";
 import { UpdateAnalysisUseCase } from "../../../domain/usecases/UpdateAnalysisUseCase";
+import { CreateAnalysisUseCase } from "../../../domain/usecases/CreateAnalysisUseCase";
 import { GetReferenceRangeUseCase } from "../../../domain/usecases/GetReferenceRangeUseCase";
 import {
   LAB_VALUE_KEYS,
@@ -132,10 +133,10 @@ describe("AnalysisEditModal", () => {
       <AnalysisEditModal
         visible={true}
         analysis={realAnalysis}
-        updateAnalysisUseCase={realUpdateAnalysisUseCase}
         getReferenceRangeUseCase={realGetReferenceRangeUseCase}
+        onSave={async (a) => { await realUpdateAnalysisUseCase.execute(a); }}
+        onSaved={mockOnSave}
         onClose={mockOnClose}
-        onSave={mockOnSave}
         {...props}
       />
     );
@@ -156,19 +157,14 @@ describe("AnalysisEditModal", () => {
         <AnalysisEditModal
           visible={false}
           analysis={realAnalysis}
-          updateAnalysisUseCase={realUpdateAnalysisUseCase}
           getReferenceRangeUseCase={realGetReferenceRangeUseCase}
+          onSave={async (a) => { await realUpdateAnalysisUseCase.execute(a); }}
+          onSaved={mockOnSave}
           onClose={mockOnClose}
-          onSave={mockOnSave}
         />
       );
 
       expect(queryByText("Edit Analysis")).toBeNull();
-    });
-
-    test("should return null when no analysis data is provided", () => {
-      const { UNSAFE_root } = renderAnalysisEditModal({ analysis: null });
-      expect(UNSAFE_root.children).toHaveLength(0);
     });
 
     test("should display the correct formatted date", () => {
@@ -485,11 +481,22 @@ describe("AnalysisEditModal", () => {
   });
 
   describe("Form Validation and Saving", () => {
-    test("should call update use case and onSave when saving valid form data", async () => {
-      const { getByText } = renderAnalysisEditModal();
+    test("should call onSave and onSaved when saving valid form data", async () => {
+      const onSave = jest.fn().mockResolvedValue(undefined);
+      const { getByText } = render(
+        <AnalysisEditModal
+          visible={true}
+          analysis={realAnalysis}
+          getReferenceRangeUseCase={realGetReferenceRangeUseCase}
+          onSave={onSave}
+          onSaved={mockOnSave}
+          onClose={mockOnClose}
+        />
+      );
       fireEvent.press(getByText("Save"));
 
       await waitFor(() => {
+        expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ id: "test-analysis-1" }));
         expect(mockOnSave).toHaveBeenCalled();
         expect(mockOnClose).toHaveBeenCalled();
       });
@@ -631,10 +638,10 @@ describe("AnalysisEditModal", () => {
         <AnalysisEditModal
           visible={true}
           analysis={newAnalysis}
-          updateAnalysisUseCase={realUpdateAnalysisUseCase}
           getReferenceRangeUseCase={realGetReferenceRangeUseCase}
+          onSave={async (a) => { await realUpdateAnalysisUseCase.execute(a); }}
+          onSaved={mockOnSave}
           onClose={mockOnClose}
-          onSave={mockOnSave}
         />
       );
 
@@ -711,10 +718,10 @@ describe("AnalysisEditModal", () => {
         <AnalysisEditModal
           visible={true}
           analysis={realAnalysis}
-          updateAnalysisUseCase={realUpdateAnalysisUseCase}
           getReferenceRangeUseCase={realGetReferenceRangeUseCase}
+          onSave={async (a) => { await realUpdateAnalysisUseCase.execute(a); }}
+          onSaved={mockOnSave}
           onClose={mockOnClose}
-          onSave={mockOnSave}
           {...props}
         />
       );

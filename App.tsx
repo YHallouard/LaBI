@@ -30,6 +30,7 @@ import { SavePinnedMetricsUseCase } from "./src/domain/usecases/SavePinnedMetric
 import { CalculateHealthMagnitudeUseCase } from "./src/domain/usecases/CalculateHealthMagnitudeUseCase";
 import { RetrieveUserProfileUseCase } from "./src/domain/usecases/RetrieveUserProfileUseCase";
 import { GetUserAgeUseCase } from "./src/domain/usecases/GetUserAgeUseCase";
+import { CreateAnalysisUseCase } from "./src/domain/usecases/CreateAnalysisUseCase";
 import { getDatabaseStorage } from "./src/infrastructure/database/DatabaseInitializer";
 
 // overlay timings removed
@@ -51,6 +52,7 @@ type UseCasesBundle = {
   calculateHealthMagnitudeUseCase: CalculateHealthMagnitudeUseCase;
   retrieveUserProfileUseCase: RetrieveUserProfileUseCase;
   getUserAgeUseCase: GetUserAgeUseCase;
+  createAnalysis: CreateAnalysisUseCase;
   analyzePdfUseCase: AnalyzePdfUseCase | null;
 };
 
@@ -118,6 +120,9 @@ export default function App() {
     const deleteAnalysis = new DeleteAnalysisUseCase(
       biologicalAnalysisRepository
     );
+    const createAnalysis = new CreateAnalysisUseCase(
+      biologicalAnalysisRepository
+    );
     const getLabTestData = new GetLabTestDataUseCase();
     const saveApiKey = new SaveApiKeyUseCase();
     const loadApiKey = new LoadApiKeyUseCase();
@@ -168,6 +173,7 @@ export default function App() {
       calculateHealthMagnitudeUseCase,
       retrieveUserProfileUseCase,
       getUserAgeUseCase,
+      createAnalysis,
       analyzePdfUseCase: null,
     };
   };
@@ -269,6 +275,7 @@ export default function App() {
           }
           retrieveUserProfileUseCase={bundle.retrieveUserProfileUseCase}
           getUserAgeUseCase={bundle.getUserAgeUseCase}
+          createAnalysisUseCase={bundle.createAnalysis}
           isLoading={false}
           apiKeyError={apiKeyError}
           appError={appError}
