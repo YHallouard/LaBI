@@ -29,6 +29,8 @@ import {
   GetLabTestDataUseCase,
 } from "./src/application/usecases/GetAnalysesUseCase";
 import { AnalyzePdfUseCase } from "./src/application/usecases/AnalyzePdfUseCase";
+import { CreateManualAnalysisUseCase } from "./src/application/usecases/CreateManualAnalysisUseCase";
+import { AiImportScreen } from "./src/presentation/screens/AiImportScreen";
 import { SQLiteBiologicalAnalysisRepository } from "./src/adapters/repositories/SQLiteBiologicalAnalysisRepository";
 import { MistralOcrService } from "./src/adapters/services/MistralOcrService";
 import {
@@ -128,6 +130,8 @@ export default function App() {
     useState<ResetDatabaseUseCase | null>(null);
   const [referenceRangeService, setReferenceRangeService] =
     useState<ReferenceRangeService | null>(null);
+  const [createManualAnalysisUseCase, setCreateManualAnalysisUseCase] =
+    useState<CreateManualAnalysisUseCase | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [appError, setAppError] = useState<string | null>(null);
@@ -362,6 +366,8 @@ export default function App() {
       userProfileRepository
     );
 
+    const createManualAnalysis = new CreateManualAnalysisUseCase(repository);
+
     return {
       getAnalyses,
       getAnalysisById,
@@ -374,6 +380,7 @@ export default function App() {
       calculateStatistics,
       resetDatabase,
       referenceRange,
+      createManualAnalysis,
     };
   };
 
@@ -391,6 +398,7 @@ export default function App() {
     setCalculateStatisticsUseCase(useCases.calculateStatistics);
     setResetDatabaseUseCase(useCases.resetDatabase);
     setReferenceRangeService(useCases.referenceRange);
+    setCreateManualAnalysisUseCase(useCases.createManualAnalysis);
   };
 
   const createRepository = () => {
@@ -704,6 +712,23 @@ export default function App() {
               isLoadingApiKey={isLoading}
               apiKeyError={apiKeyError}
               checkAndLoadApiKey={checkAndLoadApiKey}
+              createManualAnalysisUseCase={createManualAnalysisUseCase}
+              referenceRangeService={referenceRangeService}
+            />
+          )}
+        </UploadStackNavigator.Screen>
+        <UploadStackNavigator.Screen
+          name="AiImportScreen"
+          options={{
+            headerTitle: "Analyse IA",
+            headerBackTitle: " ",
+            headerLeftContainerStyle: { paddingLeft: 10 },
+          }}
+        >
+          {(props: StackScreenProps<UploadStackParamList, "AiImportScreen">) => (
+            <AiImportScreen
+              {...props}
+              analyzePdfUseCase={analyzePdfUseCase}
             />
           )}
         </UploadStackNavigator.Screen>
@@ -711,7 +736,7 @@ export default function App() {
     );
     UploadStackComponent.displayName = "UploadStackComponent";
     return UploadStackComponent;
-  }, [analyzePdfUseCase, isLoading, apiKeyError]);
+  }, [analyzePdfUseCase, isLoading, apiKeyError, createManualAnalysisUseCase, referenceRangeService]);
 
   const handleLoaderFinish = (): void => {
     setLoaderVisible(false);

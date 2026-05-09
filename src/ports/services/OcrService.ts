@@ -1,9 +1,11 @@
 import { LabValue } from "../../domain/entities/BiologicalAnalysis";
 import { ProgressProcessor } from "./ProgressProcessor";
+import type { AgentEventBus } from "../../application/agents/AgentEventBus";
 
 export interface OcrResult {
   extractedDate: Date;
-  [key: string]: Date | LabValue | null | undefined;
+  missingCategories?: string[];
+  [key: string]: Date | LabValue | null | undefined | string[];
 }
 
 export interface OcrService {
@@ -11,4 +13,5 @@ export interface OcrService {
     pdfPath: string,
     progressProcessor?: ProgressProcessor
   ): Promise<OcrResult>;
+  getEventBus?(): AgentEventBus;
 }
