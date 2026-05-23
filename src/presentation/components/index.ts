@@ -10,3 +10,7 @@ export { TabBarButton } from "./TabBarButton";
 export { TimeRangeFAB } from "./TimeRangeFAB";
 export { ZoomInWrapper } from "./ZoomInWrapper";
 export { TimeRangeProvider, useTimeRange } from "../contexts/TimeRangeContext";
+export { AppHeader, useScrollAwareHeader } from "./AppHeader";
+export { SearchBar } from "./SearchBar";
+export { SettingsButton } from "./SettingsButton";
+export { GlassSurface, GlassCard, GlassButton } from "./glass";

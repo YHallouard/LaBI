@@ -6,7 +6,7 @@ import {
   BottomTabBarProps,
 } from "@react-navigation/bottom-tabs";
 import { RootTabParamList } from "../../types/navigation";
-import { colorPalette, generateAlpha } from "../../config/themes";
+import { colorPalette, glass } from "../../config/themes";
 import { TabBarButton } from "./TabBarButton";
 import { useState, useEffect, JSX } from "react";
 import Animated, {
@@ -16,7 +16,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useTabBar } from "../contexts/TabBarContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { BlurView } from "expo-blur";
+import { GlassSurface } from "./glass/GlassSurface";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -92,12 +92,14 @@ function TabBar({
       </View>
 
       <View style={styles.tabBarShadowContainer}>
-        <BlurView
-          intensity={80}
-          tint="light"
+        <GlassSurface
+          intensity={glass.blur.thick}
+          tint="systemChromeMaterial"
+          radius={glass.radii.pill}
+          overlayColor="rgba(255,255,255,0.55)"
           style={styles.tabBar}
-          onLayout={onTabBarLayout}
         >
+          <View onLayout={onTabBarLayout} style={styles.tabBarInner}>
           <Animated.View
             style={[
               styles.currentTabIndicator,
@@ -171,7 +173,8 @@ function TabBar({
               />
             );
           })}
-        </BlurView>
+          </View>
+        </GlassSurface>
       </View>
 
       <View style={styles.sideContainer}>
@@ -245,8 +248,8 @@ const styles = StyleSheet.create({
   tabBarShadowContainer: {
     flex: 1,
     maxWidth: 800,
-    borderRadius: 30,
-    backgroundColor: generateAlpha(colorPalette.neutral.white, 0.01),
+    borderRadius: glass.radii.pill,
+    backgroundColor: "transparent",
     shadowColor: colorPalette.neutral.dark,
     shadowOffset: {
       width: 0,
@@ -257,18 +260,13 @@ const styles = StyleSheet.create({
     elevation: 20,
   },
   tabBar: {
+    borderRadius: glass.radii.pill,
+  },
+  tabBarInner: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: generateAlpha(colorPalette.neutral.white, 0.0001),
     paddingVertical: 10,
-    borderRadius: 30,
-    overflow: "hidden",
-    ...Platform.select({
-      android: {
-        backgroundColor: colorPalette.neutral.white,
-      },
-    }),
   },
   sideContainer: {
     width: 60,

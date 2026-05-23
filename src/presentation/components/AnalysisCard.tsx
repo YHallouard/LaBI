@@ -7,6 +7,7 @@ import {
 import { colorPalette } from "../../config/themes";
 import { Ionicons } from "@expo/vector-icons";
 import { LAB_VALUE_DEFAULT_RANGES, LAB_VALUE_KEYS } from "../../config/LabConfig";
+import { GlassCard } from "./glass/GlassCard";
 
 type AnalysisCardProps = {
   analysis: BiologicalAnalysis;
@@ -29,20 +30,18 @@ export const AnalysisCard: React.FC<AnalysisCardProps> = ({
   const indicatorIcon = getIndicatorIcon(outOfRangeCount);
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={handlePress}
-      disabled={!onPress}
-    >
-      <View style={styles.content}>
-        <Text style={styles.date}>{formattedDate}</Text>
-        <View style={styles.valueContainer}>
-          <Ionicons name={indicatorIcon} size={24} color={indicatorColor} />
-          <Text style={[styles.value, { color: indicatorColor }]}>
-            {outOfRangeCount}
-          </Text>
+    <TouchableOpacity onPress={handlePress} disabled={!onPress} activeOpacity={0.8}>
+      <GlassCard style={styles.card}>
+        <View style={styles.content}>
+          <Text style={styles.date}>{formattedDate}</Text>
+          <View style={styles.valueContainer}>
+            <Ionicons name={indicatorIcon} size={24} color={indicatorColor} />
+            <Text style={[styles.value, { color: indicatorColor }]}>
+              {outOfRangeCount}
+            </Text>
+          </View>
         </View>
-      </View>
+      </GlassCard>
     </TouchableOpacity>
   );
 };
@@ -87,17 +86,10 @@ const getIndicatorIcon = (count: number): keyof typeof Ionicons.glyphMap => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colorPalette.neutral.white,
-    borderRadius: 8,
-    padding: 16,
-    marginVertical: 8,
+  card: {
+    marginVertical: 6,
     marginHorizontal: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    padding: 16,
   },
   content: {
     flexDirection: "row",

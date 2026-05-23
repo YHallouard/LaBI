@@ -1,12 +1,11 @@
 import React from "react";
-import { NavigationContainer, useNavigation } from "@react-navigation/native";
+import { NavigationContainer } from "@react-navigation/native";
 import {
   createStackNavigator,
   StackScreenProps,
   TransitionPresets,
 } from "@react-navigation/stack";
-import { Ionicons } from "@expo/vector-icons";
-import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
+import { Text, View, StyleSheet } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // Screens
@@ -33,6 +32,7 @@ import {
   ProfileRequiredModal,
   TimeRangeProvider,
 } from "../components";
+import { SettingsButton } from "../components/SettingsButton";
 import { TabBarProvider } from "../contexts/TabBarContext";
 
 import {
@@ -98,25 +98,6 @@ export interface AppNavigatorProps {
   checkAndLoadApiKey: () => Promise<void>;
 }
 
-type NavigateToSettingsFunction = () => void;
-
-const SettingsButton = (): React.ReactElement => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const navigation = useNavigation<any>();
-
-  const navigateToSettings: NavigateToSettingsFunction = () =>
-    navigation.navigate("Home", { screen: "SettingsScreen" });
-
-  return (
-    <TouchableOpacity onPress={navigateToSettings} style={styles.headerButton}>
-      <Ionicons
-        name="settings-outline"
-        size={24}
-        color={theme.buttons.info.backgroundColor}
-      />
-    </TouchableOpacity>
-  );
-};
 
 const ErrorView = ({
   errorMessage,
@@ -127,6 +108,86 @@ const ErrorView = ({
     <Text style={styles.errorText}>{errorMessage}</Text>
   </View>
 );
+
+const defaultStackOptions = {
+  headerShown: true,
+  headerBackTitle: " ",
+  headerLeftContainerStyle: { paddingLeft: 10 },
+  headerTitleAlign: "center" as const,
+  headerStyle: {
+    backgroundColor: colorPalette.neutral.white,
+    shadowColor: colorPalette.neutral.main,
+    shadowOpacity: 0.1,
+  },
+  headerTintColor: theme.buttons.info.backgroundColor,
+  gestureEnabled: true,
+  gestureResponseDistance: 50,
+  ...TransitionPresets.SlideFromRightIOS,
+  transitionSpec: {
+    open: { animation: "timing" as const, config: { duration: 300 } },
+    close: { animation: "timing" as const, config: { duration: 300 } },
+  },
+  cardStyleInterpolator: ({ current, layouts }: { current: { progress: { interpolate: (config: object) => unknown } }; layouts: { screen: { width: number } } }) => ({
+    cardStyle: {
+      transform: [
+        {
+          translateX: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [layouts.screen.width, 0],
+            extrapolate: "clamp",
+          }),
+        },
+      ],
+    },
+    overlayStyle: {
+      opacity: current.progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [0, 0.5],
+        extrapolate: "clamp",
+      }),
+    },
+  }),
+  headerStyleInterpolator: ({ current, layouts }: { current: { progress: { interpolate: (config: object) => unknown } }; layouts: { screen: { width: number } } }) => ({
+    leftLabelStyle: {
+      transform: [
+        {
+          translateX: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [-100, 0],
+            extrapolate: "clamp",
+          }),
+        },
+      ],
+    },
+    titleStyle: {
+      opacity: current.progress.interpolate({
+        inputRange: [0, 0.2, 0.8, 1],
+        outputRange: [0, 0, 1, 1],
+        extrapolate: "clamp",
+      }),
+      transform: [
+        {
+          translateX: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [layouts.screen.width * 0.1, 0],
+            extrapolate: "clamp",
+          }),
+        },
+      ],
+    },
+    backgroundStyle: {
+      transform: [
+        {
+          translateX: current.progress.interpolate({
+            inputRange: [0, 1],
+            outputRange: [layouts.screen.width, 0],
+            extrapolate: "clamp",
+          }),
+        },
+      ],
+    },
+  }),
+};
 
 export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
   ({
@@ -159,112 +220,13 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
   }) => {
     const createHomeStack = React.useMemo((): (() => React.ReactElement) => {
       const HomeStackComponent = (): React.ReactElement => (
-        <HomeStackNavigator.Navigator
-          screenOptions={{
-            headerShown: true,
-            headerBackTitle: " ",
-            headerLeftContainerStyle: { paddingLeft: 10 },
-            headerTitleAlign: "center",
-            headerStyle: {
-              backgroundColor: colorPalette.neutral.white,
-              shadowColor: colorPalette.neutral.main,
-              shadowOpacity: 0.1,
-            },
-            headerTintColor: theme.buttons.info.backgroundColor,
-            gestureEnabled: true,
-            gestureResponseDistance: 50,
-            ...TransitionPresets.SlideFromRightIOS,
-            transitionSpec: {
-              open: {
-                animation: "timing",
-                config: {
-                  duration: 300,
-                },
-              },
-              close: {
-                animation: "timing",
-                config: {
-                  duration: 300,
-                },
-              },
-            },
-            cardStyleInterpolator: ({ current, layouts }) => {
-              return {
-                cardStyle: {
-                  transform: [
-                    {
-                      translateX: current.progress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [layouts.screen.width, 0],
-                        extrapolate: "clamp",
-                      }),
-                    },
-                  ],
-                },
-                overlayStyle: {
-                  opacity: current.progress.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0, 0.5],
-                    extrapolate: "clamp",
-                  }),
-                },
-              };
-            },
-            headerStyleInterpolator: ({ current, layouts }) => {
-              return {
-                leftLabelStyle: {
-                  transform: [
-                    {
-                      translateX: current.progress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [-100, 0],
-                        extrapolate: "clamp",
-                      }),
-                    },
-                  ],
-                },
-                titleStyle: {
-                  opacity: current.progress.interpolate({
-                    inputRange: [0, 0.2, 0.8, 1],
-                    outputRange: [0, 0, 1, 1],
-                    extrapolate: "clamp",
-                  }),
-                  transform: [
-                    {
-                      translateX: current.progress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [layouts.screen.width * 0.1, 0],
-                        extrapolate: "clamp",
-                      }),
-                    },
-                  ],
-                },
-                backgroundStyle: {
-                  transform: [
-                    {
-                      translateX: current.progress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [layouts.screen.width, 0],
-                        extrapolate: "clamp",
-                      }),
-                    },
-                  ],
-                },
-              };
-            },
-          }}
-        >
+        <HomeStackNavigator.Navigator screenOptions={defaultStackOptions}>
           <HomeStackNavigator.Screen
             name="HomeScreen"
             options={{
               headerTitle: "",
-              headerRight: () => <SettingsButton />,
-              headerTitleAlign: "center",
-              headerStyle: {
-                backgroundColor: colorPalette.neutral.white,
-                shadowOpacity: 0,
-                elevation: 0,
-              },
+              headerTransparent: true,
+              headerStyle: { backgroundColor: "transparent", shadowOpacity: 0, elevation: 0 },
             }}
           >
             {(props: StackScreenProps<HomeStackParamList, "HomeScreen">) => {
@@ -536,20 +498,7 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
 
     const createChartStack = React.useMemo((): (() => React.ReactElement) => {
       const ChartStackComponent = (): React.ReactElement => (
-        <ChartStackNavigator.Navigator
-          screenOptions={{
-            headerShown: true,
-            headerBackTitle: " ",
-            headerLeftContainerStyle: { paddingLeft: 10 },
-            headerTitleAlign: "center",
-            headerStyle: {
-              backgroundColor: colorPalette.neutral.white,
-              shadowColor: colorPalette.neutral.main,
-              shadowOpacity: 0.1,
-            },
-            headerTintColor: theme.buttons.info.backgroundColor,
-          }}
-        >
+        <ChartStackNavigator.Navigator screenOptions={defaultStackOptions}>
           <ChartStackNavigator.Screen
             name="ChartScreen"
             options={{
@@ -592,20 +541,7 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
 
     const createUploadStack = React.useMemo((): (() => React.ReactElement) => {
       const UploadStackComponent = (): React.ReactElement => (
-        <UploadStackNavigator.Navigator
-          screenOptions={{
-            headerShown: true,
-            headerBackTitle: " ",
-            headerLeftContainerStyle: { paddingLeft: 10 },
-            headerTitleAlign: "center",
-            headerStyle: {
-              backgroundColor: colorPalette.neutral.white,
-              shadowColor: colorPalette.neutral.main,
-              shadowOpacity: 0.1,
-            },
-            headerTintColor: theme.buttons.info.backgroundColor,
-          }}
-        >
+        <UploadStackNavigator.Navigator screenOptions={defaultStackOptions}>
           <UploadStackNavigator.Screen
             name="UploadScreen"
             options={{

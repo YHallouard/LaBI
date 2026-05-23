@@ -40,6 +40,13 @@ jest.mock("../../../config/themes", () => ({
     },
   },
   generateAlpha: jest.fn((color, alpha) => color),
+  glass: {
+    radii: { sm: 12, md: 18, lg: 24, pill: 999 },
+    blur: { thin: 30, regular: 50, thick: 80, chrome: 100 },
+    overlay: { light: "rgba(255,255,255,0.45)", dark: "rgba(0,0,0,0.25)", solid: "rgba(255,255,255,0.75)" },
+    border: "rgba(255,255,255,0.35)",
+    shadow: { color: "#000", offset: { width: 0, height: 4 }, opacity: 0.08, radius: 16, elevation: 4 },
+  },
 }));
 
 // Mock components for testing

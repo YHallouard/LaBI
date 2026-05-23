@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Modal,
   View,
@@ -8,13 +8,14 @@ import {
   FlatList,
   SafeAreaView,
 } from "react-native";
-import { colorPalette } from "../../config/themes";
+import { colorPalette, glass } from "../../config/themes";
 import { Ionicons } from "@expo/vector-icons";
 import { LAB_VALUE_KEYS } from "../../config/LabConfig";
 import DraggableFlatList, {
   RenderItemParams,
 } from "react-native-draggable-flatlist";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SearchBar } from "./SearchBar";
 
 interface PinnedItemsModalProps {
   isVisible: boolean;
@@ -30,6 +31,15 @@ export const PinnedItemsModal: React.FC<PinnedItemsModalProps> = ({
   onSave,
 }) => {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredLabKeys = useMemo(() => {
+    if (!searchQuery) return LAB_VALUE_KEYS;
+    const q = searchQuery.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    return LAB_VALUE_KEYS.filter((key) =>
+      key.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").includes(q)
+    );
+  }, [searchQuery]);
 
   useEffect(() => {
     setSelectedItems(initialPinnedItems);
@@ -150,8 +160,14 @@ export const PinnedItemsModal: React.FC<PinnedItemsModalProps> = ({
 
           <View style={styles.listContainer}>
             <Text style={styles.listTitle}>Toutes les métriques</Text>
+            <SearchBar
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Filtrer les métriques..."
+              style={styles.searchBar}
+            />
             <FlatList
-              data={LAB_VALUE_KEYS}
+              data={filteredLabKeys}
               renderItem={renderItem}
               keyExtractor={(item) => item}
             />
@@ -172,6 +188,13 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colorPalette.neutral.white,
+    borderTopLeftRadius: glass.radii.lg,
+    borderTopRightRadius: glass.radii.lg,
+    overflow: "hidden",
+  },
+  searchBar: {
+    paddingHorizontal: 0,
+    paddingVertical: 4,
   },
   header: {
     flexDirection: "row",

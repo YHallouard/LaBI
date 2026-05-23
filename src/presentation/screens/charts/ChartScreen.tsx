@@ -14,7 +14,6 @@ import {
   RefreshControl,
   LayoutChangeEvent,
   ScaledSize,
-  TextInput,
   ActivityIndicator,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -51,6 +50,7 @@ import { colorPalette, theme, generateAlpha } from "../../../config/themes";
 import { useTimeRange } from "../../contexts/TimeRangeContext";
 import { useTabBar } from "../../contexts/TabBarContext";
 import { TimeRangeOption, TimeRangeFAB } from "../../components/TimeRangeFAB";
+import { SearchBar } from "../../components/SearchBar";
 
 type ChartScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
@@ -763,36 +763,11 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
           style={styles.screenContainer}
           onLayout={handleScreenLayoutChange}
         >
-          <View style={styles.searchContainer}>
-            <View style={styles.searchInputContainer}>
-              <Ionicons
-                name="search"
-                size={20}
-                color={colorPalette.neutral.light}
-                style={styles.searchIcon}
-              />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search charts..."
-                placeholderTextColor={colorPalette.neutral.light}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                returnKeyType="search"
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => setSearchQuery("")}
-                  style={styles.clearButton}
-                >
-                  <Ionicons
-                    name="close-circle"
-                    size={20}
-                    color={colorPalette.neutral.light}
-                  />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search charts..."
+          />
           {searchQuery.length > 0 ? (
             <NoSearchResultsEmptyState searchQuery={searchQuery} />
           ) : (
@@ -806,36 +781,11 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   return (
     <ScreenLayout>
       <View style={styles.screenContainer} onLayout={handleScreenLayoutChange}>
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons
-              name="search"
-              size={20}
-              color={colorPalette.neutral.light}
-              style={styles.searchIcon}
-            />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search charts..."
-              placeholderTextColor={colorPalette.neutral.light}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                onPress={() => setSearchQuery("")}
-                style={styles.clearButton}
-              >
-                <Ionicons
-                  name="close-circle"
-                  size={20}
-                  color={colorPalette.neutral.light}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder="Search charts..."
+        />
         <ResponsiveSectionList
           sections={sections}
           renderSectionHeader={renderSectionHeader}
@@ -1293,37 +1243,6 @@ const styles = StyleSheet.create({
     top: "50%",
     marginTop: -9,
     padding: 4,
-  },
-  searchContainer: {
-    padding: 10,
-  },
-  searchInputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colorPalette.neutral.white,
-    borderRadius: 8,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    borderWidth: 1,
-    borderColor: colorPalette.neutral.lighter,
-  },
-  searchIcon: {
-    marginRight: 8,
-    marginLeft: 4,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: colorPalette.neutral.main,
-    paddingVertical: 4,
-  },
-  clearButton: {
-    padding: 4,
-    marginLeft: 8,
   },
 });
 
