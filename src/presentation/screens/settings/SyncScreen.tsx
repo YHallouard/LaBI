@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { HomeStackParamList } from "../../../types/navigation";
@@ -140,6 +141,11 @@ export const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
       setSyncRole(SyncRole.SENDER);
       await syncUseCase.startAsSender();
       console.log("[SyncScreen] Successfully started as SENDER");
+
+      // On Android, skip the discovery/connection phase and go straight to export
+      if (Platform.OS === "android") {
+        await syncUseCase.startSync();
+      }
     } catch (error) {
       console.error("[SyncScreen] Error starting as sender:", error);
       Alert.alert("Error", `Failed to start as sender: ${error}`);
@@ -154,6 +160,11 @@ export const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
       setSyncRole(SyncRole.RECEIVER);
       await syncUseCase.startAsReceiver();
       console.log("[SyncScreen] Successfully started as RECEIVER");
+
+      // On Android, skip the discovery/connection phase and go straight to import
+      if (Platform.OS === "android") {
+        await syncUseCase.startSync();
+      }
     } catch (error) {
       console.error("[SyncScreen] Error starting as receiver:", error);
       Alert.alert("Error", `Failed to start as receiver: ${error}`);
@@ -204,42 +215,55 @@ export const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
     }
   };
 
-  const renderRoleSelection = () => (
-    <View style={styles.roleSelection}>
-      <Text style={styles.roleHeading}>Choose Sync Mode</Text>
-      <Text style={styles.roleDescription}>
-        Select the role for this device in the sync operation
-      </Text>
+  const renderRoleSelection = () => {
+    const isAndroid = Platform.OS === "android";
+    return (
+      <View style={styles.roleSelection}>
+        <Text style={styles.roleHeading}>Choose Sync Mode</Text>
+        <Text style={styles.roleDescription}>
+          {isAndroid
+            ? "Export your data as a file to share, or import a file received from another device"
+            : "Select the role for this device in the sync operation"}
+        </Text>
 
-      <TouchableOpacity style={styles.roleButton} onPress={startAsSender}>
-        <Ionicons
-          name="arrow-up-circle"
-          size={40}
-          color={colorPalette.primary.main}
-        />
-        <View style={styles.roleTextContainer}>
-          <Text style={styles.roleButtonTitle}>Send Data</Text>
-          <Text style={styles.roleButtonDescription}>
-            Share your device&apos;s data with another device
-          </Text>
-        </View>
-      </TouchableOpacity>
+        <TouchableOpacity style={styles.roleButton} onPress={startAsSender}>
+          <Ionicons
+            name="arrow-up-circle"
+            size={40}
+            color={colorPalette.primary.main}
+          />
+          <View style={styles.roleTextContainer}>
+            <Text style={styles.roleButtonTitle}>
+              {isAndroid ? "Export Data" : "Send Data"}
+            </Text>
+            <Text style={styles.roleButtonDescription}>
+              {isAndroid
+                ? "Save your data as a file and share it via the share sheet"
+                : "Share your device's data with another device"}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
-      <TouchableOpacity style={styles.roleButton} onPress={startAsReceiver}>
-        <Ionicons
-          name="arrow-down-circle"
-          size={40}
-          color={colorPalette.primary.main}
-        />
-        <View style={styles.roleTextContainer}>
-          <Text style={styles.roleButtonTitle}>Receive Data</Text>
-          <Text style={styles.roleButtonDescription}>
-            Get data from another device (will replace current data)
-          </Text>
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
+        <TouchableOpacity style={styles.roleButton} onPress={startAsReceiver}>
+          <Ionicons
+            name="arrow-down-circle"
+            size={40}
+            color={colorPalette.primary.main}
+          />
+          <View style={styles.roleTextContainer}>
+            <Text style={styles.roleButtonTitle}>
+              {isAndroid ? "Import Data" : "Receive Data"}
+            </Text>
+            <Text style={styles.roleButtonDescription}>
+              {isAndroid
+                ? "Select a previously exported file to restore data (will replace current data)"
+                : "Get data from another device (will replace current data)"}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   const renderDeviceItem = (item: SyncDeviceInfo) => (
     <TouchableOpacity

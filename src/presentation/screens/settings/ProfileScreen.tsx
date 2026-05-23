@@ -470,6 +470,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                             display="spinner"
                             onChange={handleDateChange}
                             maximumDate={new Date()}
+                            minimumDate={new Date(1900, 0, 1)}
                             style={styles.iosPicker}
                           />
                           <View style={styles.iosButtonRow}>
@@ -511,6 +512,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                           display="default"
                           onChange={handleDateChange}
                           maximumDate={new Date()}
+                          minimumDate={new Date(1900, 0, 1)}
                         />
                       )}
                     </View>

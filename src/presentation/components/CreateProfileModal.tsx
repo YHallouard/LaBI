@@ -596,6 +596,7 @@ const IOSDatePicker = ({
       display="spinner"
       onChange={onDateChange}
       maximumDate={new Date()}
+      minimumDate={new Date(1900, 0, 1)}
       style={styles.iosPicker}
     />
     <View style={styles.iosButtonRow}>
@@ -631,6 +632,7 @@ const AndroidDatePicker = ({
     display="default"
     onChange={onDateChange}
     maximumDate={new Date()}
+    minimumDate={new Date(1900, 0, 1)}
   />
 );
 

@@ -2,6 +2,7 @@ import { Platform } from "react-native";
 import { SyncingServicePort } from "../../ports/services/SyncingServicePort";
 import { InMemorySyncService } from "../../adapters/services/InMemorySyncService";
 import { MultipeerSyncService } from "../../adapters/services/MultipeerSyncService";
+import { AndroidFileSyncService } from "../../adapters/services/AndroidFileSyncService";
 
 export class SyncingServiceFactory {
   static createSyncingService(): SyncingServicePort {
@@ -10,16 +11,15 @@ export class SyncingServiceFactory {
       console.log(`  - Platform: ${Platform.OS}`);
       console.log(`  - DevMode: ${__DEV__}`);
 
-      if (!__DEV__) {
-        console.log(`[SyncFactory] Using MultipeerSyncService for production`);
-        return new MultipeerSyncService();
-      } else {
+      if (Platform.OS === "android") {
         console.log(
-          `[SyncFactory] Using InMemorySyncService for development/testing`
+          `[SyncFactory] Using AndroidFileSyncService (file export/import)`
         );
-        // return new InMemorySyncService();
-        return new MultipeerSyncService();
+        return new AndroidFileSyncService();
       }
+
+      console.log(`[SyncFactory] Using MultipeerSyncService for iOS`);
+      return new MultipeerSyncService();
     } catch (error) {
       console.log("Error in SyncingServiceFactory:", error);
       console.log("[SyncFactory] Falling back to InMemorySyncService");
