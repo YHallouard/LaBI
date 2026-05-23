@@ -14,8 +14,8 @@ import {
   GetAnalysisByIdUseCase,
   GetLabTestDataUseCase,
 } from "./src/domain/usecases/GetAnalysesUseCase";
-import { AnalyzePdfUseCase } from "./src/application/usecases/AnalyzePdfUseCase";
-import { CreateManualAnalysisUseCase } from "./src/application/usecases/CreateManualAnalysisUseCase";
+import { AnalyzePdfUseCase } from "./src/domain/usecases/AnalyzePdfUseCase";
+import { CreateManualAnalysisUseCase } from "./src/domain/usecases/CreateManualAnalysisUseCase";
 import { AiImportScreen } from "./src/presentation/screens/AiImportScreen";
 import { SQLiteBiologicalAnalysisRepository } from "./src/adapters/repositories/SQLiteBiologicalAnalysisRepository";
 import { MistralOcrService } from "./src/adapters/services/MistralOcrService";
@@ -159,7 +159,7 @@ export default function App() {
     );
     const getUserAgeUseCase = new GetUserAgeUseCase();
 
-    const createManualAnalysis = new CreateManualAnalysisUseCase(repository);
+    const createManualAnalysis = new CreateManualAnalysisUseCase(biologicalAnalysisRepository);
 
     return {
       getAnalyses,

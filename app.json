@@ -18,7 +18,9 @@
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to allow you to select and upload a profile picture for your health profile.",
         "NSLocalNetworkUsageDescription": "$(PRODUCT_NAME) uses local network to sync data between devices",
-        "NSBonjourServices": ["_hemea-sync._tcp."]
+        "NSBonjourServices": [
+          "_hemea-sync._tcp."
+        ]
       }
     },
     "android": {
