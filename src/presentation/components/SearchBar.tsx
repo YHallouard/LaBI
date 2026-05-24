@@ -116,8 +116,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 16,
+    width: "100%",
   },
   container: {
+    width: "100%",
     borderRadius: glass.radii.pill,
     shadowColor: glass.shadow.color,
     shadowOffset: { width: 0, height: 2 },
@@ -126,6 +128,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   surface: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 14,

@@ -10,7 +10,6 @@ import {
   Platform,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import { colorPalette, glass } from "../../config/themes";
 import { Ionicons } from "@expo/vector-icons";
 import { LAB_VALUE_KEYS } from "../../config/LabConfig";
@@ -146,17 +145,14 @@ export const PinnedItemsModal: React.FC<PinnedItemsModalProps> = ({
             experimentalBlurMethod="dimezisBlurView"
           />
         ) : (
-          <View style={[styles.backdrop, { backgroundColor: "rgba(0,0,0,0.4)" }]} />
+          <View
+            style={[styles.backdrop, { backgroundColor: "rgba(0,0,0,0.4)" }]}
+          />
         )}
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: "transparent" }]}>
-          {isGlassEffectAPIAvailable() ? (
-            <GlassView
-              glassEffectStyle="regular"
-              style={[StyleSheet.absoluteFill, { borderTopLeftRadius: glass.radii.lg, borderTopRightRadius: glass.radii.lg }]}
-            />
-          ) : (
-            <View style={[StyleSheet.absoluteFill, styles.safeAreaFallback]} />
-          )}
+        <SafeAreaView
+          style={[styles.safeArea, { backgroundColor: "transparent" }]}
+        >
+          <View style={[StyleSheet.absoluteFill, styles.safeAreaFallback]} />
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Épingler des métriques</Text>
             <TouchableOpacity onPress={onClose}>

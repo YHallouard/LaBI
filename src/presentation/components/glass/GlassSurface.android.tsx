@@ -1,6 +1,5 @@
 import React from "react";
 import { StyleProp, ViewStyle, StyleSheet, View } from "react-native";
-import { BlurView } from "expo-blur";
 import { glass } from "../../../config/themes";
 
 interface GlassSurfaceProps {
@@ -14,17 +13,11 @@ interface GlassSurfaceProps {
 
 export const GlassSurface: React.FC<GlassSurfaceProps> = ({
   children,
-  intensity = glass.blur.regular,
-  tint = "light",
   radius = glass.radii.md,
   style,
   overlayColor = glass.overlay.light,
 }) => (
-  <BlurView
-    intensity={intensity}
-    tint={tint}
-    style={[styles.blur, { borderRadius: radius }, style]}
-  >
+  <View style={[styles.container, { borderRadius: radius }, style]}>
     <View
       style={[
         StyleSheet.absoluteFill,
@@ -32,13 +25,14 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
       ]}
     />
     {children}
-  </BlurView>
+  </View>
 );
 
 const styles = StyleSheet.create({
-  blur: {
+  container: {
     overflow: "hidden",
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
     borderWidth: 1,
-    borderColor: glass.border,
+    borderColor: "rgba(0, 0, 0, 0.06)",
   },
 });

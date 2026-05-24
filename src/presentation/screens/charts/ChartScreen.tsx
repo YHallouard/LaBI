@@ -9,12 +9,14 @@ import {
   StyleSheet,
   Text,
   View,
+  ScrollView,
   Dimensions,
   TouchableOpacity,
   RefreshControl,
   LayoutChangeEvent,
   ScaledSize,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, {
@@ -47,7 +49,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { EmptyState } from "../../components/EmptyState";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { ChartStackParamList } from "../../../types/navigation";
-import { colorPalette, theme, glass, generateAlpha } from "../../../config/themes";
+import {
+  colorPalette,
+  theme,
+  glass,
+  generateAlpha,
+} from "../../../config/themes";
 import { useTimeRange } from "../../contexts/TimeRangeContext";
 import {
   TimeRangeOption,
@@ -313,91 +320,91 @@ export const ChartItem: React.FC<ChartItemProps> = ({
   return (
     <View style={styles.chartSection}>
       <View onLayout={handleLayout}>
-      <GlassCard style={styles.chartCard}>
-        <View style={styles.metricIdentifier}>
-          <View style={styles.metricNameContainer}>
-            <Text style={styles.metricName}>{labKey}</Text>
+        <GlassCard style={styles.chartCard}>
+          <View style={styles.metricIdentifier}>
+            <View style={styles.metricNameContainer}>
+              <Text style={styles.metricName}>{labKey}</Text>
+            </View>
+            {showInfoButton && (
+              <TouchableOpacity
+                onPress={toggleExplanation}
+                style={styles.infoIconContainer}
+              >
+                <Ionicons
+                  name="information-circle-outline"
+                  size={24}
+                  color={colorPalette.primary.main}
+                />
+              </TouchableOpacity>
+            )}
           </View>
-          {showInfoButton && (
-            <TouchableOpacity
-              onPress={toggleExplanation}
-              style={styles.infoIconContainer}
-            >
-              <Ionicons
-                name="information-circle-outline"
-                size={24}
-                color={colorPalette.primary.main}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
 
-        {showExplanation && (
-          <View style={styles.explanationContainer}>
-            <Text style={styles.explanationText}>
-              {LAB_VALUE_EXPLANATIONS[labKey] ||
-                `No explanation available for ${labKey}`}
-            </Text>
+          {showExplanation && (
+            <View style={styles.explanationContainer}>
+              <Text style={styles.explanationText}>
+                {LAB_VALUE_EXPLANATIONS[labKey] ||
+                  `No explanation available for ${labKey}`}
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.svgContainer}>
+            {containerWidth ? (
+              <Svg
+                width={effectiveChartDimensions.width}
+                height={effectiveChartDimensions.height}
+                viewBox={`0 0 ${effectiveChartDimensions.width} ${effectiveChartDimensions.height}`}
+                preserveAspectRatio="xMidYMid meet"
+              >
+                {renderChartGradient()}
+                {renderReferenceAreaPaths()}
+
+                {createVerticalGridLines(
+                  data,
+                  minTime,
+                  maxTime,
+                  effectiveChartDimensions,
+                  formatDate
+                )}
+                {createHorizontalGridLines(
+                  minValue,
+                  maxValue,
+                  effectiveChartDimensions,
+                  unit
+                )}
+
+                <Path
+                  d={linePath}
+                  fill="none"
+                  stroke={theme.chart.line.color}
+                  strokeWidth={theme.chart.line.width}
+                />
+
+                {createDataPoints(
+                  data,
+                  minTime,
+                  maxTime,
+                  minValue,
+                  maxValue,
+                  effectiveChartDimensions,
+                  referenceRangesByDate
+                )}
+              </Svg>
+            ) : (
+              <View
+                style={[
+                  styles.placeholderContainer,
+                  {
+                    width: chartDimensions.width,
+                    height: chartDimensions.height,
+                  },
+                ]}
+              />
+            )}
           </View>
-        )}
 
-        <View style={styles.svgContainer}>
-          {containerWidth ? (
-            <Svg
-              width={effectiveChartDimensions.width}
-              height={effectiveChartDimensions.height}
-              viewBox={`0 0 ${effectiveChartDimensions.width} ${effectiveChartDimensions.height}`}
-              preserveAspectRatio="xMidYMid meet"
-            >
-              {renderChartGradient()}
-              {renderReferenceAreaPaths()}
-
-              {createVerticalGridLines(
-                data,
-                minTime,
-                maxTime,
-                effectiveChartDimensions,
-                formatDate
-              )}
-              {createHorizontalGridLines(
-                minValue,
-                maxValue,
-                effectiveChartDimensions,
-                unit
-              )}
-
-              <Path
-                d={linePath}
-                fill="none"
-                stroke={theme.chart.line.color}
-                strokeWidth={theme.chart.line.width}
-              />
-
-              {createDataPoints(
-                data,
-                minTime,
-                maxTime,
-                minValue,
-                maxValue,
-                effectiveChartDimensions,
-                referenceRangesByDate
-              )}
-            </Svg>
-          ) : (
-            <View
-              style={[
-                styles.placeholderContainer,
-                {
-                  width: chartDimensions.width,
-                  height: chartDimensions.height,
-                },
-              ]}
-            />
-          )}
-        </View>
-
-        <ChartLegend latestRefRange={latestRefRange} unit={unit} />
-      </GlassCard>
+          <ChartLegend latestRefRange={latestRefRange} unit={unit} />
+        </GlassCard>
       </View>
 
       {showStats && (
@@ -747,23 +754,29 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     return (
       <ScreenLayout>
         <View
-          style={[styles.screenContainer, { paddingTop: headerHeight }]}
+          style={[styles.screenContainer]}
           onLayout={handleScreenLayoutChange}
         >
-          <TimeRangeSegmentedPill
-            selectedTimeRange={selectedTimeRange}
-            onSelectTimeRange={setSelectedTimeRange}
-          />
-          <SearchBar
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Search charts..."
-          />
-          {searchQuery.length > 0 ? (
-            <NoSearchResultsEmptyState searchQuery={searchQuery} />
-          ) : (
-            <NoDataEmptyState selectedTimeRange={selectedTimeRange} />
-          )}
+          <View style={{ paddingTop: headerHeight, paddingHorizontal: 10 }}>
+            <View style={{ paddingTop: 12 }}>
+              <TimeRangeSegmentedPill
+                selectedTimeRange={selectedTimeRange}
+                onSelectTimeRange={setSelectedTimeRange}
+              />
+              <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search charts..."
+              />
+            </View>
+          </View>
+          <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+            {searchQuery.length > 0 ? (
+              <NoSearchResultsEmptyState searchQuery={searchQuery} />
+            ) : (
+              <NoDataEmptyState selectedTimeRange={selectedTimeRange} />
+            )}
+          </ScrollView>
         </View>
       </ScreenLayout>
     );
@@ -777,14 +790,17 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
           renderSectionHeader={renderSectionHeader}
           renderItem={renderChartItem}
           keyExtractor={keyExtractor}
-          contentContainerStyle={[styles.chartsContainer, { paddingTop: headerHeight }]}
+          contentContainerStyle={[
+            styles.chartsContainer,
+            { paddingTop: headerHeight },
+          ]}
           maxColumns={2}
           thresholds={{ twoColumns: 1000 }}
           contentInsetAdjustmentBehavior="never"
           showsVerticalScrollIndicator={true}
           stickySectionHeadersEnabled={true}
           ListHeaderComponent={
-            <View>
+            <View style={{ paddingTop: 12 }}>
               <TimeRangeSegmentedPill
                 selectedTimeRange={selectedTimeRange}
                 onSelectTimeRange={setSelectedTimeRange}
@@ -1056,18 +1072,21 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: glass.overlay.solid,
+    backgroundColor:
+      Platform.OS === "android"
+        ? "rgba(255,255,255,0.95)"
+        : glass.overlay.solid,
     borderRadius: glass.radii.md,
     padding: 12,
     marginHorizontal: 4,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: glass.border,
+    borderColor: Platform.OS === "android" ? "rgba(0,0,0,0.06)" : glass.border,
     shadowColor: glass.shadow.color,
     shadowOffset: glass.shadow.offset,
     shadowOpacity: glass.shadow.opacity,
     shadowRadius: glass.shadow.radius,
-    elevation: glass.shadow.elevation,
+    elevation: Platform.OS === "android" ? 2 : glass.shadow.elevation,
     overflow: "hidden",
   },
   statCardAlert: {

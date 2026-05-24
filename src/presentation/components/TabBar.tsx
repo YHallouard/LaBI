@@ -17,7 +17,6 @@ import Animated, {
 import { useTabBar } from "../contexts/TabBarContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassSurface } from "./glass/GlassSurface";
-import { GlassContainer } from "expo-glass-effect";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -93,7 +92,7 @@ function TabBar({
       </View>
 
       <View style={styles.tabBarShadowContainer}>
-        <GlassContainer spacing={8} style={styles.glassContainer}>
+        <View style={[styles.glassContainer, { gap: 8 }]}>
           <GlassSurface
             intensity={glass.blur.thick}
             tint="systemChromeMaterial"
@@ -101,83 +100,85 @@ function TabBar({
             overlayColor={glass.overlay.light}
             style={styles.tabBar}
           >
-          <View onLayout={onTabBarLayout} style={styles.tabBarInner}>
-          <Animated.View
-            style={[
-              styles.currentTabIndicator,
-              { height: dimensions.height - 12, width: buttonWidth - 18 },
-              animatedTabStyle,
-            ]}
-          />
-          {state.routes.map((route, index) => {
-            const { options } = descriptors[route.key];
-            const label =
-              options.tabBarLabel !== undefined
-                ? options.tabBarLabel
-                : options.title !== undefined
-                ? options.title
-                : route.name;
-
-            const isFocused = state.index === index;
-
-            const onPress = () => {
-              const event = navigation.emit({
-                type: "tabPress",
-                target: route.key,
-                canPreventDefault: true,
-              });
-
-              if (!isFocused && !event.defaultPrevented) {
-                navigation.navigate(route.name, route.params);
-              }
-            };
-
-            const onLongPress = () => {
-              navigation.emit({
-                type: "tabLongPress",
-                target: route.key,
-              });
-            };
-
-            let labelString: string;
-            if (typeof label === "function") {
-              const labelResult = label({
-                focused: isFocused,
-                color: isFocused
-                  ? colorPalette.neutral.white
-                  : colorPalette.primary.main,
-                position: "below-icon",
-                children: route.name,
-              });
-              labelString =
-                typeof labelResult === "string" ? labelResult : route.name;
-            } else {
-              labelString = typeof label === "string" ? label : route.name;
-            }
-
-            return (
-              <TabBarButton
-                key={route.name}
-                href={buildHref(route.name, route.params)}
-                accessibilityState={isFocused ? { selected: true } : undefined}
-                accessibilityLabel={options.tabBarAccessibilityLabel}
-                testID={options.tabBarButtonTestID}
-                onPress={onPress}
-                onLongPress={onLongPress}
-                isFocused={isFocused}
-                routeName={route.name}
-                color={
-                  isFocused
-                    ? colorPalette.neutral.white
-                    : colorPalette.primary.main
-                }
-                label={labelString}
+            <View onLayout={onTabBarLayout} style={styles.tabBarInner}>
+              <Animated.View
+                style={[
+                  styles.currentTabIndicator,
+                  { height: dimensions.height - 12, width: buttonWidth - 18 },
+                  animatedTabStyle,
+                ]}
               />
-            );
-          })}
-          </View>
+              {state.routes.map((route, index) => {
+                const { options } = descriptors[route.key];
+                const label =
+                  options.tabBarLabel !== undefined
+                    ? options.tabBarLabel
+                    : options.title !== undefined
+                    ? options.title
+                    : route.name;
+
+                const isFocused = state.index === index;
+
+                const onPress = () => {
+                  const event = navigation.emit({
+                    type: "tabPress",
+                    target: route.key,
+                    canPreventDefault: true,
+                  });
+
+                  if (!isFocused && !event.defaultPrevented) {
+                    navigation.navigate(route.name, route.params);
+                  }
+                };
+
+                const onLongPress = () => {
+                  navigation.emit({
+                    type: "tabLongPress",
+                    target: route.key,
+                  });
+                };
+
+                let labelString: string;
+                if (typeof label === "function") {
+                  const labelResult = label({
+                    focused: isFocused,
+                    color: isFocused
+                      ? colorPalette.neutral.white
+                      : colorPalette.primary.main,
+                    position: "below-icon",
+                    children: route.name,
+                  });
+                  labelString =
+                    typeof labelResult === "string" ? labelResult : route.name;
+                } else {
+                  labelString = typeof label === "string" ? label : route.name;
+                }
+
+                return (
+                  <TabBarButton
+                    key={route.name}
+                    href={buildHref(route.name, route.params)}
+                    accessibilityState={
+                      isFocused ? { selected: true } : undefined
+                    }
+                    accessibilityLabel={options.tabBarAccessibilityLabel}
+                    testID={options.tabBarButtonTestID}
+                    onPress={onPress}
+                    onLongPress={onLongPress}
+                    isFocused={isFocused}
+                    routeName={route.name}
+                    color={
+                      isFocused
+                        ? colorPalette.neutral.white
+                        : colorPalette.primary.main
+                    }
+                    label={labelString}
+                  />
+                );
+              })}
+            </View>
           </GlassSurface>
-        </GlassContainer>
+        </View>
       </View>
 
       <View style={styles.sideContainer}>
