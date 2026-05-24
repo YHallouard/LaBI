@@ -5,8 +5,6 @@ export { LoadingOverlay } from "./LoadingOverlay";
 export { ProfileRequiredModal } from "./ProfileRequiredModal";
 export { ScreenLayout } from "./ScreenLayout";
 export { ResponsiveSectionList } from "./ResponsiveSectionList";
-export { TabLayout } from "./TabBar";
-export { TabBarButton } from "./TabBarButton";
 export { TimeRangeFAB } from "./TimeRangeFAB";
 export { TimeRangeSegmentedPill } from "./TimeRangeSegmentedPill";
 export { ZoomInWrapper } from "./ZoomInWrapper";

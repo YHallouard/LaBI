@@ -7,9 +7,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { StackScreenProps } from "@react-navigation/stack";
-import { useFocusEffect } from "@react-navigation/native";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useRouter, useLocalSearchParams, useNavigation } from "expo-router";
 import {
   BiologicalAnalysis,
   LabValue,
@@ -24,13 +22,10 @@ import {
 import { GetReferenceRangeUseCase } from "../../../domain/usecases/GetReferenceRangeUseCase";
 import { ScreenLayout, ResponsiveSectionList } from "../../components";
 import { TabBarActionButton } from "../../components/TabBarActionButton";
-import { useTabBar } from "../../contexts/TabBarContext";
 import { AnalysisEditModal } from "../../components/AnalysisEditModal";
 import { colorPalette, generateAlpha } from "../../../config/themes";
 
-// Define the props type for the AnalysisDetails screen
-interface AnalysisDetailsScreenProps
-  extends StackScreenProps<HomeStackParamList, "AnalysisDetails"> {
+interface AnalysisDetailsScreenProps {
   getAnalysisByIdUseCase: GetAnalysisByIdUseCase;
   updateAnalysisUseCase: UpdateAnalysisUseCase;
   deleteAnalysisUseCase: DeleteAnalysisUseCase;
@@ -38,22 +33,20 @@ interface AnalysisDetailsScreenProps
 }
 
 const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
-  route,
-  navigation,
   getAnalysisByIdUseCase,
   updateAnalysisUseCase,
   deleteAnalysisUseCase,
   getReferenceRangeUseCase,
 }) => {
-  const { analysisId } = route.params;
+  const router = useRouter();
+  const navigation = useNavigation();
+  const { id: analysisId } = useLocalSearchParams<{ id: string }>();
   const [analysis, setAnalysis] = useState<BiologicalAnalysis | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [deleting, setDeleting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [editModalVisible, setEditModalVisible] = useState<boolean>(false);
-
-  const { setLeftButtons, setRightButtons, clearButtons } = useTabBar();
 
   const loadAnalysis = useCallback(async () => {
     try {
@@ -84,7 +77,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
             try {
               setDeleting(true);
               await deleteAnalysisUseCase.execute(analysisId);
-              navigation.goBack();
+              router.back();
             } catch {
               Alert.alert("Error", "Failed to delete analysis");
             } finally {
@@ -94,7 +87,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
         },
       ]
     );
-  }, [analysis, analysisId, deleteAnalysisUseCase, navigation]);
+  }, [analysis, analysisId, deleteAnalysisUseCase]);
 
   const openEditModal = useCallback((): void => {
     setEditModalVisible(true);
@@ -136,27 +129,14 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
     [openEditModal, deleting]
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      if (analysis && !loading && !error) {
-        setLeftButtons([deleteButton]);
-        setRightButtons([editButton]);
-      }
-
-      return () => {
-        clearButtons();
-      };
-    }, [
-      analysis,
-      loading,
-      error,
-      deleteButton,
-      editButton,
-      setLeftButtons,
-      setRightButtons,
-      clearButtons,
-    ])
-  );
+  useEffect(() => {
+    if (analysis && !loading && !error) {
+      navigation.setOptions({
+        headerLeft: () => deleteButton,
+        headerRight: () => editButton,
+      });
+    }
+  }, [analysis, loading, error, deleteButton, editButton, navigation]);
 
   useEffect(() => {
     async function initializeAndLoad() {
@@ -262,7 +242,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   );
    
   const keyExtractor = useCallback(
-    (labKey: string, index: number) => labKey,
+    (labKey: string) => labKey,
     []
   );
 
@@ -275,7 +255,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
   }
 
   if (!analysis) {
-    return <AnalysisNotFoundView onGoBack={() => navigation.goBack()} />;
+    return <AnalysisNotFoundView onGoBack={() => router.back()} />;
   }
 
   const formattedDate = analysis.date.toLocaleDateString("fr-FR");

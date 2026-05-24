@@ -1,6 +1,12 @@
 import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import { UploadScreen } from "../UploadScreen";
+
+const mockPush = jest.fn();
+const mockBack = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: mockPush, back: mockBack }),
+}));
 import { InMemoryBiologicalAnalysisRepository } from "../../../../adapters/repositories/InMemoryBiologicalAnalysisRepository";
 import { CreateAnalysisUseCase } from "../../../../domain/usecases/CreateAnalysisUseCase";
 import { GetReferenceRangeUseCase } from "../../../../domain/usecases/GetReferenceRangeUseCase";
@@ -29,21 +35,16 @@ const buildDeps = () => {
   return { createAnalysisUseCase, getReferenceRangeUseCase, repo };
 };
 
-const buildNavigation = () => ({
-  navigate: jest.fn(),
-  goBack: jest.fn(),
-});
-
 describe("UploadScreen (choice page)", () => {
+  beforeEach(() => { mockPush.mockClear(); mockBack.mockClear(); });
+
   it("renders two choice cards", () => {
     // Given
     const { createAnalysisUseCase, getReferenceRangeUseCase } = buildDeps();
-    const navigation = buildNavigation();
 
     // When
     const { getByText } = render(
       <UploadScreen
-        navigation={navigation as any}
         createAnalysisUseCase={createAnalysisUseCase}
         getReferenceRangeUseCase={getReferenceRangeUseCase}
       />
@@ -57,11 +58,9 @@ describe("UploadScreen (choice page)", () => {
   it("navigates to AIImportScreen when AI card is pressed", () => {
     // Given
     const { createAnalysisUseCase, getReferenceRangeUseCase } = buildDeps();
-    const navigation = buildNavigation();
 
     const { getByText } = render(
       <UploadScreen
-        navigation={navigation as any}
         createAnalysisUseCase={createAnalysisUseCase}
         getReferenceRangeUseCase={getReferenceRangeUseCase}
       />
@@ -71,17 +70,15 @@ describe("UploadScreen (choice page)", () => {
     fireEvent.press(getByText("Import par IA"));
 
     // Then
-    expect(navigation.navigate).toHaveBeenCalledWith("AIImportScreen");
+    expect(mockPush).toHaveBeenCalledWith("/upload/ai-import");
   });
 
   it("opens the manual modal when manual card is pressed", async () => {
     // Given
     const { createAnalysisUseCase, getReferenceRangeUseCase } = buildDeps();
-    const navigation = buildNavigation();
 
     const { getByText, queryByTestId } = render(
       <UploadScreen
-        navigation={navigation as any}
         createAnalysisUseCase={createAnalysisUseCase}
         getReferenceRangeUseCase={getReferenceRangeUseCase}
       />

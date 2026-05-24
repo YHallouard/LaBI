@@ -8,8 +8,7 @@ import {
   Alert,
   Platform,
 } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../../components/ScreenLayout";
 import { colorPalette } from "../../../config/themes";
@@ -26,11 +25,8 @@ import { ProfileService } from "../../../domain/services/ProfileService";
 import { RepositoryFactory } from "../../../infrastructure/repositories/RepositoryFactory";
 import { getDatabaseStorage } from "../../../infrastructure/database/DatabaseInitializer";
 
-type SyncScreenProps = {
-  navigation: StackNavigationProp<HomeStackParamList, "SyncScreen">;
-};
-
-export const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
+export const SyncScreen: React.FC = () => {
+  const router = useRouter();
   const [syncRole, setSyncRole] = useState<SyncRole | null>(null);
   const [syncUseCase, setSyncUseCase] = useState<SyncDevicesUseCase | null>(
     null
@@ -388,7 +384,7 @@ export const SyncScreen: React.FC<SyncScreenProps> = ({ navigation }) => {
         {isCompleted || isError ? (
           <TouchableOpacity
             style={styles.doneButton}
-            onPress={() => navigation.goBack()}
+            onPress={() => router.back()}
           >
             <Text style={styles.doneButtonText}>
               {isCompleted ? "Done" : "Close"}

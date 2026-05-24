@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { v4 as uuidv4 } from "uuid";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { UploadStackParamList } from "../../../types/navigation";
+import { useRouter } from "expo-router";
 import { CreateAnalysisUseCase } from "../../../domain/usecases/CreateAnalysisUseCase";
 import { GetReferenceRangeUseCase } from "../../../domain/usecases/GetReferenceRangeUseCase";
 import { createEmptyBiologicalAnalysis } from "../../../domain/entities/BiologicalAnalysis";
@@ -12,16 +11,15 @@ import { AnalysisEditModal } from "../../components/AnalysisEditModal";
 import { colorPalette } from "../../../config/themes";
 
 type UploadScreenProps = {
-  navigation: StackNavigationProp<UploadStackParamList, "UploadScreen">;
   createAnalysisUseCase: CreateAnalysisUseCase;
   getReferenceRangeUseCase: GetReferenceRangeUseCase;
 };
 
 export const UploadScreen: React.FC<UploadScreenProps> = ({
-  navigation,
   createAnalysisUseCase,
   getReferenceRangeUseCase,
 }) => {
+  const router = useRouter();
   const [showManualModal, setShowManualModal] = useState(false);
   const [emptyAnalysis] = useState(() => createEmptyBiologicalAnalysis(uuidv4));
 
@@ -40,7 +38,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
           iconColor={colorPalette.primary.main}
           badge="Recommandé"
           hint="~30 sec"
-          onPress={() => navigation.navigate("AIImportScreen")}
+          onPress={() => router.push("/upload/ai-import")}
         />
 
         <ChoiceCard
@@ -65,7 +63,7 @@ export const UploadScreen: React.FC<UploadScreenProps> = ({
         onSave={(analysis) => createAnalysisUseCase.execute(analysis)}
         onSaved={() => {
           setShowManualModal(false);
-          navigation.navigate("UploadScreen");
+          router.back();
         }}
         onClose={() => setShowManualModal(false)}
       />

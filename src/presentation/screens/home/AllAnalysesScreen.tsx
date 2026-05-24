@@ -12,8 +12,7 @@ import { BiologicalAnalysis } from "../../../domain/entities/BiologicalAnalysis"
 import { GetAnalysesUseCase } from "../../../domain/usecases/GetAnalysesUseCase";
 import { DeleteAnalysisUseCase } from "../../../domain/usecases/DeleteAnalysisUseCase";
 import { AnalysisCard } from "../../components/AnalysisCard";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useRouter, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../../components/ScreenLayout";
 import { EmptyState } from "../../components/EmptyState";
@@ -22,13 +21,13 @@ import { colorPalette } from "../../../config/themes";
 type AllAnalysesScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
   deleteAnalysisUseCase: DeleteAnalysisUseCase;
-  navigation: StackNavigationProp<HomeStackParamList, "AllAnalysesScreen">;
 };
 
 export const AllAnalysesScreen: React.FC<AllAnalysesScreenProps> = ({
-  navigation,
   getAnalysesUseCase,
 }) => {
+  const router = useRouter();
+  const navigation = useNavigation();
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +65,7 @@ export const AllAnalysesScreen: React.FC<AllAnalysesScreenProps> = ({
   };
 
   const navigateToAnalysisDetails = (analysis: BiologicalAnalysis): void => {
-    navigation.navigate("AnalysisDetails", { analysisId: analysis.id });
+    router.push(`/analyses/${analysis.id}`);
   };
 
   const renderAnalysisItem = ({ item }: { item: BiologicalAnalysis }) => {
@@ -114,7 +113,6 @@ export const AllAnalysesScreen: React.FC<AllAnalysesScreenProps> = ({
     return (
       <ScreenLayout scrollable={false}>
         <EmptyState
-          navigation={navigation}
           message="No analyses found"
           subMessage="Upload a report to get started"
           iconName="file-tray-outline"

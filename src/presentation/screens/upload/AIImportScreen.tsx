@@ -8,8 +8,7 @@ import {
   Alert,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { UploadStackParamList } from "../../../types/navigation";
+import { useRouter } from "expo-router";
 import { AnalyzePdfUseCase } from "../../../domain/usecases/AnalyzePdfUseCase";
 import { ScreenLayout } from "../../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
@@ -31,7 +30,6 @@ const PROCESSING_STEPS = [
 ];
 
 type AIImportScreenProps = {
-  navigation: StackNavigationProp<UploadStackParamList, "AIImportScreen">;
   analyzePdfUseCase: AnalyzePdfUseCase | null;
   isLoadingApiKey: boolean;
   apiKeyError: string | null;
@@ -39,12 +37,12 @@ type AIImportScreenProps = {
 };
 
 export const AIImportScreen: React.FC<AIImportScreenProps> = ({
-  navigation,
   analyzePdfUseCase,
   isLoadingApiKey,
   apiKeyError,
   checkAndLoadApiKey,
 }) => {
+  const router = useRouter();
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -149,7 +147,7 @@ export const AIImportScreen: React.FC<AIImportScreenProps> = ({
   };
 
   const navigateToSettings = (): void => {
-    (navigation as any).navigate("Home", { screen: "ApiKeySettingsScreen" });
+    router.push("/(tabs)/settings/api-key");
   };
 
   if (isLoadingApiKey || isInitialLoading) {

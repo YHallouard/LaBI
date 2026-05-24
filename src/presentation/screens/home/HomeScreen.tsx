@@ -14,9 +14,7 @@ import Animated, {
   useAnimatedReaction,
   runOnJS,
 } from "react-native-reanimated";
-import { useFocusEffect } from "@react-navigation/native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useFocusEffect, useRouter, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { colorPalette, glass } from "../../../config/themes";
 import { HemeaLogo } from "../../components/HemeaLogo";
@@ -48,7 +46,6 @@ import { useScrollAwareHeader } from "../../components/AppHeader";
 import { GlassSurface } from "../../components/glass/GlassSurface";
 
 type HomeScreenProps = {
-  navigation: StackNavigationProp<HomeStackParamList, "HomeScreen">;
   getAnalysesUseCase: GetAnalysesUseCase;
   getLabTestDataUseCase: GetLabTestDataUseCase;
   calculateStatisticsUseCase: CalculateStatisticsUseCase;
@@ -61,7 +58,6 @@ type HomeScreenProps = {
 };
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
-  navigation,
   getAnalysesUseCase,
   getLabTestDataUseCase,
   calculateStatisticsUseCase,
@@ -72,6 +68,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   retrieveUserProfileUseCase,
   getUserAgeUseCase,
 }) => {
+  const router = useRouter();
+  const navigation = useNavigation();
   const scrollY = useSharedValue(0);
   const [screenWidth, setScreenWidth] = useState(
     Dimensions.get("window").width
@@ -111,8 +109,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   });
 
   const navigateToSettings = useCallback(() => {
-    navigation.navigate("SettingsScreen");
-  }, [navigation]);
+    router.push("/(tabs)/settings");
+  }, [router]);
 
   // Set up scroll-aware header once at focus
   useFocusEffect(
@@ -225,7 +223,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, [loadAllData]);
 
   const navigateToAllAnalyses = () => {
-    navigation.navigate("AllAnalysesScreen");
+    router.push("/analyses");
   };
 
   const getFilteredDataForLabKey = useCallback(

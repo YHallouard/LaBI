@@ -6,21 +6,18 @@ jest.mock("expo-document-picker", () => ({
   getDocumentAsync: jest.fn().mockResolvedValue({ canceled: true }),
 }));
 
-const buildNavigation = () => ({
-  navigate: jest.fn(),
-  goBack: jest.fn(),
-});
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
+}));
 
 describe("AIImportScreen", () => {
   it("shows the select button when api key is valid", () => {
     // Given
     const analyzePdfUseCase = {} as any;
-    const navigation = buildNavigation();
 
     // When
     const { getByText } = render(
       <AIImportScreen
-        navigation={navigation as any}
         analyzePdfUseCase={analyzePdfUseCase}
         isLoadingApiKey={false}
         apiKeyError={null}
@@ -33,13 +30,9 @@ describe("AIImportScreen", () => {
   });
 
   it("shows loading when isLoadingApiKey is true", () => {
-    // Given
-    const navigation = buildNavigation();
-
     // When
     const { getByText } = render(
       <AIImportScreen
-        navigation={navigation as any}
         analyzePdfUseCase={null}
         isLoadingApiKey={true}
         apiKeyError={null}
@@ -52,13 +45,9 @@ describe("AIImportScreen", () => {
   });
 
   it("shows the api key error message when no valid key", () => {
-    // Given
-    const navigation = buildNavigation();
-
     // When
     const { getByText } = render(
       <AIImportScreen
-        navigation={navigation as any}
         analyzePdfUseCase={null}
         isLoadingApiKey={false}
         apiKeyError="API key not set"
@@ -71,11 +60,8 @@ describe("AIImportScreen", () => {
   });
 
   it("the select button is disabled when no valid api key", () => {
-    // Given
-    const navigation = buildNavigation();
     const { getByText } = render(
       <AIImportScreen
-        navigation={navigation as any}
         analyzePdfUseCase={null}
         isLoadingApiKey={false}
         apiKeyError="API key not set"

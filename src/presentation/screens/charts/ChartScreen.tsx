@@ -45,8 +45,6 @@ import { ScreenLayout, ResponsiveSectionList } from "../../components";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { EmptyState } from "../../components/EmptyState";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { ChartStackParamList } from "../../../types/navigation";
 import { colorPalette, theme, glass, generateAlpha } from "../../../config/themes";
 import { useTimeRange } from "../../contexts/TimeRangeContext";
 import {
@@ -61,7 +59,6 @@ type ChartScreenProps = {
   getLabTestDataUseCase: GetLabTestDataUseCase;
   calculateStatisticsUseCase: CalculateStatisticsUseCase;
   getReferenceRangeUseCase: GetReferenceRangeUseCase;
-  navigation: StackNavigationProp<ChartStackParamList, "ChartScreen">;
 };
 
 type ChartDimensions = {
@@ -461,7 +458,6 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   getLabTestDataUseCase,
   calculateStatisticsUseCase,
   getReferenceRangeUseCase,
-  navigation,
 }) => {
   const insets = useSafeAreaInsets();
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
@@ -836,8 +832,6 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     return (
       <ScreenLayout>
         <EmptyState
-          /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-          navigation={navigation as any}
           message="Insufficient Data"
           subMessage="Upload at least 2 reports to see a chart"
           iconName="stats-chart-outline"

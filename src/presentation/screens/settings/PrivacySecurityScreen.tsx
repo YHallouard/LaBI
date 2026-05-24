@@ -2,19 +2,13 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { ScreenLayout } from "../../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useRouter } from "expo-router";
 import { colorPalette, generateAlpha } from "../../../config/themes";
 
-type PrivacySecurityScreenProps = {
-  navigation: StackNavigationProp<HomeStackParamList, "PrivacySecurityScreen">;
-};
-
-export const PrivacySecurityScreen: React.FC<PrivacySecurityScreenProps> = ({
-  navigation,
-}) => {
+export const PrivacySecurityScreen: React.FC = () => {
+  const router = useRouter();
   const openPrivacyPolicy = () => {
-    navigation.navigate("PrivacyPolicyWebView");
+    router.push("/(tabs)/settings/privacy-policy");
   };
 
   return (

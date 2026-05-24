@@ -1,25 +1,18 @@
 import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { EmptyState } from "../EmptyState";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
 
-jest.mock("@react-navigation/native", () => ({
-  useNavigation: () => ({
-    navigate: jest.fn(),
-  }),
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: mockPush }),
 }));
 
-const mockNavigation: StackNavigationProp<HomeStackParamList, "HomeScreen"> = {
-  navigate: jest.fn(),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any;
-
 describe("EmptyState Component", () => {
+  beforeEach(() => mockPush.mockClear());
+
   it("renders correctly with given props", () => {
     const { getByText } = render(
       <EmptyState
-        navigation={mockNavigation}
         message="No data available"
         subMessage="Please upload a report"
         iconName="file-tray-outline"
@@ -31,10 +24,9 @@ describe("EmptyState Component", () => {
     expect(getByText("Upload Report")).toBeTruthy();
   });
 
-  it("navigates to Upload screen on button press", () => {
+  it("navigates to upload screen on button press", () => {
     const { getByText } = render(
       <EmptyState
-        navigation={mockNavigation}
         message="No data available"
         subMessage="Please upload a report"
         iconName="file-tray-outline"
@@ -42,6 +34,6 @@ describe("EmptyState Component", () => {
     );
 
     fireEvent.press(getByText("Upload Report"));
-    expect(mockNavigation.navigate).toHaveBeenCalledWith("Upload");
+    expect(mockPush).toHaveBeenCalledWith("/upload");
   });
 });

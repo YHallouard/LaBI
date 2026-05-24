@@ -11,8 +11,7 @@ import {
   TouchableOpacity,
   ScrollView,
 } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useRouter } from "expo-router";
 import { SaveApiKeyUseCase } from "../../../application/usecases/SaveApiKeyUseCase";
 import { LoadApiKeyUseCase } from "../../../application/usecases/LoadApiKeyUseCase";
 import { DeleteApiKeyUseCase } from "../../../application/usecases/DeleteApiKeyUseCase";
@@ -21,7 +20,6 @@ import { ScreenLayout } from "../../components/ScreenLayout";
 import { colorPalette, generateAlpha } from "../../../config/themes";
 
 type ApiKeySettingsScreenProps = {
-  navigation: StackNavigationProp<HomeStackParamList, "ApiKeySettingsScreen">;
   saveApiKeyUseCase: SaveApiKeyUseCase;
   loadApiKeyUseCase: LoadApiKeyUseCase;
   deleteApiKeyUseCase: DeleteApiKeyUseCase;
@@ -31,7 +29,6 @@ type ApiKeySettingsScreenProps = {
 };
 
 export const ApiKeySettingsScreen: React.FC<ApiKeySettingsScreenProps> = ({
-  navigation,
   saveApiKeyUseCase,
   loadApiKeyUseCase,
   deleteApiKeyUseCase,
@@ -217,8 +214,9 @@ export const ApiKeySettingsScreen: React.FC<ApiKeySettingsScreenProps> = ({
     );
   };
 
+  const router = useRouter();
   const navigateToMistralApiKeyTutorial = () => {
-    navigation.navigate("MistralApiKeyTutorial");
+    router.push("/(tabs)/settings/api-key-tutorial");
   };
 
   if (isLoading) {

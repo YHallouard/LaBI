@@ -1,23 +1,22 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { StackNavigationProp } from "@react-navigation/stack";
+import { useRouter } from "expo-router";
 import { colorPalette } from "../../config/themes";
-import { ParamListBase } from "@react-navigation/native";
 
 interface EmptyStateProps {
-  navigation: StackNavigationProp<ParamListBase>;
   message: string;
   subMessage: string;
   iconName: keyof typeof Ionicons.glyphMap;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  navigation,
   message,
   subMessage,
   iconName,
 }) => {
+  const router = useRouter();
+
   return (
     <View style={styles.centered}>
       <Ionicons name={iconName} size={60} color={colorPalette.neutral.light} />
@@ -25,10 +24,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       <Text style={styles.emptySubtext}>{subMessage}</Text>
       <TouchableOpacity
         style={styles.uploadButton}
-        onPress={() => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (navigation as any).navigate("Upload");
-        }}
+        onPress={() => router.push("/upload")}
       >
         <Ionicons
           name="cloud-upload-outline"

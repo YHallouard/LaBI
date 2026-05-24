@@ -8,23 +8,17 @@ import {
 } from "react-native";
 import { ScreenLayout } from "../../components/ScreenLayout";
 import { Ionicons } from "@expo/vector-icons";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useRouter } from "expo-router";
 import { colorPalette } from "../../../config/themes";
 
-type HelpCenterScreenProps = {
-  navigation: StackNavigationProp<HomeStackParamList, "HelpCenterScreen">;
-};
-
-export const HelpCenterScreen: React.FC<HelpCenterScreenProps> = ({
-  navigation,
-}) => {
+export const HelpCenterScreen: React.FC = () => {
+  const router = useRouter();
   const handleEmailPress = () => {
     Linking.openURL("mailto:hemea@gmail.com");
   };
 
   const openMistralApiKeyTutorial = () => {
-    navigation.navigate("MistralApiKeyTutorial");
+    router.push("/(tabs)/settings/api-key-tutorial");
   };
 
   return (

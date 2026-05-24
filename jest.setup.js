@@ -88,6 +88,19 @@ jest.mock('expo-blur', () => ({
   BlurView: 'BlurView',
 }));
 
+// Mock expo-router
+jest.mock('expo-router', () => ({
+  useRouter: () => ({ push: jest.fn(), back: jest.fn(), replace: jest.fn() }),
+  useLocalSearchParams: () => ({}),
+  useNavigation: () => ({ setOptions: jest.fn(), navigate: jest.fn(), goBack: jest.fn() }),
+  useFocusEffect: jest.fn((cb) => cb()),
+  Stack: {
+    Screen: 'Stack.Screen',
+  },
+  Link: 'Link',
+  router: { push: jest.fn(), back: jest.fn(), replace: jest.fn() },
+}));
+
 // Mock expo-secure-store more thoroughly
 jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(),

@@ -11,8 +11,7 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
 } from "react-native";
-import { StackNavigationProp } from "@react-navigation/stack";
-import { HomeStackParamList } from "../../../types/navigation";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { ScreenLayout } from "../../components/ScreenLayout";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -23,11 +22,8 @@ import { EditUserProfileUseCase } from "../../../domain/usecases/EditUserProfile
 import { RetrieveUserProfileUseCase } from "../../../domain/usecases/RetrieveUserProfileUseCase";
 import { RepositoryFactory } from "../../../infrastructure/repositories/RepositoryFactory";
 
-type ProfileScreenProps = {
-  navigation: StackNavigationProp<HomeStackParamList, "ProfileScreen">;
-};
-
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
+export const ProfileScreen: React.FC = () => {
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile>({
     id: "",
     firstName: "",
@@ -213,7 +209,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
 
       // Navigate back after successful save if desired
       setTimeout(() => {
-        navigation.goBack();
+        router.back();
       }, 1500); // Short delay to show success message
     } catch (error) {
       console.error("Error saving profile:", error);
