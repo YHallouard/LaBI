@@ -14,7 +14,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { colorPalette, glass } from "../../config/themes";
-import { GlassSurface } from "./glass/GlassSurface";
 
 interface SearchBarProps {
   value: string;
@@ -36,9 +35,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   const clearOpacity = useSharedValue(0);
 
   const borderStyle = useAnimatedStyle(() => ({
-    borderColor: focused.value === 1
-      ? colorPalette.primary.main
-      : "rgba(255,255,255,0.35)",
+    borderColor:
+      focused.value === 1
+        ? colorPalette.primary.main
+        : "rgba(255,255,255,0.35)",
     borderWidth: focused.value === 1 ? 1.5 : 1,
   }));
 
@@ -68,12 +68,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <View style={[styles.wrapper, style]}>
       <Animated.View style={[styles.container, borderStyle]}>
-        <GlassSurface
-          intensity={glass.blur.thin}
-          tint="light"
-          radius={glass.radii.pill}
-          overlayColor={glass.overlay.solid}
-          style={styles.surface}
+        <View
+          style={[
+            styles.surface,
+            {
+              backgroundColor: "rgba(255,255,255,0.9)",
+              borderRadius: glass.radii.pill,
+            },
+          ]}
         >
           <Ionicons
             name="search"
@@ -103,7 +105,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               />
             </TouchableOpacity>
           </Animated.View>
-        </GlassSurface>
+        </View>
       </Animated.View>
     </View>
   );
@@ -112,7 +114,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 const styles = StyleSheet.create({
   wrapper: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingTop: 8,
+    paddingBottom: 16,
   },
   container: {
     borderRadius: glass.radii.pill,

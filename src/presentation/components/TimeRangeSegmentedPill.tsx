@@ -14,12 +14,11 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { colorPalette, glass } from "../../config/themes";
-import { GlassSurface } from "./glass/GlassSurface";
 
 export type TimeRangeOption = "1y" | "3y" | "5y" | "Max";
 
 const RANGES: TimeRangeOption[] = ["1y", "3y", "5y", "Max"];
-const SPRING = { damping: 18, stiffness: 220 };
+const SPRING = { damping: 100, stiffness: 400 };
 const INNER_PADDING = 4;
 
 interface TimeRangeSegmentedPillProps {
@@ -60,12 +59,14 @@ export const TimeRangeSegmentedPill: React.FC<TimeRangeSegmentedPillProps> = ({
 
   return (
     <View style={[styles.wrapper, style]}>
-      <GlassSurface
-        intensity={glass.blur.thick}
-        tint="systemChromeMaterial"
-        radius={glass.radii.pill}
-        overlayColor={glass.overlay.light}
-        style={styles.pill}
+      <View
+        style={[
+          styles.pill,
+          {
+            backgroundColor: "rgba(255,255,255,0.85)",
+            borderRadius: glass.radii.pill,
+          },
+        ]}
       >
         <View style={styles.row} onLayout={handleLayout}>
           {segmentWidth > 0 && (
@@ -97,7 +98,7 @@ export const TimeRangeSegmentedPill: React.FC<TimeRangeSegmentedPillProps> = ({
             );
           })}
         </View>
-      </GlassSurface>
+      </View>
     </View>
   );
 };

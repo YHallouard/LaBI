@@ -59,6 +59,10 @@ type ResponsiveSectionListProps<T> = {
     | "scrollableAxes"
     | "never"
     | "always";
+  ListHeaderComponent?:
+    | React.ComponentType<unknown>
+    | React.ReactElement
+    | null;
 };
 
 export function ResponsiveSectionList<T>({
@@ -74,6 +78,7 @@ export function ResponsiveSectionList<T>({
   showsVerticalScrollIndicator = true,
   stickySectionHeadersEnabled = true,
   contentInsetAdjustmentBehavior = "automatic",
+  ListHeaderComponent,
 }: ResponsiveSectionListProps<T>) {
   const [screenWidth, setScreenWidth] = useState<number>(
     Dimensions.get("window").width
@@ -257,6 +262,7 @@ export function ResponsiveSectionList<T>({
         showsVerticalScrollIndicator={showsVerticalScrollIndicator}
         stickySectionHeadersEnabled={stickySectionHeadersEnabled}
         refreshControl={refreshControl}
+        ListHeaderComponent={ListHeaderComponent}
         ListFooterComponent={() => <View style={{ height: 90 }} />}
       />
     </View>
