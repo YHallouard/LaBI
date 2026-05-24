@@ -18,7 +18,7 @@ export const HelpCenterScreen: React.FC = () => {
   };
 
   const openMistralApiKeyTutorial = () => {
-    router.push("/(tabs)/settings/api-key-tutorial");
+    router.push("/settings/api-key-tutorial");
   };
 
   return (

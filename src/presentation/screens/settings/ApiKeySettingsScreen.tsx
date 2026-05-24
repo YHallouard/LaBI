@@ -216,7 +216,7 @@ export const ApiKeySettingsScreen: React.FC<ApiKeySettingsScreenProps> = ({
 
   const router = useRouter();
   const navigateToMistralApiKeyTutorial = () => {
-    router.push("/(tabs)/settings/api-key-tutorial");
+    router.push("/settings/api-key-tutorial");
   };
 
   if (isLoading) {

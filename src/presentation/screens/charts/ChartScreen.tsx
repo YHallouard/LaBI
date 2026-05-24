@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,9 +12,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Line, Circle, Path, Text as SvgText, Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 
-import { BiologicalAnalysis } from '../../../domain/entities/BiologicalAnalysis';
+import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
+import { ReferenceRange } from '../../../domain/services/ReferenceRangeCalculator';
 import { useUseCases } from '../../contexts/UseCasesContext';
-import { useTimeRange } from '../../contexts/TimeRangeContext';
 import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS } from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation,
@@ -25,13 +25,19 @@ type MarkerEntry = { key: string; label: string; unit: string; refMin?: number; 
 
 function buildPoints(analyses: BiologicalAnalysis[], key: string) {
   return analyses
-    .filter((a) => typeof (a as any)[key] === 'number')
+    .filter((a) => {
+      const v = (a as any)[key];
+      return v != null && typeof v === 'object' && typeof (v as LabValue).value === 'number';
+    })
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .map((a) => ({
-      v: (a as any)[key] as number,
-      t: new Date(a.date).getTime(),
-      label: new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
-    }));
+    .map((a) => {
+      const lv = (a as any)[key] as LabValue;
+      return {
+        v: lv.value as number,
+        t: new Date(a.date).getTime(),
+        label: new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+      };
+    });
 }
 
 function SimpleChart({
@@ -62,6 +68,7 @@ function SimpleChart({
   const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xOf(p.t).toFixed(1)} ${yOf(p.v).toFixed(1)}`).join(' ');
   const bandTop = refMax != null ? yOf(refMax) : null;
   const bandBot = refMin != null ? yOf(refMin) : null;
+  const svgId = `band-${marker.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   const labelIdxs = [0, Math.floor(points.length / 2), points.length - 1].filter(
     (v, i, arr) => arr.indexOf(v) === i,
@@ -70,7 +77,7 @@ function SimpleChart({
   return (
     <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
       <Defs>
-        <SvgGradient id={`band-${marker}`} x1="0" y1="0" x2="0" y2="1">
+        <SvgGradient id={svgId} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#00C800" stopOpacity="0.22" />
           <Stop offset="1" stopColor="#00C800" stopOpacity="0.04" />
         </SvgGradient>
@@ -88,7 +95,7 @@ function SimpleChart({
           x={pad.l} y={bandTop}
           width={W - pad.l - pad.r}
           height={Math.max(0, bandBot - bandTop)}
-          fill={`url(#band-${marker})`}
+          fill={`url(#${svgId})`}
         />
       )}
       <Path d={pathD} fill="none" stroke={colors.chartLine} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -164,12 +171,27 @@ export function ChartScreen() {
   const insets = useSafeAreaInsets();
   const { bundle } = useUseCases();
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
+  const [refRanges, setRefRanges] = useState<Record<string, ReferenceRange>>({});
   const [loading, setLoading] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       if (!bundle) return;
-      bundle.getAnalyses.execute().then((a) => { setAnalyses(a); setLoading(false); });
+      const load = async () => {
+        const [a] = await Promise.all([
+          bundle.getAnalyses.execute(),
+          bundle.getReferenceRangeUseCase.initialize(),
+        ]);
+        setAnalyses(a);
+        const now = new Date();
+        const ranges: Record<string, ReferenceRange> = {};
+        Object.values(LAB_VALUE_CATEGORIES).flat().forEach((key) => {
+          ranges[key as string] = bundle.getReferenceRangeUseCase.execute(key as string, now);
+        });
+        setRefRanges(ranges);
+        setLoading(false);
+      };
+      load();
     }, [bundle]),
   );
 
@@ -190,6 +212,8 @@ export function ChartScreen() {
       markers: (markerKeys as string[]).map((key) => ({
         key,
         label: key,
+        refMin: refRanges[key]?.min,
+        refMax: refRanges[key]?.max,
       })).map((m) => ({
         ...m,
         points: buildPoints(sorted, m.key),
@@ -217,10 +241,10 @@ export function ChartScreen() {
               {cat.markers.map((m) => (
                 <MarkerSection
                   key={m.key}
-                  entry={{ key: m.key, label: m.label, unit: LAB_VALUE_UNITS[m.key] ?? '' }}
+                  entry={{ key: m.key, label: m.label, unit: LAB_VALUE_UNITS[m.key] ?? '', refMin: m.refMin, refMax: m.refMax }}
                   points={m.points}
-                  refMin={(m as any).refMin}
-                  refMax={(m as any).refMax}
+                  refMin={m.refMin}
+                  refMax={m.refMax}
                 />
               ))}
             </View>

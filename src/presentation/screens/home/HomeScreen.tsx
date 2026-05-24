@@ -67,7 +67,7 @@ export function HomeScreen() {
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
-  const displayName = profile?.name?.split(' ')[0] ?? 'vous';
+  const displayName = profile?.firstName ?? 'vous';
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>

@@ -64,9 +64,7 @@ export function AnalysisDetailsScreen() {
     );
   }
 
-  const labKeys = Object.keys(analysis).filter((k) => !['id', 'date', 'pdfSource'].includes(k));
   const date = new Date(analysis.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-  const firstLabel = labKeys[0] ?? 'Analyse';
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -75,7 +73,7 @@ export function AnalysisDetailsScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.primary} />
         </Pressable>
         <ScreenHeader
-          title={firstLabel}
+          title="Détail du bilan"
           subtitle={date}
         />
       </View>

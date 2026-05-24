@@ -16,6 +16,8 @@ export function AnalysisCard({ date, label, value, unit, alert = false, onPress 
   return (
     <Pressable
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} — ${value} ${unit}`}
       style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
     >
       <View style={styles.left}>

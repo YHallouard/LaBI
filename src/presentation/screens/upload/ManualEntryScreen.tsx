@@ -5,6 +5,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUseCases } from '../../contexts/UseCasesContext';
+import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
 import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS } from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation,
@@ -23,19 +24,20 @@ export function ManualEntryScreen() {
 
   const handleSave = async () => {
     if (!bundle) return;
-    const markers: Record<string, number> = {};
+    const labValues: Record<string, LabValue> = {};
     Object.entries(values).forEach(([k, v]) => {
       const n = parseFloat(v.replace(',', '.'));
-      if (!isNaN(n)) markers[k] = n;
+      if (!isNaN(n)) labValues[k] = { value: n, unit: LAB_VALUE_UNITS[k] ?? '' };
     });
-    if (Object.keys(markers).length === 0) {
+    if (Object.keys(labValues).length === 0) {
       setError('Entrez au moins une valeur.');
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      await bundle.createAnalysis.execute({ date: new Date().toISOString(), markers, labName: 'Saisie manuelle' } as any);
+      const analysis: BiologicalAnalysis = { id: '', date: new Date(), ...labValues };
+      await bundle.createAnalysis.execute(analysis);
       router.back();
     } catch {
       setError("Erreur lors de l'enregistrement.");

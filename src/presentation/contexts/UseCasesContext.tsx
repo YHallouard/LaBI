@@ -160,7 +160,6 @@ export const UseCasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const built = await buildBundle();
       setBundle(built);
       await checkAndLoadApiKey(built.loadApiKey);
-      await new Promise((r) => setTimeout(r, 1500));
       setIsReady(true);
     } catch (error) {
       console.error("Error during initialization", error);

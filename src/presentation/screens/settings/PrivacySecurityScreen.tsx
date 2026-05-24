@@ -8,7 +8,7 @@ import { colorPalette, generateAlpha } from "../../../config/themes";
 export const PrivacySecurityScreen: React.FC = () => {
   const router = useRouter();
   const openPrivacyPolicy = () => {
-    router.push("/(tabs)/settings/privacy-policy");
+    router.push("/settings/privacy-policy");
   };
 
   return (
