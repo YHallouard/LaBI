@@ -1,12 +1,8 @@
 import React from "react";
-import {
-  StyleSheet,
-  StyleProp,
-  ViewStyle,
-  View,
-} from "react-native";
+import { StyleSheet, StyleProp, ViewStyle, View } from "react-native";
 import {
   useAnimatedStyle,
+  useDerivedValue,
   SharedValue,
   interpolate,
   Extrapolation,
@@ -68,14 +64,20 @@ export function useScrollAwareHeader(
   scrollY: SharedValue<number>,
   threshold: number
 ) {
-  const headerOpacityStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(
+  const headerOpacity = useDerivedValue(() =>
+    interpolate(
       scrollY.value,
       [threshold - 25, threshold + 15],
       [0, 1],
       Extrapolation.CLAMP
-    ),
+    )
+  );
+
+  const headerOpacityStyle = useAnimatedStyle(() => ({
+    opacity: headerOpacity.value,
   }));
+
+  const headerVisible = useDerivedValue(() => headerOpacity.value > 0.01);
 
   const largeHeaderOpacityStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
@@ -86,5 +88,5 @@ export function useScrollAwareHeader(
     ),
   }));
 
-  return { headerOpacityStyle, largeHeaderOpacityStyle };
+  return { headerOpacityStyle, largeHeaderOpacityStyle, headerVisible };
 }

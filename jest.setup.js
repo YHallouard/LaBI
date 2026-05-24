@@ -117,6 +117,13 @@ jest.mock('expo-document-picker', () => ({
   },
 }));
 
+jest.mock('expo-sharing', () => ({
+  shareAsync: jest.fn(),
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  dismissReader: jest.fn(),
+  SharingOptions: {},
+}));
+
 // Note: StyleSheet.flatten mock is handled individually in test files that need it
 // to avoid conflicts with react-native-reanimated mock
 

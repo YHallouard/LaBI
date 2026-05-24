@@ -1,9 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-  useCallback,
-  useMemo,
-} from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
   StyleSheet,
   Text,
@@ -16,6 +11,8 @@ import {
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
+  useAnimatedReaction,
+  runOnJS,
 } from "react-native-reanimated";
 import { useFocusEffect } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -93,14 +90,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [contentHeight, setContentHeight] = useState(
     Dimensions.get("window").height
   );
+  const [isHeaderVisible, setIsHeaderVisible] = useState(false);
 
   const isLargeScreen = screenWidth >= 1000;
   const largeHeaderHeight = isLargeScreen ? 220 : 100;
   const smallHeaderAppearsAt = largeHeaderHeight - 40;
 
-  const { headerOpacityStyle, largeHeaderOpacityStyle } = useScrollAwareHeader(
-    scrollY,
-    smallHeaderAppearsAt
+  const { headerOpacityStyle, largeHeaderOpacityStyle, headerVisible } =
+    useScrollAwareHeader(scrollY, smallHeaderAppearsAt);
+
+  useAnimatedReaction(
+    () => headerVisible.value,
+    (visible) => {
+      runOnJS(setIsHeaderVisible)(visible);
+    }
   );
 
   const scrollHandler = useAnimatedScrollHandler((event) => {
@@ -119,13 +122,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         headerTitleAlign: "center",
         headerBackground: () => (
           <Animated.View style={[StyleSheet.absoluteFill, headerOpacityStyle]}>
-            <GlassSurface
-              intensity={glass.blur.chrome}
-              tint="systemChromeMaterial"
-              radius={0}
-              overlayColor={glass.overlay.light}
-              style={StyleSheet.absoluteFill}
-            />
+            {isHeaderVisible && (
+              <GlassSurface
+                intensity={glass.blur.chrome}
+                tint="systemChromeMaterial"
+                radius={0}
+                overlayColor={glass.overlay.light}
+                style={StyleSheet.absoluteFill}
+              />
+            )}
           </Animated.View>
         ),
         headerTitle: () => (
@@ -145,7 +150,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           </Animated.View>
         ),
       });
-    }, [navigation, headerOpacityStyle, navigateToSettings])
+    }, [navigation, headerOpacityStyle, navigateToSettings, isHeaderVisible])
   );
 
   const loadPinnedItems = useCallback(async () => {
@@ -416,7 +421,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             data={chartData}
                             unit={LAB_VALUE_UNITS[item] || ""}
                             getReferenceRangeUseCase={getReferenceRangeUseCase}
-                            calculateStatisticsUseCase={calculateStatisticsUseCase}
+                            calculateStatisticsUseCase={
+                              calculateStatisticsUseCase
+                            }
                             chartDimensions={chartDimensions}
                             formatDate={formatDate}
                             showStats={false}
@@ -437,7 +444,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                           size={48}
                           color={colorPalette.neutral.light}
                         />
-                        <Text style={styles.emptyStateText}>No Recent Data</Text>
+                        <Text style={styles.emptyStateText}>
+                          No Recent Data
+                        </Text>
                         <Text style={styles.emptyStateSubText}>
                           No data available for the last 3 years for your pinned
                           items.
