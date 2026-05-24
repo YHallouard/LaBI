@@ -21,7 +21,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { HomeStackParamList } from "../../../types/navigation";
 import { Ionicons } from "@expo/vector-icons";
-import { colorPalette } from "../../../config/themes";
+import { colorPalette, glass } from "../../../config/themes";
 import { HemeaLogo } from "../../components/HemeaLogo";
 import { PinnedItemsModal } from "../../components/PinnedItemsModal";
 import {
@@ -120,10 +120,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         headerBackground: () => (
           <Animated.View style={[StyleSheet.absoluteFill, headerOpacityStyle]}>
             <GlassSurface
-              intensity={80}
+              intensity={glass.blur.chrome}
               tint="systemChromeMaterial"
               radius={0}
-              overlayColor="rgba(255,255,255,0.65)"
+              overlayColor={glass.overlay.light}
               style={StyleSheet.absoluteFill}
             />
           </Animated.View>

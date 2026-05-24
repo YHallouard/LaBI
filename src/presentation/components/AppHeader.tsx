@@ -32,7 +32,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       intensity={glass.blur.chrome}
       tint="systemChromeMaterial"
       radius={0}
-      overlayColor="rgba(255,255,255,0.6)"
+      overlayColor={glass.overlay.light}
       style={[StyleSheet.absoluteFill, style]}
     >
       {(logo || title || right) && (

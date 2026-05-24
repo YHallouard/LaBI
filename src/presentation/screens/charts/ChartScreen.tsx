@@ -42,6 +42,7 @@ import {
 import { GetReferenceRangeUseCase } from "../../../domain/usecases/GetReferenceRangeUseCase";
 import { CreateLinePathUseCase } from "../../../domain/usecases/CreateLinePathUseCase";
 import { ScreenLayout, ResponsiveSectionList } from "../../components";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { EmptyState } from "../../components/EmptyState";
 import { StackNavigationProp } from "@react-navigation/stack";
@@ -462,6 +463,7 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   getReferenceRangeUseCase,
   navigation,
 }) => {
+  const insets = useSafeAreaInsets();
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -739,11 +741,13 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
     return renderInsufficientDataScreen();
   }
 
+  const headerHeight = insets.top + 50;
+
   if (Object.keys(chartDataByCategory).length === 0) {
     return (
       <ScreenLayout>
         <View
-          style={styles.screenContainer}
+          style={[styles.screenContainer, { paddingTop: headerHeight }]}
           onLayout={handleScreenLayoutChange}
         >
           <TimeRangeSegmentedPill
@@ -768,26 +772,30 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   return (
     <ScreenLayout>
       <View style={styles.screenContainer} onLayout={handleScreenLayoutChange}>
-        <TimeRangeSegmentedPill
-          selectedTimeRange={selectedTimeRange}
-          onSelectTimeRange={setSelectedTimeRange}
-        />
-        <SearchBar
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search charts..."
-        />
         <ResponsiveSectionList
           sections={sections}
           renderSectionHeader={renderSectionHeader}
           renderItem={renderChartItem}
           keyExtractor={keyExtractor}
-          contentContainerStyle={styles.chartsContainer}
+          contentContainerStyle={[styles.chartsContainer, { paddingTop: headerHeight }]}
           maxColumns={2}
           thresholds={{ twoColumns: 1000 }}
           contentInsetAdjustmentBehavior="never"
           showsVerticalScrollIndicator={true}
           stickySectionHeadersEnabled={true}
+          ListHeaderComponent={
+            <View>
+              <TimeRangeSegmentedPill
+                selectedTimeRange={selectedTimeRange}
+                onSelectTimeRange={setSelectedTimeRange}
+              />
+              <SearchBar
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                placeholder="Search charts..."
+              />
+            </View>
+          }
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

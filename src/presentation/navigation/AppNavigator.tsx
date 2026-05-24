@@ -33,6 +33,8 @@ import {
   TimeRangeProvider,
 } from "../components";
 import { SettingsButton } from "../components/SettingsButton";
+import { GlassSurface } from "../components/glass/GlassSurface";
+import { glass } from "../../config/themes";
 import { TabBarProvider } from "../contexts/TabBarContext";
 
 import {
@@ -504,6 +506,21 @@ export const AppNavigator: React.FC<AppNavigatorProps> = React.memo(
             options={{
               headerTitle: () => <HemeaLogo />,
               headerRight: () => <SettingsButton />,
+              headerTransparent: true,
+              headerStyle: {
+                backgroundColor: "transparent",
+                shadowOpacity: 0,
+                elevation: 0,
+              },
+              headerBackground: () => (
+                <GlassSurface
+                  intensity={glass.blur.chrome}
+                  tint="systemChromeMaterial"
+                  radius={0}
+                  overlayColor={glass.overlay.light}
+                  style={StyleSheet.absoluteFill}
+                />
+              ),
             }}
           >
             {(props: StackScreenProps<ChartStackParamList, "ChartScreen">) => {

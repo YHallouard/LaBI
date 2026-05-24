@@ -17,6 +17,7 @@ import Animated, {
 import { useTabBar } from "../contexts/TabBarContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassSurface } from "./glass/GlassSurface";
+import { GlassContainer } from "expo-glass-effect";
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
 
@@ -92,13 +93,14 @@ function TabBar({
       </View>
 
       <View style={styles.tabBarShadowContainer}>
-        <GlassSurface
-          intensity={glass.blur.thick}
-          tint="systemChromeMaterial"
-          radius={glass.radii.pill}
-          overlayColor="rgba(255,255,255,0.55)"
-          style={styles.tabBar}
-        >
+        <GlassContainer spacing={8} style={styles.glassContainer}>
+          <GlassSurface
+            intensity={glass.blur.thick}
+            tint="systemChromeMaterial"
+            radius={glass.radii.pill}
+            overlayColor={glass.overlay.light}
+            style={styles.tabBar}
+          >
           <View onLayout={onTabBarLayout} style={styles.tabBarInner}>
           <Animated.View
             style={[
@@ -174,7 +176,8 @@ function TabBar({
             );
           })}
           </View>
-        </GlassSurface>
+          </GlassSurface>
+        </GlassContainer>
       </View>
 
       <View style={styles.sideContainer}>
@@ -210,6 +213,7 @@ export const TabLayout: React.FC<TabBarProps> = ({
       screenOptions={{
         headerShown: false,
       }}
+      sceneContainerStyle={{ backgroundColor: "transparent" }}
       tabBar={(props) => {
         return (
           <TabBar
@@ -258,6 +262,10 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     shadowOpacity: 0.2,
     elevation: 20,
+  },
+  glassContainer: {
+    flex: 1,
+    borderRadius: glass.radii.pill,
   },
   tabBar: {
     borderRadius: glass.radii.pill,

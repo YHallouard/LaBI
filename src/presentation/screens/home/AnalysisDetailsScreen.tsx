@@ -260,7 +260,7 @@ const AnalysisDetailsScreen: React.FC<AnalysisDetailsScreenProps> = ({
       })),
     []
   );
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   
   const keyExtractor = useCallback(
     (labKey: string, index: number) => labKey,
     []

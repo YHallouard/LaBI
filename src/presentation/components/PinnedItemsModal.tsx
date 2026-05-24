@@ -10,6 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { BlurView } from "expo-blur";
+import { GlassView, isGlassEffectAPIAvailable } from "expo-glass-effect";
 import { colorPalette, glass } from "../../config/themes";
 import { Ionicons } from "@expo/vector-icons";
 import { LAB_VALUE_KEYS } from "../../config/LabConfig";
@@ -147,7 +148,15 @@ export const PinnedItemsModal: React.FC<PinnedItemsModalProps> = ({
         ) : (
           <View style={[styles.backdrop, { backgroundColor: "rgba(0,0,0,0.4)" }]} />
         )}
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: "transparent" }]}>
+          {isGlassEffectAPIAvailable() ? (
+            <GlassView
+              glassEffectStyle="regular"
+              style={[StyleSheet.absoluteFill, { borderTopLeftRadius: glass.radii.lg, borderTopRightRadius: glass.radii.lg }]}
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, styles.safeAreaFallback]} />
+          )}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Épingler des métriques</Text>
             <TouchableOpacity onPress={onClose}>
@@ -203,7 +212,6 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.92)",
     borderTopLeftRadius: glass.radii.lg,
     borderTopRightRadius: glass.radii.lg,
     marginTop: "30%",
@@ -215,6 +223,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 20,
+  },
+  safeAreaFallback: {
+    backgroundColor: "rgba(255,255,255,0.88)",
+    borderTopLeftRadius: glass.radii.lg,
+    borderTopRightRadius: glass.radii.lg,
   },
   searchBar: {
     paddingHorizontal: 0,

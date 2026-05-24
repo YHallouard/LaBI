@@ -64,7 +64,7 @@ export const TimeRangeSegmentedPill: React.FC<TimeRangeSegmentedPillProps> = ({
         intensity={glass.blur.thick}
         tint="systemChromeMaterial"
         radius={glass.radii.pill}
-        overlayColor="rgba(255,255,255,0.55)"
+        overlayColor={glass.overlay.light}
         style={styles.pill}
       >
         <View style={styles.row} onLayout={handleLayout}>

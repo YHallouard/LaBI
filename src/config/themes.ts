@@ -188,13 +188,13 @@ export const theme = {
 // Glass design system tokens for iOS 26 liquid glass aesthetic
 export const glass = {
   radii: { sm: 12, md: 18, lg: 24, pill: 999 },
-  blur: { thin: 30, regular: 50, thick: 80, chrome: 100 },
+  blur: { thin: 60, regular: 80, thick: 100, chrome: 120 },
   overlay: {
-    light: "rgba(255,255,255,0.45)",
-    dark: "rgba(0,0,0,0.25)",
-    solid: "rgba(255,255,255,0.75)",
+    light: "rgba(255,255,255,0.15)",
+    dark: "rgba(0,0,0,0.10)",
+    solid: "rgba(255,255,255,0.20)",
   },
-  border: "rgba(255,255,255,0.35)",
+  border: "rgba(255,255,255,0.25)",
   shadow: {
     color: "#000",
     offset: { width: 0, height: 4 },

@@ -6,9 +6,15 @@ import {
   RefreshControl,
   StyleProp,
   ViewStyle,
+  Platform,
 } from "react-native";
-import { colorPalette } from "../../config/themes";
-import { Platform } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+
+const DEFAULT_GRADIENT: readonly [string, string, string] = [
+  "#EEF2FB",
+  "#F8F9FA",
+  "#F4F0F8",
+];
 
 type ScreenLayoutProps = {
   children: ReactNode;
@@ -16,7 +22,7 @@ type ScreenLayoutProps = {
   refreshing?: boolean;
   onRefresh?: () => void;
   scrollable?: boolean;
-  backgroundColor?: string;
+  gradientColors?: readonly [string, string, ...string[]];
 };
 
 export const ScreenLayout: React.FC<ScreenLayoutProps> = ({
@@ -25,24 +31,24 @@ export const ScreenLayout: React.FC<ScreenLayoutProps> = ({
   refreshing = false,
   onRefresh,
   scrollable = false,
-  backgroundColor = colorPalette.neutral.background,
+  gradientColors = DEFAULT_GRADIENT,
 }) => {
-  const containerStyle = [styles.container, { backgroundColor }];
-
   return (
-    <View style={containerStyle} testID="screen-layout">
+    <LinearGradient
+      colors={gradientColors}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+      testID="screen-layout"
+    >
       {scrollable ? (
-        <ScrollableContent
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          style={style}
-        >
+        <ScrollableContent refreshing={refreshing} onRefresh={onRefresh} style={style}>
           {children}
         </ScrollableContent>
       ) : (
         <StaticContent style={style}>{children}</StaticContent>
       )}
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -84,10 +90,10 @@ const createRefreshControl = (refreshing: boolean, onRefresh?: () => void) => {
     <RefreshControl
       refreshing={refreshing}
       onRefresh={onRefresh}
-      colors={[colorPalette.primary.main]}
-      tintColor={colorPalette.primary.main}
+      colors={["#4A90E2"]}
+      tintColor={"#4A90E2"}
       title="Pull to refresh..."
-      titleColor={colorPalette.neutral.light}
+      titleColor={"#8E8E93"}
     />
   );
 };
