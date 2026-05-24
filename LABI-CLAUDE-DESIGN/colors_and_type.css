@@ -1,0 +1,249 @@
+/* =========================================================================
+   Héméa — Design Tokens
+   Health & tech identity: sober, legible, reassuring.
+   Light mode only (userInterfaceStyle: "light").
+   ========================================================================= */
+
+/* ---- Typography: SF Pro on iOS, Roboto on Android, Inter on web ----
+   The mobile app uses the system font stack. For web/preview surfaces we
+   fall back to Inter (closest free Google Font equivalent to SF Pro for
+   neutral health UI). Flag: replace Inter with brand font files when
+   available. */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
+
+:root {
+  /* ---------- Brand color (spec) ---------- */
+  --hemea-primary:        #2C7BE5;   /* Bleu Héméa — actions principales */
+  --hemea-primary-hover:  #1F66C9;
+  --hemea-primary-pressed:#1856AC;
+  --hemea-primary-disabled:#A0C7F0;
+  --hemea-primary-tint:   #EEF2FB;   /* fond aéré bleu */
+
+  --hemea-secondary:      #00B4A6;   /* Teal — actions secondaires / charts */
+  --hemea-secondary-hover:#009489;
+  --hemea-secondary-tint: #E3F7F5;
+
+  /* ---------- Brand gradient (LOGO ONLY) ---------- */
+  --hemea-gradient-from:  #E5363F;
+  --hemea-gradient-mid:   #CE5283;
+  --hemea-gradient-to:    #C255DF;
+  --hemea-gradient:       linear-gradient(135deg, #E5363F 0%, #CE5283 50%, #C255DF 100%);
+
+  /* ---------- Text ---------- */
+  --hemea-text:           #212529;   /* texte principal */
+  --hemea-text-strong:    #12263F;   /* headlines (codebase) */
+  --hemea-text-body:      #5A7184;   /* paragraphes (codebase) */
+  --hemea-text-muted:     #ADB5BD;   /* labels, captions */
+  --hemea-text-faint:     #95AAC9;   /* meta, divisions (codebase) */
+  --hemea-text-on-color:  #FFFFFF;
+
+  /* ---------- Surfaces ---------- */
+  --hemea-bg:             #F8F9FA;   /* base screen */
+  --hemea-bg-blue:        #EEF2FB;   /* tinted hero blocks */
+  --hemea-bg-violet:      #F4F0F8;   /* tinted card alt */
+  --hemea-bg-elevated:    #FFFFFF;
+  --hemea-bg-scrim:       rgba(18, 38, 63, 0.35);
+
+  /* ---------- Border / divider ---------- */
+  --hemea-border:         #E3EBF6;
+  --hemea-border-strong:  #D6DEEA;
+  --hemea-divider:        #ECECEC;
+
+  /* ---------- Semantic ---------- */
+  --hemea-success:        #6DD39A;
+  --hemea-success-deep:   #00A86B;
+  --hemea-success-tint:   rgba(0, 217, 126, 0.10);
+
+  --hemea-warning:        #FFC107;
+  --hemea-warning-deep:   #856404;
+  --hemea-warning-tint:   #FFF3CD;
+
+  --hemea-danger:         #E5363F;   /* Erreur / Alerte */
+  --hemea-danger-tint:    rgba(229, 54, 63, 0.10);
+
+  --hemea-lab-alert:      #CE5283;   /* Alerte labo — résultat hors plage */
+  --hemea-lab-alert-tint: rgba(206, 82, 131, 0.10);
+
+  /* ---------- Glassmorphism (iOS Liquid Glass) ---------- */
+  --hemea-glass-fill:     rgba(255, 255, 255, 0.62);
+  --hemea-glass-fill-strong: rgba(255, 255, 255, 0.78);
+  --hemea-glass-border:   rgba(255, 255, 255, 0.55);
+  --hemea-glass-shadow:   0 10px 30px rgba(18, 38, 63, 0.08),
+                          0 1px 0 rgba(255, 255, 255, 0.7) inset;
+  --hemea-glass-blur:     blur(28px) saturate(180%);
+
+  /* ---------- Charts ---------- */
+  --hemea-chart-line:        #4484B2;
+  --hemea-chart-line-width:  3px;
+  --hemea-chart-point:       #4484B2;
+  --hemea-chart-point-alert: #E5363F;
+  --hemea-chart-range-fill:  rgba(0, 200, 0, 0.15);
+  --hemea-chart-range-stroke:#00C800;
+  --hemea-chart-grid:        #ECECEC;
+  --hemea-chart-axis-label:  #95AAC9;
+  --hemea-chart-label-size:  9px;
+
+  /* ---------- Radii ---------- */
+  --hemea-radius-xs:  4px;
+  --hemea-radius-sm:  6px;
+  --hemea-radius-md:  8px;   /* boutons, inputs */
+  --hemea-radius-lg: 12px;
+  --hemea-radius-xl: 16px;   /* cards */
+  --hemea-radius-2xl:22px;
+  --hemea-radius-pill:9999px;
+
+  /* ---------- Shadows / elevation ---------- */
+  --hemea-elev-1: 0 1px 3px rgba(18, 38, 63, 0.06);
+  --hemea-elev-2: 0 2px 4px rgba(18, 38, 63, 0.10);
+  --hemea-elev-3: 0 4px 12px rgba(18, 38, 63, 0.10);
+  --hemea-elev-4: 0 10px 24px rgba(18, 38, 63, 0.12);
+  --hemea-fab-shadow: 0 4px 14px rgba(44, 123, 229, 0.40);
+
+  /* ---------- Spacing scale (4-pt baseline) ---------- */
+  --hemea-space-1:  4px;
+  --hemea-space-2:  8px;
+  --hemea-space-3: 12px;
+  --hemea-space-4: 16px;   /* default card padding */
+  --hemea-space-5: 20px;
+  --hemea-space-6: 24px;
+  --hemea-space-7: 32px;
+  --hemea-space-8: 40px;
+
+  /* ---------- Typography ---------- */
+  --hemea-font-sans: "Inter", -apple-system, "SF Pro Text", "Segoe UI",
+                     Roboto, "Helvetica Neue", Arial, sans-serif;
+  --hemea-font-display: "Inter", -apple-system, "SF Pro Display",
+                        "Segoe UI", Roboto, sans-serif;
+  --hemea-font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* font sizes — mirror the React Native screens (12, 14, 16, 18, 22, 24) */
+  --hemea-fs-caption: 12px;
+  --hemea-fs-small:   14px;
+  --hemea-fs-body:    16px;
+  --hemea-fs-lead:    18px;
+  --hemea-fs-h3:      20px;
+  --hemea-fs-h2:      22px;
+  --hemea-fs-h1:      24px;
+  --hemea-fs-display: 32px;
+
+  /* line heights */
+  --hemea-lh-tight: 1.2;
+  --hemea-lh-snug:  1.35;
+  --hemea-lh-base:  1.45;
+  --hemea-lh-loose: 1.6;
+
+  /* easings & durations */
+  --hemea-ease-out:    cubic-bezier(0.22, 0.61, 0.36, 1);
+  --hemea-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --hemea-dur-fast: 150ms;
+  --hemea-dur-base: 250ms;
+  --hemea-dur-slow: 400ms;
+}
+
+/* =========================================================================
+   Semantic, reusable type classes
+   ========================================================================= */
+
+.hemea-display {
+  font-family: var(--hemea-font-display);
+  font-size: var(--hemea-fs-display);
+  font-weight: 800;
+  line-height: var(--hemea-lh-tight);
+  color: var(--hemea-text-strong);
+  letter-spacing: -0.02em;
+}
+
+.hemea-h1 {
+  font-family: var(--hemea-font-display);
+  font-size: var(--hemea-fs-h1);
+  font-weight: 700;
+  line-height: var(--hemea-lh-tight);
+  color: var(--hemea-text-strong);
+  letter-spacing: -0.01em;
+}
+
+.hemea-h2 {
+  font-family: var(--hemea-font-display);
+  font-size: var(--hemea-fs-h2);
+  font-weight: 700;
+  line-height: var(--hemea-lh-snug);
+  color: var(--hemea-text-strong);
+}
+
+.hemea-h3 {
+  font-family: var(--hemea-font-sans);
+  font-size: var(--hemea-fs-h3);
+  font-weight: 600;
+  line-height: var(--hemea-lh-snug);
+  color: var(--hemea-text-strong);
+}
+
+.hemea-lead {
+  font-family: var(--hemea-font-sans);
+  font-size: var(--hemea-fs-lead);
+  font-weight: 500;
+  line-height: var(--hemea-lh-base);
+  color: var(--hemea-text-strong);
+}
+
+.hemea-body {
+  font-family: var(--hemea-font-sans);
+  font-size: var(--hemea-fs-body);
+  font-weight: 400;
+  line-height: var(--hemea-lh-base);
+  color: var(--hemea-text-body);
+}
+
+.hemea-small {
+  font-family: var(--hemea-font-sans);
+  font-size: var(--hemea-fs-small);
+  font-weight: 400;
+  line-height: var(--hemea-lh-base);
+  color: var(--hemea-text-body);
+}
+
+.hemea-caption {
+  font-family: var(--hemea-font-sans);
+  font-size: var(--hemea-fs-caption);
+  font-weight: 500;
+  line-height: var(--hemea-lh-snug);
+  color: var(--hemea-text-faint);
+  letter-spacing: 0.02em;
+}
+
+.hemea-label {
+  font-family: var(--hemea-font-sans);
+  font-size: var(--hemea-fs-caption);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hemea-text-faint);
+}
+
+.hemea-value {
+  font-family: var(--hemea-font-display);
+  font-size: var(--hemea-fs-h3);
+  font-weight: 700;
+  color: var(--hemea-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.hemea-value--alert {
+  color: var(--hemea-danger);
+}
+
+/* =========================================================================
+   Base reset (preview surfaces)
+   ========================================================================= */
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--hemea-font-sans);
+  color: var(--hemea-text);
+  background: var(--hemea-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}

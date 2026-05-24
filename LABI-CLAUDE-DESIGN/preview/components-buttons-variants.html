@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<title>Buttons — variants</title>
+<style>
+  .btn { font-family:var(--hemea-font-sans); font-size:15px; font-weight:600; padding:12px 22px; border-radius:8px; border:none; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; min-width:120px; transition:all 150ms var(--hemea-ease-out); }
+  .btn--primary { background:#2C7BE5; color:#fff; }
+  .btn--primary:hover { background:#1F66C9; }
+  .btn--secondary { background:#00B4A6; color:#fff; }
+  .btn--ghost { background:transparent; color:#2C7BE5; border:1.5px solid #2C7BE5; }
+  .btn--danger { background:#E5363F; color:#fff; }
+  .btn--disabled { background:#E3EBF6; color:#ADB5BD; cursor:not-allowed; }
+</style>
+</head>
+<body><div class="card">
+  <div class="grid" style="grid-template-columns:auto 1fr; gap:14px 18px; align-items:center;">
+    <span class="hemea-caption">Primaire</span><div><button class="btn btn--primary">Importer un PDF</button></div>
+    <span class="hemea-caption">Secondaire</span><div><button class="btn btn--secondary">Synchroniser</button></div>
+    <span class="hemea-caption">Outline</span><div><button class="btn btn--ghost">Annuler</button></div>
+    <span class="hemea-caption">Danger</span><div><button class="btn btn--danger">Supprimer</button></div>
+    <span class="hemea-caption">Désactivé</span><div><button class="btn btn--disabled" disabled>Indisponible</button></div>
+  </div>
+</div></body></html>
