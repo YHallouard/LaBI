@@ -26,7 +26,7 @@ import Svg, {
   LinearGradient as SvgLinearGradient,
   Stop,
 } from "react-native-svg";
-import { useFocusEffect } from "@react-navigation/native";
+
 import { BiologicalAnalysis } from "../../../domain/entities/BiologicalAnalysis";
 import {
   GetAnalysesUseCase,
@@ -46,11 +46,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { EmptyState } from "../../components/EmptyState";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { ChartStackParamList } from "../../../types/navigation";
-import { colorPalette, theme, generateAlpha } from "../../../config/themes";
+import { colorPalette, theme, glass, generateAlpha } from "../../../config/themes";
 import { useTimeRange } from "../../contexts/TimeRangeContext";
-import { useTabBar } from "../../contexts/TabBarContext";
-import { TimeRangeOption, TimeRangeFAB } from "../../components/TimeRangeFAB";
+import {
+  TimeRangeOption,
+  TimeRangeSegmentedPill,
+} from "../../components/TimeRangeSegmentedPill";
 import { SearchBar } from "../../components/SearchBar";
+import { GlassCard } from "../../components/glass";
 
 type ChartScreenProps = {
   getAnalysesUseCase: GetAnalysesUseCase;
@@ -308,7 +311,8 @@ export const ChartItem: React.FC<ChartItemProps> = ({
 
   return (
     <View style={styles.chartSection}>
-      <View style={styles.chartContainer} onLayout={handleLayout}>
+      <View onLayout={handleLayout}>
+      <GlassCard style={styles.chartCard}>
         <View style={styles.metricIdentifier}>
           <View style={styles.metricNameContainer}>
             <Text style={styles.metricName}>{labKey}</Text>
@@ -392,6 +396,7 @@ export const ChartItem: React.FC<ChartItemProps> = ({
         </View>
 
         <ChartLegend latestRefRange={latestRefRange} unit={unit} />
+      </GlassCard>
       </View>
 
       {showStats && (
@@ -463,34 +468,12 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { selectedTimeRange, setSelectedTimeRange } = useTimeRange();
-  const { setRightButtons, clearButtons } = useTabBar();
   const [screenWidth, setScreenWidth] = useState<number>(
     Dimensions.get("window").width
   );
   const dimensionsInitialized = useRef<boolean>(false);
   const previousWidth = useRef<number>(Dimensions.get("window").width);
   const hasInitiallyLoaded = useRef<boolean>(false);
-
-  const timeRangeFAB = useMemo(
-    () => (
-      <TimeRangeFAB
-        key="time-range-fab"
-        selectedTimeRange={selectedTimeRange}
-        onSelectTimeRange={setSelectedTimeRange}
-      />
-    ),
-    [selectedTimeRange, setSelectedTimeRange]
-  );
-
-  useFocusEffect(
-    useCallback(() => {
-      setRightButtons([timeRangeFAB]);
-
-      return () => {
-        clearButtons();
-      };
-    }, [timeRangeFAB, setRightButtons, clearButtons])
-  );
 
   // Set loading to false if we already have data
   useEffect(() => {
@@ -763,6 +746,10 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
           style={styles.screenContainer}
           onLayout={handleScreenLayoutChange}
         >
+          <TimeRangeSegmentedPill
+            selectedTimeRange={selectedTimeRange}
+            onSelectTimeRange={setSelectedTimeRange}
+          />
           <SearchBar
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -781,6 +768,10 @@ export const ChartScreen: React.FC<ChartScreenProps> = ({
   return (
     <ScreenLayout>
       <View style={styles.screenContainer} onLayout={handleScreenLayoutChange}>
+        <TimeRangeSegmentedPill
+          selectedTimeRange={selectedTimeRange}
+          onSelectTimeRange={setSelectedTimeRange}
+        />
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -968,16 +959,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 10,
   },
-  chartContainer: {
-    backgroundColor: colorPalette.neutral.white,
-    borderRadius: 16,
+  chartCard: {
     padding: 12,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
   metricIdentifier: {
     flexDirection: "row",
@@ -1060,29 +1044,27 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 6,
   },
   statCard: {
     flex: 1,
-    backgroundColor: theme.chart.stats.card.backgroundColor,
-    borderRadius: 8,
+    backgroundColor: glass.overlay.solid,
+    borderRadius: glass.radii.md,
     padding: 12,
     marginHorizontal: 4,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-    borderWidth: 0,
+    borderWidth: 1,
+    borderColor: glass.border,
+    shadowColor: glass.shadow.color,
+    shadowOffset: glass.shadow.offset,
+    shadowOpacity: glass.shadow.opacity,
+    shadowRadius: glass.shadow.radius,
+    elevation: glass.shadow.elevation,
     overflow: "hidden",
   },
   statCardAlert: {
     backgroundColor: theme.chart.stats.card.alert.backgroundColor,
-    shadowColor: "transparent",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0,
-    shadowRadius: 0,
-    elevation: 0,
+    borderColor: "rgba(229,54,63,0.2)",
   },
   statLabel: {
     fontSize: theme.chart.stats.label.fontSize,

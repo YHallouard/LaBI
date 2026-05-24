@@ -8,6 +8,7 @@ export { ResponsiveSectionList } from "./ResponsiveSectionList";
 export { TabLayout } from "./TabBar";
 export { TabBarButton } from "./TabBarButton";
 export { TimeRangeFAB } from "./TimeRangeFAB";
+export { TimeRangeSegmentedPill } from "./TimeRangeSegmentedPill";
 export { ZoomInWrapper } from "./ZoomInWrapper";
 export { TimeRangeProvider, useTimeRange } from "../contexts/TimeRangeContext";
 export { AppHeader, useScrollAwareHeader } from "./AppHeader";

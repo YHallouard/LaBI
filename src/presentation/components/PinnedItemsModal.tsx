@@ -7,7 +7,9 @@ import {
   StyleSheet,
   FlatList,
   SafeAreaView,
+  Platform,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import { colorPalette, glass } from "../../config/themes";
 import { Ionicons } from "@expo/vector-icons";
 import { LAB_VALUE_KEYS } from "../../config/LabConfig";
@@ -131,9 +133,20 @@ export const PinnedItemsModal: React.FC<PinnedItemsModalProps> = ({
       visible={isVisible}
       animationType="slide"
       onRequestClose={onClose}
-      presentationStyle="formSheet"
+      transparent={Platform.OS === "ios"}
+      presentationStyle={Platform.OS === "ios" ? "overFullScreen" : "formSheet"}
     >
       <GestureHandlerRootView style={{ flex: 1 }}>
+        {Platform.OS === "ios" ? (
+          <BlurView
+            intensity={40}
+            tint="dark"
+            style={styles.backdrop}
+            experimentalBlurMethod="dimezisBlurView"
+          />
+        ) : (
+          <View style={[styles.backdrop, { backgroundColor: "rgba(0,0,0,0.4)" }]} />
+        )}
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Épingler des métriques</Text>
@@ -185,12 +198,23 @@ export const PinnedItemsModal: React.FC<PinnedItemsModalProps> = ({
 };
 
 const styles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
   safeArea: {
     flex: 1,
-    backgroundColor: colorPalette.neutral.white,
+    backgroundColor: "rgba(255,255,255,0.92)",
     borderTopLeftRadius: glass.radii.lg,
     borderTopRightRadius: glass.radii.lg,
+    marginTop: "30%",
     overflow: "hidden",
+    borderWidth: 1,
+    borderColor: glass.border,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 20,
   },
   searchBar: {
     paddingHorizontal: 0,
