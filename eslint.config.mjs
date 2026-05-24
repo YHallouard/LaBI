@@ -5,7 +5,19 @@ import { defineConfig } from "eslint/config";
 
 
 export default defineConfig([
-  { files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"], languageOptions: { globals: globals.browser } },
+  {
+    ignores: ["**/__tests__/**"], // Exclude all test files
+  },
+  { 
+    files: ["**/*.{js,mjs,cjs,ts,jsx,tsx}"], 
+    languageOptions: { globals: globals.browser } 
+  },
   tseslint.configs.recommended,
   pluginReact.configs.flat.recommended,
+  {
+    files: ["**/*.{ts,tsx}"],
+    rules: {
+      "react/prop-types": "off", // TypeScript provides better type checking
+    },
+  },
 ]);

@@ -17,7 +17,7 @@ const mockNavigation: StackNavigationProp<HomeStackParamList, "HomeScreen"> = {
 
 describe("EmptyState Component", () => {
   it("renders correctly with given props", () => {
-    const { getByText, getByTestId } = render(
+    const { getByText } = render(
       <EmptyState
         navigation={mockNavigation}
         message="No data available"
@@ -28,7 +28,7 @@ describe("EmptyState Component", () => {
 
     expect(getByText("No data available")).toBeTruthy();
     expect(getByText("Please upload a report")).toBeTruthy();
-    expect(getByTestId("icon")).toBeTruthy();
+    expect(getByText("Upload Report")).toBeTruthy();
   });
 
   it("navigates to Upload screen on button press", () => {

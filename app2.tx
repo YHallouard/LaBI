@@ -1,0 +1,86 @@
+{
+    "expo": {
+      "name": "Héméa",
+      "slug": "Héméa",
+      "version": "1.4.0",
+      "orientation": "portrait",
+      "icon": "./assets/icon.png",
+      "userInterfaceStyle": "light",
+      "newArchEnabled": true,
+      "ios": {
+        "supportsTablet": true,
+        "bundleIdentifier": "com.anonymous.hemea",
+        "splash": {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#f8f9fa"
+        },
+        "infoPlist": {
+          "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to allow you to select and upload a profile picture for your health profile.",
+          "NSLocalNetworkUsageDescription": "$(PRODUCT_NAME) uses local network to sync data between devices",
+          "NSBonjourServices": ["_hemea-sync._tcp."]
+        }
+      },
+      "android": {
+        "edgeToEdgeEnabled": true,
+        "adaptiveIcon": {
+          "foregroundImage": "./assets/adaptive-icon.png",
+          "backgroundColor": "#ffffff"
+        },
+        "splash": {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#f8f9fa"
+        },
+        "package": "com.anonymous.hemea",
+        "permissions": [
+          "android.permission.ACCESS_WIFI_STATE",
+          "android.permission.ACCESS_NETWORK_STATE",
+          "android.permission.CHANGE_WIFI_MULTICAST_STATE",
+          "android.permission.INTERNET"
+        ]
+      },
+      "web": {
+        "favicon": "./assets/favicon.png"
+      },
+      "plugins": [
+        [
+          "expo-splash-screen",
+          {
+            "android": {
+              "backgroundColor": "#f8f9fa",
+              "image": "./assets/splash-icon.png",
+              "imageWidth": 200,
+              "resizeMode": "contain"
+            }
+          }
+        ],
+        [
+          "expo-sqlite",
+          {
+            "enableFTS": true,
+            "useSQLCipher": true,
+            "android": {
+              "enableFTS": false,
+              "useSQLCipher": true
+            },
+            "ios": {
+              "customBuildFlags": [
+                "-DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_SNAPSHOT=1"
+              ]
+            }
+          }
+        ],
+        "expo-secure-store",
+        [
+          "expo-build-properties",
+          {
+            "ios": {
+              "useFrameworks": "static",
+              "deploymentTarget": "15.1"
+            }
+          }
+        ]
+      ]
+    }
+  }

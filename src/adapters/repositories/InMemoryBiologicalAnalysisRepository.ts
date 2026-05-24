@@ -1,13 +1,19 @@
-import { BiologicalAnalysis } from '../../domain/entities/BiologicalAnalysis';
-import { BiologicalAnalysisRepository } from '../../ports/repositories/BiologicalAnalysisRepository';
+import { BiologicalAnalysis } from "../../domain/entities/BiologicalAnalysis";
+import { BiologicalAnalysisRepository } from "../../ports/repositories/BiologicalAnalysisRepository";
 
-
-export class InMemoryBiologicalAnalysisRepository implements BiologicalAnalysisRepository {
+export class InMemoryBiologicalAnalysisRepository
+  implements BiologicalAnalysisRepository
+{
   private analyses: BiologicalAnalysis[] = [];
+  private shouldFailSave = false;
 
   async save(analysis: BiologicalAnalysis): Promise<void> {
+    if (this.shouldFailSave) {
+      throw new Error("Save analysis failed");
+    }
+
     const existingIndex = this.findAnalysisIndex(analysis.id);
-    
+
     if (this.isExistingAnalysis(existingIndex)) {
       this.updateExistingAnalysis(existingIndex, analysis);
     } else {
@@ -16,14 +22,17 @@ export class InMemoryBiologicalAnalysisRepository implements BiologicalAnalysisR
   }
 
   private findAnalysisIndex(id: string): number {
-    return this.analyses.findIndex(a => a.id === id);
+    return this.analyses.findIndex((a) => a.id === id);
   }
 
   private isExistingAnalysis(index: number): boolean {
     return index >= 0;
   }
 
-  private updateExistingAnalysis(index: number, analysis: BiologicalAnalysis): void {
+  private updateExistingAnalysis(
+    index: number,
+    analysis: BiologicalAnalysis
+  ): void {
     this.analyses[index] = analysis;
   }
 
@@ -47,7 +56,7 @@ export class InMemoryBiologicalAnalysisRepository implements BiologicalAnalysisR
   }
 
   private findAnalysisById(id: string): BiologicalAnalysis | undefined {
-    return this.analyses.find(a => a.id === id);
+    return this.analyses.find((a) => a.id === id);
   }
 
   async deleteById(id: string): Promise<void> {
@@ -55,10 +64,23 @@ export class InMemoryBiologicalAnalysisRepository implements BiologicalAnalysisR
   }
 
   private removeAnalysisById(id: string): void {
-    this.analyses = this.analyses.filter(a => a.id !== id);
+    this.analyses = this.analyses.filter((a) => a.id !== id);
+  }
+
+  setAnalyses(analyses: BiologicalAnalysis[]): void {
+    this.analyses = analyses;
   }
 
   async clear(): Promise<void> {
     this.analyses = [];
+  }
+
+  // Test helper methods
+  _setShouldFailSave(shouldFail: boolean): void {
+    this.shouldFailSave = shouldFail;
+  }
+
+  _getSavedAnalyses(): BiologicalAnalysis[] {
+    return this.analyses;
   }
 }

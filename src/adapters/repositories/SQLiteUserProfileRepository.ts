@@ -1,26 +1,34 @@
 import { UserProfile, Gender } from "../../domain/UserProfile";
 import { UserProfileRepository } from "../../ports/repositories/UserProfileRepository";
-import { getDatabase } from "../../infrastructure/database/DatabaseInitializer";
+import { DatabaseStoragePort } from "../../ports/infrastructure/DatabaseStoragePort";
+import { Database } from "../infrastructure/SQLiteDatabaseStorage";
 
 export class SQLiteUserProfileRepository implements UserProfileRepository {
   private readonly tableName = "user_profile";
+  private db!: Database;
+  private initialized: Promise<void>;
 
-  constructor() {}
+  constructor(private readonly dbStorage: DatabaseStoragePort) {
+    this.initialized = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    this.db = await this.dbStorage.getDatabase();
+    if (!this.db) {
+      throw new Error("Failed to initialize database");
+    }
+  }
 
   async retrieve(): Promise<UserProfile | null> {
     try {
-      const db = await getDatabase();
+      await this.initialized;
 
-      console.log(
-        "Database instance obtained, preparing to query user profile..."
-      );
-
-      if (!(await this.isTableExisting(db))) {
+      if (!(await this.isTableExisting())) {
         console.warn("User profile table does not exist!");
         return null;
       }
 
-      const profileData = await this.fetchProfileData(db);
+      const profileData = await this.fetchProfileData();
 
       if (!profileData) {
         return null;
@@ -33,9 +41,8 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     }
   }
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  private async isTableExisting(db: any): Promise<boolean> {
-    const tableCheck = await db.getAllAsync(`
+  private async isTableExisting(): Promise<boolean> {
+    const tableCheck = await this.db.getAllAsync(`
       SELECT name FROM sqlite_master 
       WHERE type='table' AND name='${this.tableName}'
     `);
@@ -46,14 +53,14 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
   }
 
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  private async fetchProfileData(db: any): Promise<any | null> {
+  private async fetchProfileData(): Promise<any | null> {
     const query = `
-      SELECT id, firstName, lastName, birthDate, gender, profileImage
+      SELECT id, firstName, lastName, birthDate, gender, profileImage, pinnedMetrics
       FROM ${this.tableName}
       LIMIT 1
     `;
 
-    const result = await db.getAllAsync(query);
+    const result = await this.db.getAllAsync(query);
 
     if (!result || result.length === 0) {
       return null;
@@ -74,21 +81,24 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
         : new Date(),
       gender: profileData.gender as Gender,
       profileImage: profileData.profileImage,
+      pinnedMetrics: profileData.pinnedMetrics
+        ? JSON.parse(profileData.pinnedMetrics)
+        : [],
     };
   }
 
   async save(userProfile: UserProfile): Promise<UserProfile> {
     try {
-      const db = await getDatabase();
+      await this.initialized;
 
       this.ensureNameFields(userProfile);
 
-      const profileExists = await this.checkProfileExists(db);
+      const profileExists = await this.checkProfileExists();
 
       if (profileExists) {
-        await this.updateExistingProfile(db, userProfile);
+        await this.updateExistingProfile(userProfile);
       } else {
-        await this.insertNewProfile(db, userProfile);
+        await this.insertNewProfile(userProfile);
       }
 
       return userProfile;
@@ -122,22 +132,20 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     }
   }
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  private async checkProfileExists(db: any): Promise<boolean> {
+  private async checkProfileExists(): Promise<boolean> {
     const checkQuery = `SELECT COUNT(*) as count FROM ${this.tableName}`;
-    const checkResult = await db.getAllAsync(checkQuery);
+    const checkResult = await this.db.getAllAsync(checkQuery);
     return (
       checkResult.length > 0 && (checkResult[0] as { count: number }).count > 0
     );
   }
 
-  private async updateExistingProfile(
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    db: any,
-    userProfile: UserProfile
-  ): Promise<void> {
+  private async updateExistingProfile(userProfile: UserProfile): Promise<void> {
     const profileImageSQL = this.formatProfileImageForSQL(
       userProfile.profileImage
+    );
+    const pinnedMetricsSQL = this.formatPinnedMetricsForSQL(
+      userProfile.pinnedMetrics
     );
 
     const updateQuery = `
@@ -146,34 +154,34 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
       lastName = '${userProfile.lastName}',
       birthDate = '${userProfile.birthDate.toISOString()}',
       gender = '${userProfile.gender}',
-      profileImage = ${profileImageSQL}
+      profileImage = ${profileImageSQL},
+      pinnedMetrics = ${pinnedMetricsSQL}
     `;
 
-    await db.execAsync(updateQuery);
+    await this.db.execAsync(updateQuery);
   }
 
-  private async insertNewProfile(
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    db: any,
-    userProfile: UserProfile
-  ): Promise<void> {
+  private async insertNewProfile(userProfile: UserProfile): Promise<void> {
     const profileImageSQL = this.formatProfileImageForSQL(
       userProfile.profileImage
+    );
+    const pinnedMetricsSQL = this.formatPinnedMetricsForSQL(
+      userProfile.pinnedMetrics
     );
 
     const insertQuery = `
       INSERT INTO ${this.tableName} 
-      (firstName, lastName, birthDate, gender, profileImage) 
+      (firstName, lastName, birthDate, gender, profileImage, pinnedMetrics) 
       VALUES 
       ('${userProfile.firstName}', '${
       userProfile.lastName
     }', '${userProfile.birthDate.toISOString()}', '${userProfile.gender}', 
-       ${profileImageSQL})
+       ${profileImageSQL}, ${pinnedMetricsSQL})
     `;
 
-    await db.execAsync(insertQuery);
+    await this.db.execAsync(insertQuery);
 
-    await this.retrieveAndSetNewProfileId(db, userProfile);
+    await this.retrieveAndSetNewProfileId(userProfile);
   }
 
   private formatProfileImageForSQL(profileImage?: string): string {
@@ -183,13 +191,19 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     return sanitizedImage ? `'${sanitizedImage}'` : "NULL";
   }
 
+  private formatPinnedMetricsForSQL(pinnedMetrics?: string[]): string {
+    if (!pinnedMetrics) {
+      return "NULL";
+    }
+    const jsonString = JSON.stringify(pinnedMetrics);
+    return `'${this.sanitizeString(jsonString)}'`;
+  }
+
   private async retrieveAndSetNewProfileId(
-    /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-    db: any,
     userProfile: UserProfile
   ): Promise<void> {
     const idQuery = `SELECT last_insert_rowid() as id`;
-    const idResult = await db.getAllAsync(idQuery);
+    const idResult = await this.db.getAllAsync(idQuery);
 
     if (idResult && idResult.length > 0) {
       userProfile.id = (idResult[0] as { id: string }).id;
@@ -202,17 +216,16 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
 
   async reset(): Promise<void> {
     try {
-      const db = await getDatabase();
-      await this.deleteAllProfiles(db);
+      await this.initialized;
+      await this.deleteAllProfiles();
     } catch (error) {
       console.error("Failed to reset user profile:", error);
       throw error;
     }
   }
 
-  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  private async deleteAllProfiles(db: any): Promise<void> {
+  private async deleteAllProfiles(): Promise<void> {
     const query = `DELETE FROM ${this.tableName}`;
-    await db.execAsync(query);
+    await this.db.execAsync(query);
   }
 }

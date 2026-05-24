@@ -15,7 +15,7 @@ describe("AnalysisProgressAdapter", () => {
     );
   });
 
-  test("should call onStepStarted callback when step started", () => {
+  test("calls onStepStarted callback when step started", () => {
     const stepName = "test-step";
 
     adapter.onStepStarted(stepName);
@@ -25,7 +25,7 @@ describe("AnalysisProgressAdapter", () => {
     expect(onStepCompletedMock).not.toHaveBeenCalled();
   });
 
-  test("should call onStepCompleted callback when step completed", () => {
+  test("calls onStepCompleted callback when step completed", () => {
     const stepName = "test-step";
 
     adapter.onStepCompleted(stepName);
@@ -35,7 +35,7 @@ describe("AnalysisProgressAdapter", () => {
     expect(onStepStartedMock).not.toHaveBeenCalled();
   });
 
-  test("should handle multiple step events correctly", () => {
+  test("handles multiple step events correctly", () => {
     const step1 = "step-1";
     const step2 = "step-2";
 
