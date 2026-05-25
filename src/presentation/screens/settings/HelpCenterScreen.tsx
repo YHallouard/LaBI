@@ -1,142 +1,69 @@
-import React from "react";
+import React from 'react';
+import { View, ScrollView, StyleSheet, Linking } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import {
-  View,
-  Text,
-  StyleSheet,
-  Linking,
-  TouchableOpacity,
-} from "react-native";
-import { ScreenLayout } from "../../components/ScreenLayout";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { colorPalette } from "../../../config/themes";
+  colors, spacing,
+  ScreenHeader, ListRow, ListSection,
+} from '../../../design-system';
 
-export const HelpCenterScreen: React.FC = () => {
+export function HelpCenterScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const handleEmailPress = () => {
-    Linking.openURL("mailto:hemea@gmail.com");
-  };
-
-  const openMistralApiKeyTutorial = () => {
-    router.push("/settings/api-key-tutorial");
-  };
 
   return (
-    <ScreenLayout>
-      <View style={styles.container}>
-        <Ionicons
-          name="help-circle-outline"
-          size={80}
-          color={colorPalette.primary.main}
-          style={styles.icon}
-        />
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScreenHeader title="Centre d'aide" subtitle="Questions fréquentes et support" />
 
-        <Text style={styles.title}>Need Help?</Text>
-
-        <Text style={styles.description}>
-          If you have any questions or issues with the app, please feel free to
-          contact our support team.
-        </Text>
-
-        <TouchableOpacity
-          style={styles.emailContainer}
-          onPress={handleEmailPress}
-        >
-          <Ionicons
-            name="mail-outline"
-            size={24}
-            color={colorPalette.primary.main}
-            style={styles.emailIcon}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <ListSection title="Import et OCR">
+          <ListRow
+            icon="key-outline"
+            title="Obtenir une clé API Mistral"
+            detail="Tutoriel pas à pas"
+            onPress={() => router.push('/settings/api-key-tutorial')}
           />
-          <Text style={styles.emailText}>contact.hemea@gmail.com</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.responseText}>
-          We&apos;ll get back to you as soon as possible.
-        </Text>
-
-        <Text style={styles.title}>Tutorials</Text>
-
-        <TouchableOpacity
-          style={styles.tutorialButton}
-          onPress={openMistralApiKeyTutorial}
-        >
-          <Ionicons
-            name="key-outline"
-            size={24}
-            color={colorPalette.neutral.white}
-            style={styles.buttonIcon}
+          <ListRow
+            icon="document-text-outline"
+            title="Formats PDF supportés"
+            detail="Bilans biologiques standard"
+            isLast
           />
-          <Text style={styles.buttonText}>Mistral API Key Tutorial</Text>
-        </TouchableOpacity>
-      </View>
-    </ScreenLayout>
+        </ListSection>
+
+        <ListSection title="Contact">
+          <ListRow
+            icon="mail-outline"
+            title="Envoyer un e-mail"
+            detail="hemea@gmail.com"
+            onPress={() => Linking.openURL('mailto:hemea@gmail.com')}
+            isLast
+          />
+        </ListSection>
+
+        <ListSection title="Légal">
+          <ListRow
+            icon="shield-outline"
+            title="Confidentialité & sécurité"
+            onPress={() => router.push('/settings/privacy')}
+          />
+          <ListRow
+            icon="document-outline"
+            title="Politique de confidentialité"
+            onPress={() => router.push('/settings/privacy-policy')}
+            isLast
+          />
+        </ListSection>
+      </ScrollView>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  icon: {
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: colorPalette.neutral.main,
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  description: {
-    fontSize: 16,
-    color: colorPalette.neutral.light,
-    textAlign: "center",
-    marginBottom: 30,
-    lineHeight: 22,
-  },
-  tutorialButton: {
-    backgroundColor: colorPalette.primary.main,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginBottom: 30,
-    width: "100%",
-  },
-  buttonText: {
-    color: colorPalette.neutral.white,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  buttonIcon: {
-    marginRight: 8,
-  },
-  emailContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colorPalette.neutral.background,
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  emailIcon: {
-    marginRight: 10,
-  },
-  emailText: {
-    fontSize: 18,
-    color: colorPalette.primary.main,
-    fontWeight: "500",
-  },
-  responseText: {
-    fontSize: 14,
-    color: colorPalette.neutral.light,
-    textAlign: "center",
-    marginBottom: 20,
-  },
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: spacing[4], paddingTop: spacing[2], gap: spacing[4] },
 });

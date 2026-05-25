@@ -9,6 +9,7 @@ interface Props {
   style?: StyleProp<ViewStyle>;
   radius?: number;
   borderless?: boolean;
+  borderColor?: string;
 }
 
 export function GlassSurface({
@@ -17,12 +18,13 @@ export function GlassSurface({
   style,
   radius = radii.xl,
   borderless = false,
+  borderColor = colors.glassBorder,
 }: Props) {
   const containerStyle: ViewStyle = {
     borderRadius: radius,
     overflow: 'hidden',
     borderWidth: borderless ? 0 : StyleSheet.hairlineWidth,
-    borderColor: colors.glassBorder,
+    borderColor,
   };
 
   if (Platform.OS === 'ios') {

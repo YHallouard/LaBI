@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, View, Text, StyleSheet } from 'react-native';
-import { colors, radii, elevation, spacing } from '../tokens';
+import { colors, elevation, spacing } from '../tokens';
 import { typography } from '../typography';
 
 interface Props {
@@ -27,7 +27,7 @@ export function AnalysisCard({ date, label, value, unit, alert = false, onPress 
       <View style={styles.right}>
         <Text style={alert ? typography.valueAlert : typography.value}>{value}</Text>
         <Text style={[typography.caption, styles.unitText]}>
-          {unit}{alert ? ' · hors plage' : ''}
+          {unit}{unit && alert ? ' · hors plage' : ''}
         </Text>
       </View>
     </Pressable>
@@ -37,8 +37,9 @@ export function AnalysisCard({ date, label, value, unit, alert = false, onPress 
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.bgElevated,
-    borderRadius: radii.xl,
-    padding: spacing[4],
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: spacing[4],
     marginBottom: 10,
     flexDirection: 'row',
     alignItems: 'center',

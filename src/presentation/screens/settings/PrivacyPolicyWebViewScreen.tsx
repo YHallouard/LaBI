@@ -1,57 +1,60 @@
-import React, { useRef, useState } from "react";
-import { StyleSheet, ActivityIndicator, View, TouchableOpacity, Linking } from "react-native";
-import { WebView } from "react-native-webview";
-import { Stack } from "expo-router";
-import { ScreenLayout } from "../../components/ScreenLayout";
-import { Ionicons } from "@expo/vector-icons";
-import { colorPalette } from "../../../config/themes";
+import React, { useRef, useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, Pressable, Linking } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
+import { Ionicons } from '@expo/vector-icons';
 
-const PRIVACY_POLICY_URL =
-  "https://yhallouard.github.io/LaBI/privacy-policy.html";
+import {
+  colors,
+  ScreenHeader,
+} from '../../../design-system';
 
-export const PrivacyPolicyWebViewScreen: React.FC = () => {
+const PRIVACY_POLICY_URL = 'https://yhallouard.github.io/LaBI/privacy-policy.html';
+
+export function PrivacyPolicyWebViewScreen() {
+  const insets = useSafeAreaInsets();
+  const webRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const webViewRef = useRef<WebView>(null);
 
   return (
-    <ScreenLayout>
-      <Stack.Screen
-        options={{
-          title: "Privacy Policy",
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
-              style={{ marginRight: 8 }}
-            >
-              <Ionicons name="open-outline" size={22} color={colorPalette.primary.main} />
-            </TouchableOpacity>
-          ),
-        }}
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScreenHeader
+        title="Politique de confidentialité"
+        right={
+          <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} hitSlop={8}>
+            <Ionicons name="open-outline" size={20} color={colors.primary} />
+          </Pressable>
+        }
       />
+
       {isLoading && (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="large" color={colorPalette.primary.main} />
+        <View style={styles.loader}>
+          <ActivityIndicator color={colors.primary} />
         </View>
       )}
+
       <WebView
-        ref={webViewRef}
+        ref={webRef}
         source={{ uri: PRIVACY_POLICY_URL }}
         style={styles.webview}
-        automaticallyAdjustContentInsets={false}
         onLoadStart={() => setIsLoading(true)}
         onLoadEnd={() => setIsLoading(false)}
+        automaticallyAdjustContentInsets={false}
+        contentInset={{ bottom: insets.bottom }}
       />
-    </ScreenLayout>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  webview: { flex: 1 },
-  loaderContainer: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: colorPalette.neutral.background,
+  root: { flex: 1, backgroundColor: colors.bg },
+  loader: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     zIndex: 1,
   },
+  webview: { flex: 1 },
 });

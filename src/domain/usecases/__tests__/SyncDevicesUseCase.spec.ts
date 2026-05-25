@@ -171,13 +171,13 @@ describe("SyncDevicesUseCase", () => {
 
       expect(progressEvents.length).toBeGreaterThan(0);
       expect(progressEvents[0].status).toBe(SyncStatus.IDLE);
-      expect(progressEvents[0].message).toContain("Ready to connect");
+      expect(progressEvents[0].message).toContain("En attente");
     });
 
-    it("should handle sender advertising failure", async () => {
+    it("should handle advertising failure in startListening", async () => {
       mockSyncingService._setShouldFailAdvertising(true);
 
-      await expect(syncDevicesUseCase.startAsSender()).rejects.toThrow(
+      await expect(syncDevicesUseCase.startListening()).rejects.toThrow(
         "Advertising failed"
       );
     });
@@ -424,7 +424,7 @@ describe("SyncDevicesUseCase", () => {
         progressEvents.some((p) => p.status === SyncStatus.CONNECTED)
       ).toBe(true);
       expect(
-        progressEvents.some((p) => p.message?.includes("Connected to sender"))
+        progressEvents.some((p) => p.message?.includes("Connecté"))
       ).toBe(true);
     });
 
@@ -438,7 +438,7 @@ describe("SyncDevicesUseCase", () => {
 
       expect(progressEvents.length).toBeGreaterThan(0);
       expect(progressEvents[0].status).toBe(SyncStatus.CONNECTED);
-      expect(progressEvents[0].message).toContain("ready to send data");
+      expect(progressEvents[0].message).toContain("Destinataire connecté");
     });
 
     it("should update progress on disconnection", async () => {
@@ -451,7 +451,7 @@ describe("SyncDevicesUseCase", () => {
 
       expect(progressEvents.length).toBeGreaterThan(0);
       expect(progressEvents[0].status).toBe(SyncStatus.IDLE);
-      expect(progressEvents[0].message).toContain("Device disconnected");
+      expect(progressEvents[0].message).toContain("Appareil déconnecté");
     });
   });
 

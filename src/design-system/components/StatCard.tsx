@@ -16,7 +16,7 @@ export function StatCard({ label, value, unit, date, alert = false }: Props) {
     <View style={[styles.card, alert && styles.cardAlert]}>
       <Text style={typography.label}>{label}</Text>
       <View style={styles.valueRow}>
-        <Text style={alert ? typography.valueAlert : typography.value}>{value}</Text>
+        <Text style={[typography.valueSm, alert && { color: colors.danger }]}>{value}</Text>
         <Text style={[typography.caption, styles.unit]}>{unit}</Text>
       </View>
       {date ? <Text style={[typography.caption, styles.date]}>{date}</Text> : null}

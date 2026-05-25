@@ -1,520 +1,251 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   TextInput,
-  Button,
-  StyleSheet,
-  Alert,
-  ActivityIndicator,
-  Keyboard,
-  TouchableOpacity,
   ScrollView,
-} from "react-native";
-import { useRouter } from "expo-router";
-import { SaveApiKeyUseCase } from "../../../domain/usecases/SaveApiKeyUseCase";
-import { LoadApiKeyUseCase } from "../../../domain/usecases/LoadApiKeyUseCase";
-import { DeleteApiKeyUseCase } from "../../../domain/usecases/DeleteApiKeyUseCase";
-import { Ionicons } from "@expo/vector-icons";
-import { ScreenLayout } from "../../components/ScreenLayout";
-import { colorPalette, generateAlpha } from "../../../config/themes";
+  StyleSheet,
+  Pressable,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type ApiKeySettingsScreenProps = {
-  saveApiKeyUseCase: SaveApiKeyUseCase;
-  loadApiKeyUseCase: LoadApiKeyUseCase;
-  deleteApiKeyUseCase: DeleteApiKeyUseCase;
-  onApiKeyDeleted: () => void;
-  onApiKeySaved: (apiKey: string) => Promise<void>;
-  onManualReload: () => void;
-};
+import { useUseCases } from '../../contexts/UseCasesContext';
+import {
+  colors, spacing, radii, elevation,
+  typography, ScreenHeader, Banner, PrimaryButton, ListRow, ListSection,
+} from '../../../design-system';
 
-export const ApiKeySettingsScreen: React.FC<ApiKeySettingsScreenProps> = ({
-  saveApiKeyUseCase,
-  loadApiKeyUseCase,
-  deleteApiKeyUseCase,
-  onApiKeyDeleted,
-  onApiKeySaved,
-  onManualReload,
-}) => {
-  const [apiKeyInput, setApiKeyInput] = useState<string>("");
-  const [savedApiKey, setSavedApiKey] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isEditing, setIsEditing] = useState<boolean>(false);
-  const [isDeletingApiKey, setIsDeletingApiKey] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+export function ApiKeySettingsScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { bundle, onApiKeySaved, onApiKeyDeleted } = useUseCases();
+
+  const [apiKey, setApiKey] = useState('');
+  const [savedKey, setSavedKey] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showKey, setShowKey] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    loadApiKey();
-  }, []);
-
-  const loadApiKey = async () => {
-    setIsLoading(true);
-    try {
-      const loadedKey = await loadApiKeyUseCase.execute();
-      handleLoadedApiKey(loadedKey);
-    } catch {
-      handleApiKeyLoadError();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleLoadedApiKey = (loadedKey: string | null) => {
-    if (loadedKey) {
-      setApiKeyInput(loadedKey);
-      setSavedApiKey(loadedKey);
-    } else {
-      setIsEditing(true);
-    }
-  };
-
-  const handleApiKeyLoadError = () => {
-    Alert.alert("Error", "Could not load API key.");
-    setIsEditing(true);
-  };
+    const loadKey = async () => {
+      if (!bundle) return;
+      try {
+        const k = await bundle.loadApiKey.execute();
+        if (k) {
+          setApiKey(k);
+          setSavedKey(k);
+        } else {
+          setIsEditing(true);
+        }
+      } catch {
+        setErrorMsg('Impossible de charger la clé API.');
+        setIsEditing(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadKey();
+  }, [bundle]);
 
   const handleSave = async () => {
-    if (!validateApiKey()) {
-      return;
-    }
-
-    dismissKeyboardAndSetSaving();
-
+    if (!apiKey.trim() || !bundle) { setErrorMsg('La clé API est requise.'); return; }
+    setErrorMsg(null);
+    setIsSaving(true);
     try {
-      const success = await saveApiKeyUseCase.execute(apiKeyInput);
-      if (success) {
-        handleSuccessfulKeySave();
-      } else {
-        showApiKeySaveError();
-      }
-    } catch {
-      showApiKeySaveError();
+      await bundle.saveApiKey.execute(apiKey.trim());
+      await onApiKeySaved(apiKey.trim());
+      setSavedKey(apiKey.trim());
+      setIsEditing(false);
+      setSuccessMsg('Clé API enregistrée. Mistral est prêt.');
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (e) {
+      setErrorMsg(`Erreur : ${e instanceof Error ? e.message : 'inconnue'}`);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const dismissKeyboardAndSetSaving = () => {
-    Keyboard.dismiss();
-    setIsSaving(true);
-  };
-
-  const validateApiKey = (): boolean => {
-    if (!apiKeyInput.trim()) {
-      Alert.alert("Error", "API Key cannot be empty.");
-      return false;
-    }
-    return true;
-  };
-
-  const showApiKeySaveError = () => {
-    Alert.alert("Error", "Could not save API key.");
-  };
-
-  const handleSuccessfulKeySave = () => {
-    setSavedApiKey(apiKeyInput);
-    setIsEditing(false);
-    showSuccessMessageTemporarily("API Key saved securely.");
-    saveKeyAndReloadApp();
-  };
-
-  const saveKeyAndReloadApp = () => {
-    onApiKeySaved(apiKeyInput).then(() => {
-      triggerReload("API key saved, reloading app...");
-    });
-  };
-
-  const showSuccessMessageTemporarily = (message: string) => {
-    setSuccessMessage(message);
-    setTimeout(() => setSuccessMessage(null), 3000);
-  };
-
-  const handleEdit = () => {
-    setApiKeyInput(savedApiKey);
-    setIsEditing(true);
-  };
-
-  const handleCancel = () => {
-    setApiKeyInput(savedApiKey);
-    setIsEditing(false);
-  };
-
-  const triggerReload = (message: string) => {
-    setInfoMessage(message);
-    scheduleReload();
-  };
-
-  const scheduleReload = () => {
-    setTimeout(() => {
-      onManualReload();
-      scheduleInfoMessageClear();
-    }, 1000);
-  };
-
-  const scheduleInfoMessageClear = () => {
-    setTimeout(() => {
-      setInfoMessage(null);
-    }, 2000);
-  };
-
-  const maskApiKey = (key: string): string => {
-    if (!key) return "";
-    return key.length > 8
-      ? `${key.substring(0, 4)}...${key.substring(key.length - 4)}`
-      : "********";
-  };
-
-  const deleteApiKey = async () => {
-    setIsDeletingApiKey(true);
+  const handleDelete = async () => {
+    if (!bundle) return;
+    setIsDeleting(true);
     try {
-      const success = await deleteApiKeyUseCase.execute();
-      if (success) {
-        handleSuccessfulKeyDeletion();
-      } else {
-        showApiKeyDeleteError();
-      }
-    } catch {
-      showApiKeyDeleteError();
+      await bundle.deleteApiKey.execute();
+      onApiKeyDeleted();
+      setApiKey('');
+      setSavedKey('');
+      setIsEditing(true);
+      setSuccessMsg(null);
+    } catch (e) {
+      setErrorMsg(`Erreur : ${e instanceof Error ? e.message : 'inconnue'}`);
     } finally {
-      setIsDeletingApiKey(false);
+      setIsDeleting(false);
     }
   };
 
-  const showApiKeyDeleteError = () => {
-    Alert.alert("Error", "Could not delete API key.");
-  };
-
-  const handleSuccessfulKeyDeletion = () => {
-    resetApiKeyState();
-    showSuccessMessageTemporarily("API Key deleted successfully.");
-    notifyApiKeyDeletionAndReload();
-  };
-
-  const resetApiKeyState = () => {
-    setSavedApiKey("");
-    setApiKeyInput("");
-    setIsEditing(true);
-  };
-
-  const notifyApiKeyDeletionAndReload = () => {
-    onApiKeyDeleted();
-    triggerReload("API key deleted, reloading app...");
-  };
-
-  const confirmApiKeyDeletion = () => {
-    Alert.alert(
-      "Confirm Deletion",
-      "This will delete your API key. You will need to enter it again to use OCR features. Are you sure?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: deleteApiKey },
-      ]
-    );
-  };
-
-  const router = useRouter();
-  const navigateToMistralApiKeyTutorial = () => {
-    router.push("/settings/api-key-tutorial");
-  };
+  const maskedKey = savedKey.length > 8
+    ? '•'.repeat(savedKey.length - 4) + savedKey.slice(-4)
+    : savedKey ? '••••' : null;
 
   if (isLoading) {
-    return <LoadingView />;
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
   }
 
   return (
-    <ScreenLayout>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.contentWrapper}>
-          {successMessage && <SuccessMessage message={successMessage} />}
-          {infoMessage && <InfoMessage message={infoMessage} />}
+    <KeyboardAvoidingView
+      style={[styles.root, { paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScreenHeader title="Clé API Mistral" subtitle="OCR et extraction des analyses" />
 
-          <View>
-            <Text style={styles.sectionTitle}>Mistral API Key</Text>
-            <Text style={styles.description}>
-              Enter your Mistral API key to enable OCR features. The key is
-              stored securely on your device.
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {successMsg && <Banner kind="success">{successMsg}</Banner>}
+        {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
+
+        {/* Current key status */}
+        {!isEditing && maskedKey && (
+          <ListSection title="Clé configurée">
+            <ListRow
+              icon="key-outline"
+              title={maskedKey}
+              detail="Active"
+              isLast
+            />
+          </ListSection>
+        )}
+
+        {/* Info */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Ionicons name="information-circle-outline" size={20} color={colors.primary} style={{ marginTop: 1 }} />
+            <Text style={[typography.small, { color: colors.textBody, flex: 1 }]}>
+              La clé API Mistral est nécessaire pour utiliser l&apos;OCR sur vos PDFs de bilans sanguins. Elle est stockée de façon sécurisée sur votre appareil.
             </Text>
-
-            {isEditing ? (
-              <EditingModeContent
-                apiKeyInput={apiKeyInput}
-                setApiKeyInput={setApiKeyInput}
-                handleSave={handleSave}
-                isSaving={isSaving}
-                savedApiKey={savedApiKey}
-                handleCancel={handleCancel}
-                navigateToTutorial={navigateToMistralApiKeyTutorial}
-              />
-            ) : (
-              <ViewModeContent
-                savedApiKey={savedApiKey}
-                maskApiKey={maskApiKey}
-                handleEdit={handleEdit}
-                confirmApiKeyDeletion={confirmApiKeyDeletion}
-                isDeletingApiKey={isDeletingApiKey}
-              />
-            )}
           </View>
+          <Pressable
+            onPress={() => router.push('/settings/api-key-tutorial')}
+            style={styles.tutorialLink}
+          >
+            <Text style={styles.tutorialLinkText}>Comment obtenir une clé API Mistral ?</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.primary} />
+          </Pressable>
         </View>
+
+        {/* Form */}
+        {isEditing && (
+          <View style={styles.formSection}>
+            <Text style={styles.fieldLabel}>Clé API</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                value={apiKey}
+                onChangeText={setApiKey}
+                placeholder="sk-xxxxxxxxxxxxxxxx"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showKey}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleSave}
+              />
+              <Pressable onPress={() => setShowKey(s => !s)} style={styles.toggleVis} hitSlop={8}>
+                <Ionicons name={showKey ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
+              </Pressable>
+            </View>
+
+            <View style={styles.btnGroup}>
+              <PrimaryButton onPress={handleSave} size="lg" loading={isSaving}>
+                Enregistrer
+              </PrimaryButton>
+              {savedKey && (
+                <PrimaryButton onPress={() => { setIsEditing(false); setApiKey(savedKey); setErrorMsg(null); }} variant="ghost" size="md">
+                  Annuler
+                </PrimaryButton>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Actions for existing key */}
+        {!isEditing && savedKey && (
+          <View style={styles.actions}>
+            <PrimaryButton onPress={() => setIsEditing(true)} variant="secondary" size="md">
+              Modifier la clé
+            </PrimaryButton>
+            <PrimaryButton onPress={handleDelete} variant="danger" size="md" loading={isDeleting}>
+              Supprimer la clé
+            </PrimaryButton>
+          </View>
+        )}
       </ScrollView>
-    </ScreenLayout>
+    </KeyboardAvoidingView>
   );
-};
-
-const LoadingView = () => (
-  <ScreenLayout>
-    <View style={styles.centered}>
-      <ActivityIndicator size="large" color={colorPalette.primary.main} />
-    </View>
-  </ScreenLayout>
-);
-
-const SuccessMessage = ({ message }: { message: string }) => (
-  <View style={styles.successContainer}>
-    <Ionicons
-      name="checkmark-circle-outline"
-      size={24}
-      color={colorPalette.feedback.success.main}
-      style={styles.messageIcon}
-    />
-    <Text style={styles.successText}>{message}</Text>
-  </View>
-);
-
-const InfoMessage = ({ message }: { message: string }) => (
-  <View style={styles.infoContainer}>
-    <Ionicons
-      name="information-circle-outline"
-      size={24}
-      color={colorPalette.primary.main}
-      style={styles.messageIcon}
-    />
-    <Text style={styles.infoText}>{message}</Text>
-  </View>
-);
-
-const EditingModeContent = ({
-  apiKeyInput,
-  setApiKeyInput,
-  handleSave,
-  isSaving,
-  savedApiKey,
-  handleCancel,
-  navigateToTutorial,
-}: {
-  apiKeyInput: string;
-  setApiKeyInput: (text: string) => void;
-  handleSave: () => void;
-  isSaving: boolean;
-  savedApiKey: string;
-  handleCancel: () => void;
-  navigateToTutorial: () => void;
-}) => (
-  <View>
-    <TextInput
-      style={styles.input}
-      placeholder="Enter Mistral API Key"
-      value={apiKeyInput}
-      onChangeText={setApiKeyInput}
-      secureTextEntry
-      autoCapitalize="none"
-    />
-    <View style={styles.buttonContainer}>
-      <Button
-        title={isSaving ? "Saving..." : "Save API Key"}
-        onPress={handleSave}
-        disabled={isSaving}
-        color={colorPalette.primary.main}
-      />
-      {savedApiKey && (
-        <Button title="Cancel" onPress={handleCancel} color="gray" />
-      )}
-    </View>
-
-    <TouchableOpacity style={styles.tutorialLink} onPress={navigateToTutorial}>
-      <Ionicons
-        name="help-circle-outline"
-        size={18}
-        color={colorPalette.primary.main}
-        style={styles.tutorialIcon}
-      />
-      <Text style={styles.tutorialText}>
-        Need help? View Mistral API Key tutorial
-      </Text>
-    </TouchableOpacity>
-  </View>
-);
-
-const ViewModeContent = ({
-  savedApiKey,
-  maskApiKey,
-  handleEdit,
-  confirmApiKeyDeletion,
-  isDeletingApiKey,
-}: {
-  savedApiKey: string;
-  maskApiKey: (key: string) => string;
-  handleEdit: () => void;
-  confirmApiKeyDeletion: () => void;
-  isDeletingApiKey: boolean;
-}) => (
-  <View>
-    <View style={styles.savedKeyContainer}>
-      <Text style={styles.savedKeyText}>{maskApiKey(savedApiKey)}</Text>
-      <Button
-        title="Edit"
-        onPress={handleEdit}
-        color={colorPalette.primary.main}
-      />
-    </View>
-
-    {savedApiKey && <ApiKeyDeletionWarning />}
-
-    {savedApiKey && (
-      <View style={styles.dangerButtonContainer}>
-        <Button
-          title={isDeletingApiKey ? "Deleting..." : "Delete API Key"}
-          onPress={confirmApiKeyDeletion}
-          color={colorPalette.feedback.error.main}
-          disabled={isDeletingApiKey}
-        />
-      </View>
-    )}
-  </View>
-);
-
-const ApiKeyDeletionWarning = () => (
-  <View style={styles.warningContainer}>
-    <Ionicons
-      name="warning-outline"
-      size={24}
-      color={colorPalette.feedback.error.main}
-      style={styles.warningIcon}
-    />
-    <Text style={styles.warningText}>
-      Deleting your API key will disable OCR features until a new key is
-      provided.
-    </Text>
-  </View>
-);
+}
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
+  root: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { paddingHorizontal: spacing[4], paddingTop: spacing[2], gap: spacing[4] },
+  infoCard: {
+    backgroundColor: colors.bgBlue,
+    borderRadius: radii.lg,
+    padding: spacing[4],
+    gap: spacing[3],
   },
-  contentWrapper: {
-    flex: 1,
-    padding: 20,
-  },
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: colorPalette.neutral.main,
-  },
-  description: {
-    fontSize: 14,
-    marginBottom: 20,
-    color: colorPalette.neutral.light,
-    lineHeight: 20,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colorPalette.neutral.lighter,
-    borderRadius: 4,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 15,
-  },
-  buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  savedKeyContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    backgroundColor: colorPalette.neutral.background,
-    borderRadius: 4,
-  },
-  savedKeyText: {
-    fontSize: 16,
-    color: colorPalette.neutral.main,
-    fontFamily: "monospace",
-  },
-  warningContainer: {
-    flexDirection: "row",
-    backgroundColor: generateAlpha(colorPalette.feedback.error.main, 0.1),
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: "flex-start",
-  },
-  warningIcon: {
-    marginRight: 10,
-  },
-  warningText: {
-    flex: 1,
-    color: colorPalette.feedback.error.main,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  successContainer: {
-    flexDirection: "row",
-    backgroundColor: generateAlpha(colorPalette.feedback.success.main, 0.1),
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  successText: {
-    color: colorPalette.feedback.success.main,
-    flex: 1,
-    fontSize: 14,
-  },
-  infoContainer: {
-    flexDirection: "row",
-    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  infoText: {
-    color: colorPalette.primary.main,
-    flex: 1,
-    fontSize: 14,
-  },
-  messageIcon: {
-    marginRight: 10,
-  },
-  dangerButtonContainer: {
-    marginTop: 10,
-  },
+  infoRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'flex-start' },
   tutorialLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 10,
-    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
-    borderRadius: 4,
-    marginTop: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  tutorialIcon: {
-    marginRight: 10,
+  tutorialLinkText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
   },
-  tutorialText: {
-    color: colorPalette.primary.main,
-    fontSize: 14,
+  formSection: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.xl,
+    padding: spacing[4],
+    gap: spacing[3],
+    ...elevation[1],
   },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: colors.textBody,
+  },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  input: {
+    fontSize: 15,
+    color: colors.textStrong,
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+    backgroundColor: colors.bg,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  toggleVis: {
+    padding: spacing[2],
+  },
+  btnGroup: { gap: spacing[2] },
+  actions: { gap: spacing[2] },
 });

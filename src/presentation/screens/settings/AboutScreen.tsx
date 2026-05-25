@@ -1,193 +1,95 @@
-import React from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Linking,
-  Platform,
-} from "react-native";
-import { ScreenLayout } from "../../components/ScreenLayout";
-import { Ionicons } from "@expo/vector-icons";
-import { AppImage } from "../../components/AppImage";
-import { APP_VERSION } from "../../../utils/appConstants";
-import { colorPalette } from "../../../config/themes";
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet, Linking } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const AboutScreen: React.FC = () => {
-  const handleLinkedInPress = () => {
-    Linking.openURL("https://www.linkedin.com/in/yann-hallouard/");
-  };
+import { APP_VERSION } from '../../../utils/appConstants';
+import {
+  colors, spacing, radii, elevation,
+  typography, ScreenHeader, ListRow, ListSection, HemeaWordmark,
+} from '../../../design-system';
+
+export function AboutScreen() {
+  const insets = useSafeAreaInsets();
 
   return (
-    <ScreenLayout scrollable={true}>
-      <View style={styles.container}>
-        <View style={styles.logoContainer}>
-          <View style={styles.logoBackground}>
-            <AppImage
-              imagePath="app-icon"
-              style={styles.logo}
-              resizeMode="contain"
-            />
-          </View>
-        </View>
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScreenHeader title="À propos" subtitle="Héméa" />
 
-        <Text style={styles.title}>About Héméa</Text>
-
-        <View style={styles.infoSection}>
-          <Ionicons
-            name="code-outline"
-            size={24}
-            color={colorPalette.primary.main}
-            style={styles.sectionIcon}
-          />
-          <Text style={styles.sectionTitle}>License</Text>
-          <Text style={styles.sectionText}>
-            This application is distributed under the MIT License.
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Logo + version */}
+        <View style={styles.logoSection}>
+          <HemeaWordmark size={28} />
+          <Text style={[typography.caption, { color: colors.textMuted, marginTop: spacing[2] }]}>
+            Version {APP_VERSION}
+          </Text>
+          <Text style={[typography.caption, { color: colors.textMuted, marginTop: 4 }]}>
+            Données stockées localement · SQLite chiffrée
           </Text>
         </View>
 
-        <View style={styles.infoSection}>
-          <Ionicons
-            name="person-outline"
-            size={24}
-            color={colorPalette.primary.main}
-            style={styles.sectionIcon}
-          />
-          <Text style={styles.sectionTitle}>Developer</Text>
-          <Text style={styles.sectionText}>Created by Yann HALLOUARD</Text>
-
-          <TouchableOpacity
-            style={styles.linkedinButton}
-            onPress={handleLinkedInPress}
-          >
-            <Ionicons
-              name="logo-linkedin"
-              size={20}
-              color="white"
-              style={styles.linkedinIcon}
-            />
-            <Text style={styles.linkedinText}>Connect on LinkedIn</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.infoSection}>
-          <Ionicons
-            name="information-circle-outline"
-            size={24}
-            color={colorPalette.primary.main}
-            style={styles.sectionIcon}
-          />
-          <Text style={styles.sectionTitle}>About the App</Text>
-          <Text style={styles.sectionText}>
-            Héméa helps you track and visualize your laboratory analyses results
-            over time, making it easier to monitor your health data.
+        {/* App description */}
+        <View style={styles.descCard}>
+          <Text style={[typography.small, { color: colors.textBody, lineHeight: 20, textAlign: 'center' }]}>
+            Héméa vous permet de suivre vos analyses biologiques dans le temps.
+            Importez vos bilans sanguins par PDF grâce à l&apos;OCR Mistral ou saisissez vos valeurs manuellement.
+            Toutes vos données restent sur votre appareil.
           </Text>
         </View>
 
-        <Text style={styles.versionText}>Version {APP_VERSION}</Text>
+        {/* Links */}
+        <ListSection title="Créateur">
+          <ListRow
+            icon="person-outline"
+            title="Yann Hallouard"
+            detail="LinkedIn"
+            onPress={() => Linking.openURL('https://www.linkedin.com/in/yann-hallouard/')}
+            isLast
+          />
+        </ListSection>
 
-        <View style={styles.bottomSpacer} />
-      </View>
-    </ScreenLayout>
+        <ListSection title="Technique">
+          <ListRow
+            icon="code-slash-outline"
+            title="Expo SDK 54"
+            detail="React Native"
+          />
+          <ListRow
+            icon="server-outline"
+            title="SQLite"
+            detail="SQLCipher chiffré"
+          />
+          <ListRow
+            icon="scan-outline"
+            title="OCR"
+            detail="Mistral AI"
+            isLast
+          />
+        </ListSection>
+
+        {/* Footer */}
+        <Text style={[typography.caption, { color: colors.textFaint, textAlign: 'center', paddingHorizontal: spacing[4] }]}>
+          © 2024-2026 Yann Hallouard · Application non-médicale
+        </Text>
+      </ScrollView>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    alignItems: "center",
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: spacing[4], paddingTop: spacing[2], gap: spacing[4] },
+  logoSection: {
+    alignItems: 'center',
+    paddingVertical: spacing[6],
+    gap: 0,
   },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: "center",
-  },
-  logoContainer: {
-    width: 120,
-    height: 120,
-    marginBottom: 30,
-    marginTop: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoBackground: {
-    width: 120,
-    height: 120,
-    borderRadius: 28,
-    backgroundColor: colorPalette.neutral.white,
-    justifyContent: "center",
-    alignItems: "center",
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
-  },
-  logo: {
-    width: "100%",
-    height: "100%",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: colorPalette.neutral.main,
-    marginBottom: 30,
-    textAlign: "center",
-  },
-  infoSection: {
-    width: "100%",
-    backgroundColor: colorPalette.neutral.background,
-    borderRadius: 8,
-    padding: 20,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  sectionIcon: {
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: colorPalette.neutral.main,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  sectionText: {
-    fontSize: 16,
-    color: colorPalette.neutral.light,
-    textAlign: "center",
-    lineHeight: 22,
-    marginBottom: 15,
-  },
-  linkedinButton: {
-    flexDirection: "row",
-    backgroundColor: "#0077B5",
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  linkedinIcon: {
-    marginRight: 8,
-  },
-  linkedinText: {
-    color: "white",
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  versionText: {
-    fontSize: 14,
-    color: colorPalette.neutral.light,
-    marginTop: 10,
-  },
-  bottomSpacer: {
-    height: 40,
+  descCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.xl,
+    padding: spacing[4],
+    ...elevation[1],
   },
 });

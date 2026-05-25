@@ -7,6 +7,8 @@ module.exports = {
     'src'
   ],
   testMatch: ['**/__tests__/**/*.spec.{ts,tsx}'],
+  testPathIgnorePatterns: ['/node_modules/', '/labi_old/'],
+  modulePathIgnorePatterns: ['/labi_old/'],
   moduleFileExtensions: [
     'ts',
     'tsx',
@@ -22,6 +24,8 @@ module.exports = {
     '^.+\\.(css|less|scss)$': 'identity-obj-proxy',
     '^src/infrastructure/database/DatabaseInitializer$': '<rootDir>/src/infrastructure/database/__mocks__/DatabaseInitializer.ts',
     '^expo-file-system/legacy$': 'expo-file-system',
-    '^expo-glass-effect$': '<rootDir>/__mocks__/expo-glass-effect.ts'
+    '^expo-glass-effect$': '<rootDir>/__mocks__/expo-glass-effect.ts',
+    '^react-native-zeroconf$': '<rootDir>/__mocks__/react-native-zeroconf.ts',
+    '^react-native-tcp-socket$': '<rootDir>/__mocks__/react-native-tcp-socket.ts'
   }
 }; 

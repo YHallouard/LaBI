@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, radii, spacing } from '../tokens';
+import { colors } from '../tokens';
 import { typography } from '../typography';
 
 type Kind = 'success' | 'error' | 'warning' | 'info';
@@ -29,7 +29,8 @@ export function Banner({ kind = 'info', children }: Props) {
 const styles = StyleSheet.create({
   banner: {
     borderWidth: 1,
-    borderRadius: radii.lg,
-    padding: spacing[3] + 2,
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
 });

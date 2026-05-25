@@ -1,18 +1,32 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, FlatList, Pressable, StyleSheet, ActivityIndicator,
+  View, Text, FlatList, StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 
-import { BiologicalAnalysis } from '../../../domain/entities/BiologicalAnalysis';
+import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
 import { useUseCases } from '../../contexts/UseCasesContext';
+import { LAB_VALUE_DEFAULT_RANGES } from '../../../config/LabConfig';
 import {
-  colors, spacing, radii, elevation,
+  colors, spacing,
   typography, ScreenHeader, AnalysisCard,
 } from '../../../design-system';
+
+function countOutOfRange(a: BiologicalAnalysis): { total: number; outOfRange: number } {
+  const keys = Object.keys(a).filter((k) => !['id', 'date', 'pdfSource'].includes(k));
+  let outOfRange = 0;
+  let total = 0;
+  for (const key of keys) {
+    const v = a[key] as LabValue | undefined;
+    if (!v || typeof v !== 'object' || v.value == null) continue;
+    total++;
+    const range = LAB_VALUE_DEFAULT_RANGES[key as keyof typeof LAB_VALUE_DEFAULT_RANGES];
+    if (range && (v.value < range.min || v.value > range.max)) outOfRange++;
+  }
+  return { total, outOfRange };
+}
 
 export function AllAnalysesScreen() {
   const router = useRouter();
@@ -33,12 +47,7 @@ export function AllAnalysesScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
-        </Pressable>
-        <ScreenHeader title="Mes analyses" />
-      </View>
+      <ScreenHeader title="Mes analyses" onBack={() => router.back()} />
 
       {loading ? (
         <View style={styles.center}>
@@ -58,16 +67,17 @@ export function AllAnalysesScreen() {
             </View>
           }
           renderItem={({ item: a }) => {
-            const labKeys = Object.keys(a).filter((k) => !['id', 'date', 'pdfSource'].includes(k));
-            const firstKey = labKeys[0];
-            const firstLabVal = firstKey ? (a[firstKey] as any) : null;
+            const { total, outOfRange } = countOutOfRange(a);
+            const hasAlert = outOfRange > 0;
+            const label = total > 0 ? `${total} marqueur${total > 1 ? 's' : ''}` : 'Analyse';
+            const value = hasAlert ? `${outOfRange} hors norme` : 'Normal';
             return (
               <AnalysisCard
                 date={new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
-                label={firstKey ?? 'Analyse'}
-                value={firstLabVal?.value != null ? String(firstLabVal.value) : '—'}
-                unit={firstLabVal?.unit ?? ''}
-                alert={false}
+                label={label}
+                value={value}
+                unit=""
+                alert={hasAlert}
                 onPress={() => router.push(`/analyses/${a.id}`)}
               />
             );
@@ -80,8 +90,6 @@ export function AllAnalysesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  backBtn: { paddingLeft: spacing[2], paddingTop: spacing[4] },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { paddingHorizontal: spacing[4], paddingTop: spacing[2] },
   empty: { paddingVertical: spacing[8], paddingHorizontal: spacing[4] },

@@ -2,10 +2,9 @@ import React from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 
 import {
-  colors, spacing, radii,
+  colors, spacing,
   typography, ScreenHeader, ListSection, ListRow, HemeaWordmark,
 } from '../../../design-system';
 

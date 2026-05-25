@@ -4,16 +4,19 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing } from '../tokens';
 import { typography } from '../typography';
 
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
 interface Props {
-  icon?: string;
+  icon?: IoniconName;
   title: string;
   detail?: string;
   onPress?: () => void;
   isLast?: boolean;
   destructive?: boolean;
+  alert?: boolean;
 }
 
-export function ListRow({ icon, title, detail, onPress, isLast = false, destructive = false }: Props) {
+export function ListRow({ icon, title, detail, onPress, isLast = false, destructive = false, alert = false }: Props) {
   return (
     <Pressable
       onPress={onPress}
@@ -21,12 +24,12 @@ export function ListRow({ icon, title, detail, onPress, isLast = false, destruct
     >
       {icon ? (
         <View style={styles.iconWrap}>
-          <Ionicons name={icon as any} size={20} color={destructive ? colors.danger : colors.primary} />
+          <Ionicons name={icon} size={20} color={destructive ? colors.danger : colors.primary} />
         </View>
       ) : null}
       <Text style={[typography.body, destructive && { color: colors.danger }, styles.title]}>{title}</Text>
       <View style={styles.right}>
-        {detail ? <Text style={[typography.small, styles.detail]}>{detail}</Text> : null}
+        {detail ? <Text style={[typography.small, styles.detail, alert && { color: colors.danger, fontWeight: '600' }]}>{detail}</Text> : null}
         <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
       </View>
       {!isLast && <View style={styles.divider} />}

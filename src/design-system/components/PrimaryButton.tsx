@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import { ActivityIndicator, Pressable, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { colors, radii } from '../tokens';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';
@@ -9,6 +9,7 @@ interface Props {
   children: React.ReactNode;
   onPress?: () => void;
   disabled?: boolean;
+  loading?: boolean;
   variant?: Variant;
   size?: Size;
   style?: StyleProp<ViewStyle>;
@@ -27,18 +28,19 @@ const sizeStyles: Record<Size, { paddingVertical: number; paddingHorizontal: num
   lg: { paddingVertical: 15, paddingHorizontal: 28, fontSize: 16, radius: radii.md },
 };
 
-export function PrimaryButton({ children, onPress, disabled, variant = 'primary', size = 'md', style }: Props) {
+export function PrimaryButton({ children, onPress, disabled, loading, variant = 'primary', size = 'md', style }: Props) {
   const v = variantStyles[variant];
   const s = sizeStyles[size];
+  const isDisabled = disabled || loading;
 
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
         {
-          backgroundColor: disabled ? colors.primaryDisabled : v.bg,
+          backgroundColor: isDisabled ? colors.primaryDisabled : v.bg,
           paddingVertical: s.paddingVertical,
           paddingHorizontal: s.paddingHorizontal,
           borderRadius: s.radius,
@@ -49,6 +51,7 @@ export function PrimaryButton({ children, onPress, disabled, variant = 'primary'
         style,
       ]}
     >
+      {loading && <ActivityIndicator size="small" color={v.fg} style={{ marginRight: 6 }} />}
       <Text style={[styles.label, { color: v.fg, fontSize: s.fontSize }]}>{children}</Text>
     </Pressable>
   );

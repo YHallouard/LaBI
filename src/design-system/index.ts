@@ -11,3 +11,6 @@ export { ListSection } from './components/ListSection';
 export { Banner } from './components/Banner';
 export { ScreenHeader } from './components/ScreenHeader';
 export { PersonAvatar } from './components/PersonAvatar';
+export { Toggle } from './components/Toggle';
+export { SyncHeroCard } from './components/SyncHeroCard';
+export { DeviceDiscoveryRow } from './components/DeviceDiscoveryRow';

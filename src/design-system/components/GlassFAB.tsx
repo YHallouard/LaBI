@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { GlassSurface } from './GlassSurface';
-import { elevation, radii } from '../tokens';
+import { elevation, glass, radii } from '../tokens';
 
 interface Props {
   children: React.ReactNode;
@@ -19,7 +19,12 @@ export function GlassFAB({ children, onPress, size = 44, style, accessibilityLab
       accessibilityRole="button"
       style={({ pressed }) => [styles.pressable, { opacity: pressed ? 0.75 : 1 }, style]}
     >
-      <GlassSurface radius={radii.pill} style={[styles.surface, { width: size, height: size }]}>
+      <GlassSurface
+        intensity={glass.blur.regular}
+        borderColor="rgba(255,255,255,0.7)"
+        radius={radii.pill}
+        style={[styles.surface, { width: size, height: size }]}
+      >
         {children}
       </GlassSurface>
     </Pressable>

@@ -5,15 +5,21 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 
-import { BiologicalAnalysis } from '../../../domain/entities/BiologicalAnalysis';
+import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
 import { useUseCases } from '../../contexts/UseCasesContext';
-import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS } from '../../../config/LabConfig';
+import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_DEFAULT_RANGES } from '../../../config/LabConfig';
 import {
-  colors, spacing, radii, elevation,
+  colors, spacing,
   typography, ScreenHeader, ListSection, ListRow, PrimaryButton,
 } from '../../../design-system';
+
+function isOutOfRange(key: string, value: number | null | undefined): boolean {
+  if (value == null) return false;
+  const range = LAB_VALUE_DEFAULT_RANGES[key as keyof typeof LAB_VALUE_DEFAULT_RANGES];
+  if (!range) return false;
+  return value < range.min || value > range.max;
+}
 
 export function AnalysisDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -68,15 +74,11 @@ export function AnalysisDetailsScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={24} color={colors.primary} />
-        </Pressable>
-        <ScreenHeader
-          title="Détail du bilan"
-          subtitle={date}
-        />
-      </View>
+      <ScreenHeader
+        title="Détail du bilan"
+        subtitle={date}
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]}
@@ -91,12 +93,14 @@ export function AnalysisDetailsScreen() {
           return (
             <ListSection key={catLabel} title={catLabel}>
               {catMarkers.map((key, i) => {
-                const labVal = analysis[key] as any;
+                const labVal = analysis[key] as LabValue;
+                const outOfRange = isOutOfRange(key, labVal.value);
                 return (
                   <ListRow
                     key={key}
                     title={key}
                     detail={`${labVal.value?.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) ?? '—'} ${LAB_VALUE_UNITS[key] ?? ''}`}
+                    alert={outOfRange}
                     isLast={i === catMarkers.length - 1}
                   />
                 );
@@ -118,8 +122,6 @@ export function AnalysisDetailsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  headerRow: { flexDirection: 'row', alignItems: 'center' },
-  backBtn: { paddingLeft: spacing[2], paddingTop: spacing[4] },
   backLink: { marginTop: spacing[3] },
   content: { paddingTop: spacing[2] },
   deleteWrap: { paddingHorizontal: spacing[4], paddingTop: spacing[6] },

@@ -8,6 +8,8 @@ export default function SettingsLayout() {
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
       }}
-    />
+    >
+      <Stack.Screen name="sync" options={{ presentation: 'modal' }} />
+    </Stack>
   );
 }

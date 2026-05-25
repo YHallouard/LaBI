@@ -77,10 +77,25 @@ export class SyncDevicesUseCase {
     });
   }
 
+  async startListening(): Promise<void> {
+    await this.syncingService.startAdvertising(this.deviceName);
+    await this.syncingService.startScanning();
+    this.notifyProgress(SyncStatus.IDLE, 0, "Service actif, en écoute…");
+  }
+
+  async stopListening(): Promise<void> {
+    await this.syncingService.stopAdvertising();
+    await this.syncingService.stopScanning();
+    await this.syncingService.disconnect();
+    this.currentRole = null;
+    this.notifyProgress(SyncStatus.IDLE, 0, "Service arrêté");
+  }
+
   async startAsSender(): Promise<void> {
     this.currentRole = SyncRole.SENDER;
-    await this.syncingService.startAdvertising(this.deviceName);
-    this.notifyProgress(SyncStatus.IDLE, 0, "Waiting for receiver to connect");
+    // Already advertising from startListening — stop scanning so we don't initiate outbound
+    await this.syncingService.stopScanning();
+    this.notifyProgress(SyncStatus.IDLE, 0, "En attente de la connexion du destinataire…");
   }
 
   async startAsReceiver(): Promise<void> {
@@ -99,13 +114,13 @@ export class SyncDevicesUseCase {
         this.notifyProgress(
           SyncStatus.ERROR,
           0,
-          `Failed to import received data: ${error}`
+          `Échec de l'importation des données reçues : ${error}`
         );
       }
     });
 
     await this.syncingService.startScanning();
-    this.notifyProgress(SyncStatus.SCANNING, 0, "Scanning for sender devices");
+    this.notifyProgress(SyncStatus.SCANNING, 0, "Recherche de l'appareil expéditeur…");
   }
 
   async connectToDevice(deviceId: string): Promise<boolean> {
@@ -115,7 +130,7 @@ export class SyncDevicesUseCase {
       this.notifyProgress(
         SyncStatus.CONNECTED,
         0,
-        "Connected to sender, waiting for data"
+        "Connecté à l'expéditeur, en attente des données…"
       );
     }
 
@@ -152,7 +167,7 @@ export class SyncDevicesUseCase {
       }
     } catch (error) {
       console.error("[SyncDevicesUseCase] Error in startSync:", error);
-      this.notifyProgress(SyncStatus.ERROR, 0, `Sync failed: ${error}`);
+      this.notifyProgress(SyncStatus.ERROR, 0, `Synchronisation échouée : ${error}`);
       return false;
     }
   }
@@ -176,7 +191,7 @@ export class SyncDevicesUseCase {
 
     // Reset role and notify
     this.currentRole = null;
-    this.notifyProgress(SyncStatus.IDLE, 0, "Sync stopped");
+    this.notifyProgress(SyncStatus.IDLE, 0, "Synchronisation arrêtée");
 
     console.log("[SyncDevicesUseCase] Sync stopped and session cleaned up");
   }
@@ -191,10 +206,10 @@ export class SyncDevicesUseCase {
         this.notifyProgress(
           SyncStatus.CONNECTED,
           0,
-          "Receiver connected, ready to send data"
+          "Destinataire connecté, prêt à envoyer"
         );
       } else if (!connected) {
-        this.notifyProgress(SyncStatus.IDLE, 0, "Device disconnected");
+        this.notifyProgress(SyncStatus.IDLE, 0, "Appareil déconnecté");
       }
     });
   }
@@ -204,7 +219,7 @@ export class SyncDevicesUseCase {
       console.log(
         "[SyncDevicesUseCase] sendData called - preparing to export data"
       );
-      this.notifyProgress(SyncStatus.TRANSFERRING, 0, "Preparing data to send");
+      this.notifyProgress(SyncStatus.TRANSFERRING, 0, "Préparation des données à envoyer…");
 
       const allData = await this.databaseStoragePort.exportData();
       console.log("[SyncDevicesUseCase] Data exported:", {
@@ -230,7 +245,7 @@ export class SyncDevicesUseCase {
         this.notifyProgress(
           SyncStatus.COMPLETED,
           100,
-          "Data sent successfully"
+          "Données envoyées avec succès"
         );
         // Automatically clean up after successful send
         await this.performPostSyncCleanup();
@@ -239,7 +254,7 @@ export class SyncDevicesUseCase {
       return success;
     } catch (error) {
       console.error("[SyncDevicesUseCase] Error in sendData:", error);
-      this.notifyProgress(SyncStatus.ERROR, 0, `Failed to send data: ${error}`);
+      this.notifyProgress(SyncStatus.ERROR, 0, `Échec de l'envoi : ${error}`);
       return false;
     }
   }
@@ -257,7 +272,7 @@ export class SyncDevicesUseCase {
             this.notifyProgress(
               SyncStatus.TRANSFERRING,
               25,
-              "Processing profile image"
+              "Traitement de la photo de profil…"
             );
 
             // Check if file exists
@@ -305,11 +320,11 @@ export class SyncDevicesUseCase {
       this.notifyProgress(
         SyncStatus.TRANSFERRING,
         0,
-        "Waiting to receive data"
+        "En attente des données…"
       );
 
       // Receive data
-      this.notifyProgress(SyncStatus.TRANSFERRING, 20, "Receiving data");
+      this.notifyProgress(SyncStatus.TRANSFERRING, 20, "Réception des données…");
       console.log("[SyncDevicesUseCase] Starting to receive data...");
       const receivedData = await this.syncingService.receiveData();
 
@@ -322,7 +337,7 @@ export class SyncDevicesUseCase {
       this.notifyProgress(
         SyncStatus.ERROR,
         0,
-        `Failed to receive data: ${error}`
+        `Échec de la réception des données : ${error}`
       );
       return false;
     }
@@ -334,7 +349,7 @@ export class SyncDevicesUseCase {
     this.notifyProgress(
       SyncStatus.TRANSFERRING,
       10,
-      "Preparing database for sync"
+      "Préparation de la base de données…"
     );
 
     // Reset database before receiving new data
@@ -362,7 +377,7 @@ export class SyncDevicesUseCase {
         this.notifyProgress(
           SyncStatus.TRANSFERRING,
           30,
-          "Importing biological analyses"
+          "Importation des analyses biologiques…"
         );
         await this.importBiologicalAnalyses(receivedData.biological_analyses);
       }
@@ -376,7 +391,7 @@ export class SyncDevicesUseCase {
         this.notifyProgress(
           SyncStatus.TRANSFERRING,
           60,
-          "Importing user profile"
+          "Importation du profil utilisateur…"
         );
         await this.importUserProfile(receivedData.user_profile[0]);
       }
@@ -385,7 +400,7 @@ export class SyncDevicesUseCase {
       this.notifyProgress(
         SyncStatus.COMPLETED,
         100,
-        "Data received and imported successfully"
+        "Données reçues et importées avec succès"
       );
 
       // Automatically clean up after successful import
@@ -473,7 +488,7 @@ export class SyncDevicesUseCase {
   ): Promise<string | null> {
     try {
       console.log("[SyncDevicesUseCase] Converting base64 to file");
-      this.notifyProgress(SyncStatus.TRANSFERRING, 75, "Saving profile image");
+      this.notifyProgress(SyncStatus.TRANSFERRING, 75, "Sauvegarde de la photo de profil…");
 
       // Extract MIME type and base64 content from data URL
       const [mimeSection, base64Content] = base64Data.split(",");

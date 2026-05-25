@@ -1,199 +1,143 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  Button,
+  ScrollView,
   StyleSheet,
   Alert,
-  ScrollView,
-} from "react-native";
-import { ResetDatabaseUseCase } from "../../../domain/usecases/ResetDatabaseUseCase";
-import { Ionicons } from "@expo/vector-icons";
-import { ScreenLayout } from "../../components/ScreenLayout";
-import { colorPalette, generateAlpha } from "../../../config/themes";
+  ActivityIndicator,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
-type DatabaseSettingsScreenProps = {
-  resetDatabaseUseCase: ResetDatabaseUseCase;
-  onManualReload: () => void;
-};
+import { useUseCases } from '../../contexts/UseCasesContext';
+import {
+  colors, spacing, radii, elevation,
+  typography, ScreenHeader, Banner, PrimaryButton, ListRow, ListSection,
+} from '../../../design-system';
 
-export const DatabaseSettingsScreen: React.FC<DatabaseSettingsScreenProps> = ({
-  resetDatabaseUseCase,
-  onManualReload,
-}) => {
-  const [isResetting, setIsResetting] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+export function DatabaseSettingsScreen() {
+  const insets = useSafeAreaInsets();
+  const { bundle, onManualReload } = useUseCases();
 
-  const resetDatabase = async () => {
-    setIsResetting(true);
-    try {
-      await resetDatabaseUseCase.execute();
-      setSuccessMessage("Database reset completed.");
+  const [isResetting, setIsResetting] = useState(false);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-      setTimeout(() => {
-        triggerReload("Database reset, reloading app...");
-      }, 1000);
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error
-          ? `Error: ${error.message}`
-          : "Unknown error occurred";
-
-      console.error("Database reset error:", error);
-      Alert.alert("Reset Failed", `Failed to reset database: ${errorMessage}`);
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
-  const triggerReload = (message: string) => {
-    setInfoMessage(message);
-
-    setTimeout(() => {
-      console.log("Triggering app reload...");
-      onManualReload();
-
-      setTimeout(() => {
-        setInfoMessage(null);
-      }, 1500);
-    }, 1500);
-  };
-
-  const confirmDatabaseReset = () => {
+  const handleReset = () => {
     Alert.alert(
-      "Confirm Reset",
-      "This will delete all your analyses. This action cannot be undone. Are you sure?",
+      'Réinitialiser la base de données',
+      'Cette action supprimera toutes vos analyses et votre profil. Cette opération est irréversible.',
       [
-        { text: "Cancel", style: "cancel" },
-        { text: "Reset", style: "destructive", onPress: resetDatabase },
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Réinitialiser',
+          style: 'destructive',
+          onPress: async () => {
+            if (!bundle) return;
+            setIsResetting(true);
+            setErrorMsg(null);
+            try {
+              await bundle.resetDatabase.execute();
+              setSuccessMsg('Base de données réinitialisée. Redémarrage…');
+              setTimeout(() => {
+                onManualReload();
+              }, 1500);
+            } catch (e) {
+              setErrorMsg(`Échec de la réinitialisation : ${e instanceof Error ? e.message : 'inconnue'}`);
+            } finally {
+              setIsResetting(false);
+            }
+          },
+        },
       ]
     );
   };
 
+  if (isResetting) {
+    return (
+      <View style={[styles.center, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={[typography.small, { color: colors.textBody, marginTop: spacing[3] }]}>
+          Réinitialisation en cours…
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <ScreenLayout>
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.contentWrapper}>
-          {successMessage && (
-            <View style={styles.successContainer}>
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={24}
-                color={colorPalette.feedback.success.main}
-                style={styles.messageIcon}
-              />
-              <Text style={styles.successText}>{successMessage}</Text>
-            </View>
-          )}
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScreenHeader title="Base de données" subtitle="Stockage local SQLite" />
 
-          {infoMessage && (
-            <View style={styles.infoContainer}>
-              <Ionicons
-                name="information-circle-outline"
-                size={24}
-                color={colorPalette.primary.main}
-                style={styles.messageIcon}
-              />
-              <Text style={styles.infoText}>{infoMessage}</Text>
-            </View>
-          )}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {successMsg && <Banner kind="success">{successMsg}</Banner>}
+        {errorMsg && <Banner kind="error">{errorMsg}</Banner>}
 
-          <Text style={styles.sectionTitle}>Database Management</Text>
-          <Text style={styles.description}>
-            Reset the database to remove all analyses. This action cannot be
-            undone.
-          </Text>
-
-          <View style={styles.warningContainer}>
-            <Ionicons
-              name="warning-outline"
-              size={24}
-              color={colorPalette.feedback.error.main}
-              style={styles.warningIcon}
-            />
-            <Text style={styles.warningText}>
-              Resetting the database will permanently delete all your analyses
-              and reports.
+        {/* Info */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoRow}>
+            <Ionicons name="lock-closed-outline" size={20} color={colors.primary} style={{ marginTop: 1 }} />
+            <Text style={[typography.small, { color: colors.textBody, flex: 1 }]}>
+              Toutes vos analyses sont stockées localement dans une base SQLite chiffrée (SQLCipher). Vos données ne quittent jamais votre appareil.
             </Text>
           </View>
+        </View>
 
-          <Button
-            title={isResetting ? "Resetting..." : "Reset Database"}
-            onPress={confirmDatabaseReset}
-            color={colorPalette.feedback.error.main}
-            disabled={isResetting}
+        {/* Stats */}
+        <ListSection title="Informations">
+          <ListRow
+            icon="server-outline"
+            title="Stockage"
+            detail="SQLite chiffrée (SQLCipher)"
           />
+          <ListRow
+            icon="phone-portrait-outline"
+            title="Emplacement"
+            detail="Appareil uniquement"
+            isLast
+          />
+        </ListSection>
+
+        {/* Danger zone */}
+        <View style={styles.dangerZone}>
+          <Text style={[typography.label, { color: colors.danger, marginBottom: spacing[2] }]}>
+            Zone de danger
+          </Text>
+          <Text style={[typography.small, { color: colors.textBody, marginBottom: spacing[4] }]}>
+            La réinitialisation supprimera définitivement toutes les analyses et votre profil. Cette action est irréversible.
+          </Text>
+          <PrimaryButton
+            onPress={handleReset}
+            variant="danger"
+            size="md"
+          >
+            Réinitialiser la base de données
+          </PrimaryButton>
         </View>
       </ScrollView>
-    </ScreenLayout>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
+  root: { flex: 1, backgroundColor: colors.bg },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { paddingHorizontal: spacing[4], paddingTop: spacing[2], gap: spacing[4] },
+  infoCard: {
+    backgroundColor: colors.bgBlue,
+    borderRadius: radii.lg,
+    padding: spacing[4],
   },
-  contentWrapper: {
-    flex: 1,
-    padding: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: colorPalette.neutral.main,
-  },
-  description: {
-    fontSize: 14,
-    marginBottom: 20,
-    color: colorPalette.neutral.light,
-    lineHeight: 20,
-  },
-  warningContainer: {
-    flexDirection: "row",
-    backgroundColor: generateAlpha(colorPalette.feedback.error.main, 0.1),
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: "flex-start",
-  },
-  warningIcon: {
-    marginRight: 10,
-  },
-  warningText: {
-    flex: 1,
-    color: colorPalette.feedback.error.main,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  successContainer: {
-    flexDirection: "row",
-    backgroundColor: generateAlpha(colorPalette.feedback.success.main, 0.1),
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  successText: {
-    color: colorPalette.feedback.success.main,
-    flex: 1,
-    fontSize: 14,
-  },
-  infoContainer: {
-    flexDirection: "row",
-    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  infoText: {
-    color: colorPalette.primary.main,
-    flex: 1,
-    fontSize: 14,
-  },
-  messageIcon: {
-    marginRight: 10,
+  infoRow: { flexDirection: 'row', gap: spacing[2], alignItems: 'flex-start' },
+  dangerZone: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.xl,
+    padding: spacing[4],
+    borderWidth: 1,
+    borderColor: 'rgba(229,54,63,0.15)',
+    ...elevation[1],
   },
 });

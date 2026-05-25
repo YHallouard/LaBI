@@ -3,10 +3,11 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
 import {
-  colors, spacing, radii, elevation,
-  typography, ScreenHeader,
+  colors, spacing,
+  typography,
 } from '../../../design-system';
 
 export function UploadScreen() {
@@ -15,51 +16,101 @@ export function UploadScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
+      {/* Sheet grabber */}
       <View style={styles.grabber} />
+
+      {/* Header */}
       <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={styles.cancelBtn}>
+        <Pressable onPress={() => router.back()} style={styles.cancelBtn} hitSlop={8}>
           <Text style={[typography.body, { color: colors.primary }]}>Annuler</Text>
         </Pressable>
-        <Text style={[typography.lead, styles.headerTitle]}>Importer</Text>
+        <Text style={[typography.lead, styles.headerTitle]}>Nouvelle analyse</Text>
         <View style={{ width: 70 }} />
       </View>
 
       <View style={[styles.content, { paddingBottom: insets.bottom + 40 }]}>
-        <Text style={[typography.body, styles.subtitle]}>
-          Comment souhaitez-vous ajouter votre analyse ?
+        <Text style={[typography.small, styles.subtitle]}>
+          Choisissez votre méthode d&apos;import
         </Text>
 
+        {/* ── AI import card ───────────────────────────────────────── */}
         <Pressable
           onPress={() => router.push('/upload/ai-import')}
-          style={({ pressed }) => [styles.choiceCard, { opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.card, styles.cardAI, { opacity: pressed ? 0.85 : 1 }]}
         >
-          <View style={[styles.choiceIcon, { backgroundColor: colors.primaryTint }]}>
-            <Ionicons name="scan-outline" size={28} color={colors.primary} />
+          {/* "RECOMMANDÉ" badge */}
+          <LinearGradient
+            colors={['#2C7BE5', '#4FA3F5']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.recommendedBadge}
+          >
+            <Text style={styles.recommendedText}>Recommandé</Text>
+          </LinearGradient>
+
+          <View style={styles.cardBody}>
+            {/* Gradient icon */}
+            <LinearGradient
+              colors={['#2C7BE5', '#4FA3F5']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.iconWrapAI}
+            >
+              <Ionicons name="scan" size={26} color={colors.textOnColor} />
+            </LinearGradient>
+
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>Import par IA</Text>
+              <Text style={[typography.small, { color: colors.textBody, marginTop: 4, lineHeight: 18 }]}>
+                Glissez un PDF de bilan. L&apos;OCR Mistral extrait automatiquement la date et tous les marqueurs.
+              </Text>
+              {/* Feature tags */}
+              <View style={styles.tagRow}>
+                {['~20 s', 'PDF', 'Tous marqueurs'].map(tag => (
+                  <View key={tag} style={styles.tagFilled}>
+                    <Text style={styles.tagFilledText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
-          <View style={styles.choiceText}>
-            <Text style={[typography.lead, { color: colors.textStrong }]}>Import IA (PDF)</Text>
-            <Text style={[typography.small, { color: colors.textBody, marginTop: 4 }]}>
-              Téléversez un PDF de bilan sanguin. L'IA Mistral extrait automatiquement les valeurs.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </Pressable>
 
+        {/* ── Manual import card ───────────────────────────────────── */}
         <Pressable
           onPress={() => router.push('/upload/manual')}
-          style={({ pressed }) => [styles.choiceCard, { opacity: pressed ? 0.85 : 1 }]}
+          style={({ pressed }) => [styles.card, { opacity: pressed ? 0.85 : 1 }]}
         >
-          <View style={[styles.choiceIcon, { backgroundColor: colors.secondaryTint }]}>
-            <Ionicons name="create-outline" size={28} color={colors.secondary} />
+          <View style={styles.cardBody}>
+            {/* Flat icon */}
+            <View style={styles.iconWrapManual}>
+              <Ionicons name="create-outline" size={26} color={colors.primary} />
+            </View>
+
+            <View style={styles.cardText}>
+              <Text style={styles.cardTitle}>Saisie manuelle</Text>
+              <Text style={[typography.small, { color: colors.textBody, marginTop: 4, lineHeight: 18 }]}>
+                Entrez vous-même chaque valeur. Idéal si vous n&apos;avez pas le PDF ou que l&apos;OCR a manqué un marqueur.
+              </Text>
+              {/* Border-style tags */}
+              <View style={styles.tagRow}>
+                {['Hors ligne', 'Sans clé API'].map(tag => (
+                  <View key={tag} style={styles.tagOutline}>
+                    <Text style={styles.tagOutlineText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
-          <View style={styles.choiceText}>
-            <Text style={[typography.lead, { color: colors.textStrong }]}>Saisie manuelle</Text>
-            <Text style={[typography.small, { color: colors.textBody, marginTop: 4 }]}>
-              Entrez vos valeurs catégorie par catégorie.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
         </Pressable>
+
+        <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: 4 }]}>
+          Vos données restent sur votre appareil.
+        </Text>
       </View>
     </View>
   );
@@ -88,28 +139,105 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: spacing[4],
-    paddingTop: spacing[5],
+    paddingTop: spacing[3],
     gap: spacing[3],
   },
-  subtitle: {
-    color: colors.textBody,
-    marginBottom: spacing[3],
-  },
-  choiceCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  subtitle: { color: colors.textBody },
+  card: {
     backgroundColor: colors.bgElevated,
-    borderRadius: radii.xl,
-    padding: spacing[4],
-    gap: spacing[4],
-    ...elevation[2],
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    shadowColor: '#12263F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  choiceIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.lg,
+  cardAI: {
+    shadowColor: '#2C7BE5',
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+  },
+  recommendedBadge: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    zIndex: 1,
+  },
+  recommendedText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textOnColor,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+  },
+  cardBody: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 20,
+    gap: 14,
+  },
+  iconWrapAI: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#2C7BE5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    flexShrink: 0,
   },
-  choiceText: { flex: 1 },
+  iconWrapManual: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: colors.bgBlue,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  cardText: { flex: 1, minWidth: 0 },
+  cardTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.textStrong,
+    letterSpacing: -0.1,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 10,
+  },
+  tagFilled: {
+    backgroundColor: colors.bgBlue,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+  },
+  tagFilledText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  tagOutline: {
+    backgroundColor: colors.bg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+  },
+  tagOutlineText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textBody,
+  },
 });

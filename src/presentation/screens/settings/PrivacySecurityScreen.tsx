@@ -1,167 +1,83 @@
-import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { ScreenLayout } from "../../components/ScreenLayout";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import { colorPalette, generateAlpha } from "../../../config/themes";
+import React from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-export const PrivacySecurityScreen: React.FC = () => {
+import {
+  colors, spacing, radii, elevation,
+  typography, ScreenHeader, ListRow, ListSection,
+} from '../../../design-system';
+
+const SECTIONS = [
+  {
+    icon: 'phone-portrait-outline' as const,
+    title: 'Stockage local uniquement',
+    text: 'Toutes vos analyses et données personnelles sont stockées exclusivement sur votre appareil. Nous ne téléchargeons ni ne stockons vos données de santé dans le cloud.',
+  },
+  {
+    icon: 'document-text-outline' as const,
+    title: 'Traitement des PDFs',
+    text: "Lorsque vous téléversez un PDF pour analyse, il est envoyé à l'API Mistral pour en extraire les valeurs biologiques. Ce traitement est temporaire et aucune donnée n'est conservée par Mistral.",
+  },
+  {
+    icon: 'lock-closed-outline' as const,
+    title: 'Chiffrement SQLite',
+    text: "Votre base de données locale est chiffrée via SQLCipher. Vos données restent protégées même si quelqu'un accède physiquement à votre appareil.",
+  },
+  {
+    icon: 'key-outline' as const,
+    title: 'Sécurité de la clé API',
+    text: "Votre clé API Mistral est stockée dans le trousseau sécurisé de votre système d'exploitation (Secure Enclave sur iOS, Keystore sur Android).",
+  },
+];
+
+export function PrivacySecurityScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
-  const openPrivacyPolicy = () => {
-    router.push("/settings/privacy-policy");
-  };
 
   return (
-    <ScreenLayout scrollable={true}>
-      <View style={styles.container}>
-        <Ionicons
-          name="shield-outline"
-          size={80}
-          color={colorPalette.primary.main}
-          style={styles.icon}
-        />
+    <View style={[styles.root, { paddingTop: insets.top }]}>
+      <ScreenHeader title="Confidentialité" subtitle="Protection de vos données" />
 
-        <Text style={styles.title}>Privacy & Security</Text>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {SECTIONS.map((s, i) => (
+          <View key={i} style={styles.infoCard}>
+            <Text style={[typography.small, { fontWeight: '700', color: colors.textStrong, marginBottom: 4 }]}>
+              {s.title}
+            </Text>
+            <Text style={[typography.small, { color: colors.textBody, lineHeight: 19 }]}>
+              {s.text}
+            </Text>
+          </View>
+        ))}
 
-        <View style={styles.policySection}>
-          <Ionicons
-            name="phone-portrait-outline"
-            size={24}
-            color={colorPalette.primary.main}
-            style={styles.sectionIcon}
+        <ListSection title="Documents">
+          <ListRow
+            icon="document-outline"
+            title="Politique de confidentialité"
+            onPress={() => router.push('/settings/privacy-policy')}
+            isLast
           />
-          <Text style={styles.sectionTitle}>Local Storage Only</Text>
-          <Text style={styles.sectionText}>
-            All your analyses and personal data are stored exclusively on your
-            device. We do not upload or store any of your health data in the
-            cloud.
-          </Text>
-        </View>
+        </ListSection>
 
-        <View style={styles.policySection}>
-          <Ionicons
-            name="document-text-outline"
-            size={24}
-            color={colorPalette.primary.main}
-            style={styles.sectionIcon}
-          />
-          <Text style={styles.sectionTitle}>PDF Processing</Text>
-          <Text style={styles.sectionText}>
-            When you upload PDFs for analysis, they are sent to Mistral&apos;s
-            API for processing. These PDFs are not stored on Mistral&apos;s
-            servers after processing is complete.
-          </Text>
-        </View>
-
-        <View style={styles.policySection}>
-          <Ionicons
-            name="key-outline"
-            size={24}
-            color={colorPalette.primary.main}
-            style={styles.sectionIcon}
-          />
-          <Text style={styles.sectionTitle}>API Key Security</Text>
-          <Text style={styles.sectionText}>
-            Your Mistral API key is stored securely on your device using
-            encrypted storage. It is never shared with any third parties.
-          </Text>
-        </View>
-
-        <View style={styles.summaryContainer}>
-          <Text style={styles.summaryText}>
-            Your privacy is our priority. The application is designed to keep
-            your health data private and secure.
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.privacyButton}
-          onPress={openPrivacyPolicy}
-        >
-          <Ionicons
-            name="document-text"
-            size={20}
-            color={colorPalette.neutral.white}
-            style={styles.buttonIcon}
-          />
-          <Text style={styles.buttonText}>View Privacy Policy</Text>
-        </TouchableOpacity>
-      </View>
-    </ScreenLayout>
+        <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', paddingHorizontal: spacing[4] }]}>
+          Cette application n&apos;est pas un dispositif médical. Les informations sont à titre indicatif uniquement.
+        </Text>
+      </ScrollView>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    alignItems: "center",
-  },
-  icon: {
-    marginBottom: 20,
-    marginTop: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: colorPalette.neutral.main,
-    marginBottom: 30,
-    textAlign: "center",
-  },
-  policySection: {
-    width: "100%",
-    backgroundColor: colorPalette.neutral.background,
-    borderRadius: 8,
-    padding: 20,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  sectionIcon: {
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: colorPalette.neutral.main,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  sectionText: {
-    fontSize: 16,
-    color: colorPalette.neutral.light,
-    textAlign: "center",
-    lineHeight: 22,
-  },
-  summaryContainer: {
-    backgroundColor: generateAlpha(colorPalette.primary.main, 0.1),
-    padding: 15,
-    borderRadius: 8,
-    marginVertical: 20,
-  },
-  summaryText: {
-    fontSize: 16,
-    color: colorPalette.primary.main,
-    textAlign: "center",
-    lineHeight: 22,
-    fontWeight: "500",
-  },
-  privacyButton: {
-    backgroundColor: colorPalette.primary.main,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    marginVertical: 15,
-    width: "100%",
-  },
-  buttonText: {
-    color: colorPalette.neutral.white,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  buttonIcon: {
-    marginRight: 8,
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { paddingHorizontal: spacing[4], paddingTop: spacing[2], gap: spacing[3] },
+  infoCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.lg,
+    padding: spacing[4],
+    ...elevation[1],
   },
 });

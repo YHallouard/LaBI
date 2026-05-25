@@ -67,25 +67,31 @@ export const typography = StyleSheet.create({
   },
   label: {
     ...base,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.66,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.72,
     color: colors.textFaint,
     textTransform: 'uppercase',
   },
   value: {
     ...base,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.primary,
-    // tabular-nums for numeric alignment
     fontVariant: ['tabular-nums'],
   },
   valueAlert: {
     ...base,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.danger,
+    fontVariant: ['tabular-nums'],
+  },
+  valueSm: {
+    ...base,
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
     fontVariant: ['tabular-nums'],
   },
   valueLg: {
