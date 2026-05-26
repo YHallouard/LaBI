@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, ScrollView, StyleSheet, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
 import { APP_VERSION } from '../../../utils/appConstants';
 import {
@@ -9,11 +10,12 @@ import {
 } from '../../../design-system';
 
 export function AboutScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="À propos" subtitle="Héméa" />
+    <View style={styles.root}>
+      <ScreenHeader title="À propos" subtitle="Héméa" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}

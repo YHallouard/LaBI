@@ -15,7 +15,7 @@ export function SettingsScreen() {
   const dismiss = () => router.back();
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       {/* Modal header */}
       <View style={styles.modalHeader}>
         <View style={styles.grabber} />

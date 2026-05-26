@@ -18,22 +18,11 @@ import Svg, { Line, Circle, Path, Text as SvgText, Defs, LinearGradient as SvgGr
 import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
 import { ReferenceRange } from '../../../domain/services/ReferenceRangeCalculator';
 import { useUseCases } from '../../contexts/UseCasesContext';
-import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS } from '../../../config/LabConfig';
+import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_EXPLANATIONS } from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation,
   typography, ScreenHeader, StatCard,
 } from '../../../design-system';
-
-// ─── Marker educational text ──────────────────────────────────────────────────
-const MARKER_INFO: Record<string, string> = {
-  'Hémoglobine': "L'hémoglobine est la protéine des globules rouges qui transporte l'oxygène des poumons vers les tissus. Une valeur basse peut indiquer une anémie ; une valeur haute peut être liée à la déshydratation ou à un trouble de la moelle osseuse.",
-  'Protéine C Reactive': "La protéine C-réactive (CRP) est un marqueur d'inflammation produit par le foie. Elle augmente en cas d'infection, d'inflammation chronique ou après un traumatisme. Une CRP basse (< 5 mg/L) est rassurante.",
-  'Cholestérol HDL': "Le cholestérol HDL (« bon cholestérol ») transporte les lipides en excès vers le foie pour élimination. Un taux élevé est protecteur ; un taux bas augmente le risque cardiovasculaire.",
-  'Cholestérol LDL': "Le cholestérol LDL (« mauvais cholestérol ») peut s'accumuler dans les artères. À interpréter avec le rapport LDL/HDL, les triglycérides et les facteurs de risque cardiovasculaire individuels.",
-  'TSH': "La TSH (thyréostimuline) régule la thyroïde. Une TSH haute évoque une hypothyroïdie ; une TSH basse, une hyperthyroïdie. Elle se lit toujours avec la T4 libre pour une interprétation complète.",
-  'Ferritine': "La ferritine est la forme de stockage du fer dans l'organisme. Une valeur basse indique un manque de réserves (carence martiale) ; une valeur haute peut signaler une inflammation ou une surcharge en fer.",
-  'Glycémie': "La glycémie mesure le taux de sucre dans le sang. À jeun, une valeur ≥ 1,26 g/L à deux reprises définit le diabète. Entre 1,10 et 1,25 g/L, on parle d'hyperglycémie modérée à jeun.",
-};
 
 // ─── Time range definitions ───────────────────────────────────────────────────
 type RangeKey = '3M' | '6M' | '1Y' | '3Y' | 'Tout';
@@ -125,7 +114,7 @@ type InfoSheetMarker = { key: string; unit: string; refMin?: number; refMax?: nu
 
 function MarkerInfoSheet({ marker, onClose }: { marker: InfoSheetMarker; onClose: () => void }) {
   const insets = useSafeAreaInsets();
-  const info = MARKER_INFO[marker.key];
+  const info = LAB_VALUE_EXPLANATIONS[marker.key];
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
@@ -219,7 +208,6 @@ function MarkerSection({
   onTogglePin: () => void;
   onOpenInfo: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   if (points.length === 0) return null;
 
   const last = points[points.length - 1].v;
@@ -228,29 +216,23 @@ function MarkerSection({
   const min = Math.min(...values);
   const max = Math.max(...values);
   const avg = values.reduce((s, v) => s + v, 0) / values.length;
-  const hasInfo = !!MARKER_INFO[entry.key];
 
   return (
     <View style={markerStyles.card}>
-      <Pressable onPress={() => setExpanded(e => !e)} style={markerStyles.header}>
-        <View style={markerStyles.titleBlock}>
+      <View style={markerStyles.header}>
+        <Pressable onPress={onOpenInfo} hitSlop={6} style={markerStyles.titleBlock}>
           <View style={markerStyles.titleRow}>
-            <Text style={[typography.lead, { color: colors.textStrong, flex: 1 }]} numberOfLines={1}>
+            <Text style={[typography.lead, { color: colors.textStrong }]} numberOfLines={1}>
               {entry.label}
             </Text>
-            {hasInfo && (
-              <Pressable onPress={onOpenInfo} hitSlop={8} style={markerStyles.infoBtn}>
-                <Ionicons name="information-circle-outline" size={16} color={colors.textFaint} />
-              </Pressable>
-            )}
+            <Ionicons name="information-circle-outline" size={14} color={colors.textMuted} style={{ marginTop: 1 }} />
           </View>
-          <Text style={[typography.caption, { color: isAlert ? colors.danger : colors.textFaint }]}>
+          <Text style={[typography.caption, { color: isAlert ? colors.danger : colors.textFaint, marginTop: 1 }]}>
             {last.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} {entry.unit}
             {refMin != null && refMax != null ? ` · plage ${refMin}–${refMax}` : ''}
           </Text>
-        </View>
+        </Pressable>
 
-        {/* Pin button */}
         <Pressable
           onPress={onTogglePin}
           accessibilityLabel={pinned ? `Désépingler ${entry.key}` : `Épingler ${entry.key}`}
@@ -261,22 +243,16 @@ function MarkerSection({
             {pinned ? 'Épinglé' : 'Épingler'}
           </Text>
         </Pressable>
+      </View>
 
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={colors.textMuted} style={{ marginLeft: 4 }} />
-      </Pressable>
-
-      {expanded && (
-        <>
-          <View style={markerStyles.statsRow}>
-            <StatCard label="Min" value={min.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} unit={entry.unit} />
-            <StatCard label="Moy" value={avg.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} unit={entry.unit} />
-            <StatCard label="Max" value={max.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} unit={entry.unit} alert={isAlert} />
-          </View>
-          <View style={markerStyles.chartWrap}>
-            <SimpleChart points={points} refMin={refMin} refMax={refMax} marker={entry.key} />
-          </View>
-        </>
-      )}
+      <View style={markerStyles.statsRow}>
+        <StatCard label="Min" value={min.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} unit={entry.unit} />
+        <StatCard label="Moy" value={avg.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} unit={entry.unit} />
+        <StatCard label="Max" value={max.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} unit={entry.unit} alert={isAlert} />
+      </View>
+      <View style={markerStyles.chartWrap}>
+        <SimpleChart points={points} refMin={refMin} refMax={refMax} marker={entry.key} />
+      </View>
     </View>
   );
 }
@@ -295,9 +271,8 @@ const markerStyles = StyleSheet.create({
     padding: spacing[4],
     gap: spacing[2],
   },
-  titleBlock: { flex: 1, gap: 3 },
+  titleBlock: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  infoBtn: { padding: 2 },
   pinBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -329,6 +304,7 @@ export function ChartScreen() {
   const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<RangeKey>('1Y');
+  const [fabOpen, setFabOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [infoMarker, setInfoMarker] = useState<InfoSheetMarker | null>(null);
 
@@ -379,7 +355,7 @@ export function ChartScreen() {
   const matchesQuery = (key: string) => {
     if (!q) return true;
     if (key.toLowerCase().includes(q)) return true;
-    const info = MARKER_INFO[key];
+    const info = LAB_VALUE_EXPLANATIONS[key];
     return !!info && info.toLowerCase().includes(q);
   };
 
@@ -404,24 +380,40 @@ export function ChartScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScreenHeader title="Graphiques" subtitle="Évolution dans le temps" />
 
-      {/* Time range chips */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.rangeStrip}
+      {/* Glass FAB pill — time range picker */}
+      <Pressable
+        onPress={() => setFabOpen(o => !o)}
+        style={[styles.rangeFab, { top: insets.top + 14 }]}
       >
-        {RANGES.map(r => (
-          <Pressable
-            key={r.key}
-            onPress={() => setRange(r.key)}
-            style={[styles.rangeChip, range === r.key && styles.rangeChipActive]}
-          >
-            <Text style={[styles.rangeChipText, range === r.key && styles.rangeChipTextActive]}>
-              {r.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+        <BlurView intensity={60} tint="systemUltraThinMaterialLight" style={styles.rangeFabBlur}>
+          <Ionicons name="time-outline" size={14} color={colors.primary} />
+          <Text style={styles.rangeFabLabel}>{RANGES.find(r => r.key === range)?.label ?? range}</Text>
+          <Ionicons name={fabOpen ? 'chevron-up' : 'chevron-down'} size={11} color={colors.primary} />
+        </BlurView>
+      </Pressable>
+
+      {/* Popover */}
+      {fabOpen && (
+        <>
+          <Pressable style={styles.rangeScrim} onPress={() => setFabOpen(false)} />
+          <View style={[styles.rangePopover, { top: insets.top + 58 }]}>
+            {RANGES.map(r => (
+              <Pressable
+                key={r.key}
+                onPress={() => { setRange(r.key); setFabOpen(false); }}
+                style={[styles.rangeOption, r.key === range && styles.rangeOptionActive]}
+              >
+                <Text style={[styles.rangeOptionText, r.key === range && styles.rangeOptionTextActive]}>
+                  {r.label}
+                </Text>
+                {r.key === range && (
+                  <Ionicons name="checkmark" size={14} color={colors.primary} />
+                )}
+              </Pressable>
+            ))}
+          </View>
+        </>
+      )}
 
       {/* Search bar */}
       <View style={styles.searchBar}>
@@ -489,31 +481,74 @@ export function ChartScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  rangeStrip: {
+  rangeFab: {
+    position: 'absolute',
+    right: 18,
+    zIndex: 5,
+  },
+  rangeFabBlur: {
     flexDirection: 'row',
-    paddingHorizontal: spacing[4],
-    paddingVertical: spacing[2],
-    gap: spacing[2],
-  },
-  rangeChip: {
-    paddingVertical: 6,
+    alignItems: 'center',
+    gap: 5,
     paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 999,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.bgElevated,
+    borderColor: 'rgba(255,255,255,0.55)',
+    backgroundColor: 'rgba(255,255,255,0.62)',
+    shadowColor: '#12263F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 14,
+    elevation: 4,
   },
-  rangeChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  rangeChipText: {
+  rangeFabLabel: {
     fontSize: 13,
-    fontWeight: '600',
-    color: colors.textBody,
+    fontWeight: '700' as const,
+    color: colors.primary,
+    letterSpacing: -0.1,
   },
-  rangeChipTextActive: {
-    color: colors.textOnColor,
+  rangeScrim: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 6,
+  },
+  rangePopover: {
+    position: 'absolute',
+    right: 18,
+    zIndex: 7,
+    minWidth: 120,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 14,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+    shadowColor: '#12263F',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 30,
+    elevation: 20,
+  },
+  rangeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: 'transparent',
+  },
+  rangeOptionActive: {
+    backgroundColor: colors.bgBlue,
+  },
+  rangeOptionText: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: colors.text,
+  },
+  rangeOptionTextActive: {
+    fontWeight: '700' as const,
+    color: colors.primary,
   },
   searchBar: {
     flexDirection: 'row',

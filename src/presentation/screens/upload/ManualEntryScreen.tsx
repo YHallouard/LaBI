@@ -47,7 +47,7 @@ export function ManualEntryScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <View style={styles.grabber} />
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()} style={styles.cancelBtn}>

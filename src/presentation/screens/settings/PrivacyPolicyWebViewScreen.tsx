@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Pressable, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -12,14 +13,16 @@ import {
 const PRIVACY_POLICY_URL = 'https://yhallouard.github.io/LaBI/privacy-policy.html';
 
 export function PrivacyPolicyWebViewScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const webRef = useRef<WebView>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <ScreenHeader
         title="Politique de confidentialité"
+        onBack={() => router.back()}
         right={
           <Pressable onPress={() => Linking.openURL(PRIVACY_POLICY_URL)} hitSlop={8}>
             <Ionicons name="open-outline" size={20} color={colors.primary} />

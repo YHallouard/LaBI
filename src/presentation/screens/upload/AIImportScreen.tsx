@@ -101,7 +101,7 @@ export function AIImportScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
         <Text style={[typography.small, { color: colors.textBody, marginTop: spacing[3] }]}>
           Chargement…
@@ -111,7 +111,7 @@ export function AIImportScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <View style={styles.grabber} />
       <View style={styles.headerRow}>
         <Pressable onPress={() => router.back()} style={styles.cancelBtn}>

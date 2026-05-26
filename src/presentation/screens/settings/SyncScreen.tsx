@@ -193,7 +193,7 @@ export function SyncScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.root, { paddingTop: insets.top }]}>
+      <View style={styles.root}>
         <ScreenHeader title="Synchronisation" subtitle="Pair-à-pair · réseau local" onBack={() => router.back()} />
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
@@ -213,7 +213,7 @@ export function SyncScreen() {
   const showProgress = syncRole !== null && !isSenderWaiting && syncProgress.status !== SyncStatus.IDLE;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       <ScreenHeader
         title="Synchronisation"
         subtitle="Pair-à-pair · réseau local"

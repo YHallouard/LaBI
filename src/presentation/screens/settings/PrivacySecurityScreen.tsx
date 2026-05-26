@@ -36,8 +36,8 @@ export function PrivacySecurityScreen() {
   const router = useRouter();
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Confidentialité" subtitle="Protection de vos données" />
+    <View style={styles.root}>
+      <ScreenHeader title="Confidentialité" subtitle="Protection de vos données" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}

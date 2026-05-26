@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { UserProfile, Gender } from '../../../domain/UserProfile';
@@ -24,6 +25,7 @@ import {
 } from '../../../design-system';
 
 export function ProfileScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState<UserProfile>({
@@ -113,7 +115,7 @@ export function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
       </View>
     );
@@ -124,12 +126,13 @@ export function ProfileScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.root, { paddingTop: insets.top }]}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScreenHeader
         title="Profil"
         subtitle="Informations personnelles"
+        onBack={() => router.back()}
         right={
           profileExists && !isEditMode ? (
             <Pressable onPress={() => setIsEditMode(true)} style={styles.editBtn}>

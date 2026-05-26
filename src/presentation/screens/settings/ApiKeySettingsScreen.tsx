@@ -97,7 +97,7 @@ export function ApiKeySettingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View style={styles.center}>
         <ActivityIndicator color={colors.primary} />
       </View>
     );
@@ -105,10 +105,10 @@ export function ApiKeySettingsScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={[styles.root, { paddingTop: insets.top }]}
+      style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScreenHeader title="Clé API Mistral" subtitle="OCR et extraction des analyses" />
+      <ScreenHeader title="Clé API Mistral" subtitle="OCR et extraction des analyses" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}

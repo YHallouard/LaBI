@@ -30,7 +30,7 @@ export function ListRow({ icon, title, detail, onPress, isLast = false, destruct
       <Text style={[typography.body, destructive && { color: colors.danger }, styles.title]}>{title}</Text>
       <View style={styles.right}>
         {detail ? <Text style={[typography.small, styles.detail, alert && { color: colors.danger, fontWeight: '600' }]}>{detail}</Text> : null}
-        <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+        {onPress && <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />}
       </View>
       {!isLast && <View style={styles.divider} />}
     </Pressable>

@@ -13,8 +13,8 @@ export function HelpCenterScreen() {
   const router = useRouter();
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Centre d'aide" subtitle="Questions fréquentes et support" />
+    <View style={styles.root}>
+      <ScreenHeader title="Centre d'aide" subtitle="Questions fréquentes et support" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}

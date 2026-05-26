@@ -1,17 +1,19 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Alert, ActivityIndicator,
+  View, Text, ScrollView, Pressable, StyleSheet, Alert,
+  ActivityIndicator, TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
 import { useUseCases } from '../../contexts/UseCasesContext';
 import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_DEFAULT_RANGES } from '../../../config/LabConfig';
 import {
-  colors, spacing,
-  typography, ScreenHeader, ListSection, ListRow, PrimaryButton,
+  colors, spacing, radii,
+  typography, ScreenHeader, ListSection, PrimaryButton,
 } from '../../../design-system';
 
 function isOutOfRange(key: string, value: number | null | undefined): boolean {
@@ -21,13 +23,51 @@ function isOutOfRange(key: string, value: number | null | undefined): boolean {
   return value < range.min || value > range.max;
 }
 
+function ValueRow({ label, value, unit, outOfRange, isLast }: {
+  label: string; value: string; unit: string; outOfRange: boolean; isLast: boolean;
+}) {
+  return (
+    <View style={[styles.valueRow, !isLast && styles.valueRowBorder]}>
+      <Text style={styles.valueRowLabel} numberOfLines={1}>{label}</Text>
+      <Text style={[styles.valueText, outOfRange && styles.alertValue]}>
+        {value}{unit ? ` ${unit}` : ''}
+      </Text>
+      {outOfRange && (
+        <Ionicons name="warning-outline" size={14} color={colors.danger} style={{ marginLeft: 4 }} />
+      )}
+    </View>
+  );
+}
+
+function EditRow({ label, value, unit, onChangeText }: {
+  label: string; value: string; unit: string; onChangeText: (v: string) => void;
+}) {
+  return (
+    <View style={[styles.valueRow, styles.valueRowBorder]}>
+      <Text style={styles.valueRowLabel} numberOfLines={1}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        keyboardType="decimal-pad"
+        style={styles.editInput}
+        selectTextOnFocus
+      />
+      {unit ? <Text style={styles.editUnit}>{unit}</Text> : null}
+    </View>
+  );
+}
+
 export function AnalysisDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { bundle } = useUseCases();
+
   const [analysis, setAnalysis] = useState<BiologicalAnalysis | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editMode, setEditMode] = useState(false);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -35,6 +75,44 @@ export function AnalysisDetailsScreen() {
       bundle.getAnalysisById.execute(id).then((a) => { setAnalysis(a ?? null); setLoading(false); });
     }, [bundle, id]),
   );
+
+  const enterEdit = () => {
+    if (!analysis) return;
+    const vals: Record<string, string> = {};
+    Object.values(LAB_VALUE_CATEGORIES).flat().forEach((key) => {
+      const v = analysis[key as keyof BiologicalAnalysis] as LabValue | undefined;
+      if (v?.value != null) vals[key] = String(v.value);
+    });
+    setEditValues(vals);
+    setEditMode(true);
+  };
+
+  const cancelEdit = () => {
+    setEditMode(false);
+    setEditValues({});
+  };
+
+  const handleSave = async () => {
+    if (!bundle || !analysis) return;
+    setSaving(true);
+    try {
+      let updated = analysis;
+      for (const [key, strVal] of Object.entries(editValues)) {
+        const num = parseFloat(strVal);
+        if (isNaN(num)) continue;
+        const original = analysis[key as keyof BiologicalAnalysis] as LabValue | undefined;
+        if (original?.value !== num) {
+          updated = await bundle.updateAnalysis.updateLabValue(analysis.id, key, num);
+        }
+      }
+      setAnalysis(updated);
+      setEditMode(false);
+    } catch (e) {
+      Alert.alert('Erreur', `${e}`);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleDelete = () => {
     Alert.alert('Supprimer', 'Supprimer cette analyse ?', [
@@ -72,48 +150,87 @@ export function AnalysisDetailsScreen() {
 
   const date = new Date(analysis.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
+  const headerRight = editMode ? (
+    <View style={styles.headerActions}>
+      <Pressable onPress={cancelEdit} style={styles.headerActionBtn}>
+        <Text style={[typography.body, { color: colors.textBody }]}>Annuler</Text>
+      </Pressable>
+      <Pressable onPress={handleSave} disabled={saving} style={styles.headerActionBtn}>
+        <Text style={[typography.body, { color: colors.primary, fontWeight: '600' }]}>
+          {saving ? '…' : 'Enregistrer'}
+        </Text>
+      </Pressable>
+    </View>
+  ) : (
+    <Pressable onPress={enterEdit} hitSlop={8}>
+      <Ionicons name="pencil-outline" size={20} color={colors.primary} />
+    </Pressable>
+  );
+
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScreenHeader
         title="Détail du bilan"
         subtitle={date}
-        onBack={() => router.back()}
+        onBack={editMode ? cancelEdit : () => router.back()}
+        right={headerRight}
       />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 60 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {Object.entries(LAB_VALUE_CATEGORIES).map(([catLabel, markerKeys]) => {
           const catMarkers = (markerKeys as string[]).filter((key) => {
-            const v = analysis[key];
+            const v = analysis[key as keyof BiologicalAnalysis];
             return v != null && typeof v === 'object' && 'value' in (v as object);
           });
           if (catMarkers.length === 0) return null;
           return (
             <ListSection key={catLabel} title={catLabel}>
-              {catMarkers.map((key, i) => {
-                const labVal = analysis[key] as LabValue;
-                const outOfRange = isOutOfRange(key, labVal.value);
-                return (
-                  <ListRow
-                    key={key}
-                    title={key}
-                    detail={`${labVal.value?.toLocaleString('fr-FR', { maximumFractionDigits: 2 }) ?? '—'} ${LAB_VALUE_UNITS[key] ?? ''}`}
-                    alert={outOfRange}
-                    isLast={i === catMarkers.length - 1}
-                  />
-                );
-              })}
+              <View style={styles.card}>
+                {catMarkers.map((key, i) => {
+                  const labVal = analysis[key as keyof BiologicalAnalysis] as LabValue;
+                  const displayValue = labVal.value?.toLocaleString('fr-FR', { maximumFractionDigits: 3 }) ?? '—';
+                  const unit = LAB_VALUE_UNITS[key] ?? '';
+                  const outOfRange = isOutOfRange(key, labVal.value);
+                  const isLast = i === catMarkers.length - 1;
+
+                  if (editMode && editValues[key] !== undefined) {
+                    return (
+                      <EditRow
+                        key={key}
+                        label={key}
+                        value={editValues[key]}
+                        unit={unit}
+                        onChangeText={(v) => setEditValues(prev => ({ ...prev, [key]: v }))}
+                      />
+                    );
+                  }
+                  return (
+                    <ValueRow
+                      key={key}
+                      label={key}
+                      value={displayValue}
+                      unit={unit}
+                      outOfRange={outOfRange}
+                      isLast={isLast}
+                    />
+                  );
+                })}
+              </View>
             </ListSection>
           );
         })}
 
-        <View style={styles.deleteWrap}>
-          <PrimaryButton variant="danger" size="lg" onPress={handleDelete} style={{ width: '100%' }}>
-            Supprimer cette analyse
-          </PrimaryButton>
-        </View>
+        {!editMode && (
+          <View style={styles.deleteWrap}>
+            <PrimaryButton variant="danger" size="lg" onPress={handleDelete} style={{ width: '100%' }}>
+              Supprimer cette analyse
+            </PrimaryButton>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -125,4 +242,70 @@ const styles = StyleSheet.create({
   backLink: { marginTop: spacing[3] },
   content: { paddingTop: spacing[2] },
   deleteWrap: { paddingHorizontal: spacing[4], paddingTop: spacing[6] },
+
+  // Value rows
+  card: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    marginHorizontal: spacing[4],
+    marginBottom: spacing[1],
+  },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[4],
+    paddingVertical: 12,
+  },
+  valueRowBorder: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.divider,
+  },
+  valueRowLabel: {
+    ...typography.body,
+    flex: 1,
+    color: colors.text,
+    marginRight: spacing[2],
+  },
+  valueText: {
+    ...typography.value,
+    color: colors.textBody,
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+  },
+  alertValue: {
+    color: colors.danger,
+    fontWeight: '700',
+  },
+
+  // Edit mode
+  editInput: {
+    ...typography.value,
+    color: colors.text,
+    textAlign: 'right',
+    minWidth: 60,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    backgroundColor: colors.bgBlue,
+    borderRadius: radii.sm,
+    fontVariant: ['tabular-nums'],
+  },
+  editUnit: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginLeft: 4,
+    minWidth: 32,
+  },
+
+  // Header action buttons (edit mode)
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    alignItems: 'center',
+  },
+  headerActionBtn: {
+    paddingVertical: spacing[1],
+  },
 });

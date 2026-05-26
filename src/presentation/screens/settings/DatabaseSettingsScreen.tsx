@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useUseCases } from '../../contexts/UseCasesContext';
@@ -17,6 +18,7 @@ import {
 } from '../../../design-system';
 
 export function DatabaseSettingsScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const { bundle, onManualReload } = useUseCases();
 
@@ -56,7 +58,7 @@ export function DatabaseSettingsScreen() {
 
   if (isResetting) {
     return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
+      <View style={styles.center}>
         <ActivityIndicator size="large" color={colors.primary} />
         <Text style={[typography.small, { color: colors.textBody, marginTop: spacing[3] }]}>
           Réinitialisation en cours…
@@ -66,8 +68,8 @@ export function DatabaseSettingsScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Base de données" subtitle="Stockage local SQLite" />
+    <View style={styles.root}>
+      <ScreenHeader title="Base de données" subtitle="Stockage local SQLite" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}

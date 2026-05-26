@@ -35,21 +35,28 @@ const SHRINK_RANGE = 80;
 type ChartPoint = { t: number; v: number; label: string };
 
 function BalanceTrendChart({ points, refMax = 1.0 }: { points: ChartPoint[]; refMax?: number }) {
-  if (points.length < 2) return null;
+  if (points.length === 0) return null;
   const W = 320, H = 110;
   const pad = { l: 6, r: 6, t: 8, b: 22 };
-  const maxV = Math.max(...points.map(p => p.v), refMax) * 1.15;
-  const minT = Math.min(...points.map(p => p.t));
-  const maxT = Math.max(...points.map(p => p.t));
+  // When all points share the same timestamp (e.g. analyses from same PDF date),
+  // spread them evenly across the time axis so the chart remains readable.
+  const rawMinT = Math.min(...points.map(p => p.t));
+  const rawMaxT = Math.max(...points.map(p => p.t));
+  const displayPoints = rawMaxT === rawMinT
+    ? points.map((p, i) => ({ ...p, t: i }))
+    : points;
+  const maxV = Math.max(...displayPoints.map(p => p.v), refMax) * 1.15;
+  const minT = Math.min(...displayPoints.map(p => p.t));
+  const maxT = Math.max(...displayPoints.map(p => p.t));
   const xOf = (t: number) => pad.l + ((t - minT) / (maxT - minT || 1)) * (W - pad.l - pad.r);
   const yOf = (v: number) => H - pad.b - (v / maxV) * (H - pad.t - pad.b);
-  const pathD = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xOf(p.t).toFixed(1)} ${yOf(p.v).toFixed(1)}`).join(' ');
+  const pathD = displayPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xOf(p.t).toFixed(1)} ${yOf(p.v).toFixed(1)}`).join(' ');
   const bandTop = yOf(refMax);
   const bandBot = H - pad.b;
-  const labelIdxs = [0, Math.floor((points.length - 1) / 2), points.length - 1].filter((v, i, a) => a.indexOf(v) === i);
+  const labelIdxs = [0, Math.floor((displayPoints.length - 1) / 2), displayPoints.length - 1].filter((v, i, a) => a.indexOf(v) === i);
 
   return (
-    <Svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+    <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
       <Defs>
         <SvgGradient id="bal-band" x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#00C800" stopOpacity={0.22} />
@@ -77,20 +84,20 @@ function BalanceTrendChart({ points, refMax = 1.0 }: { points: ChartPoint[]; ref
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {points.map((p, i) => (
+      {displayPoints.map((p, i) => (
         <Circle
           key={i}
           cx={xOf(p.t)}
           cy={yOf(p.v)}
-          r={i === points.length - 1 ? 5 : 3.5}
+          r={i === displayPoints.length - 1 ? 5 : 3.5}
           fill={p.v > refMax ? colors.danger : colors.primary}
           stroke="#fff"
           strokeWidth={1.5}
         />
       ))}
       {labelIdxs.map(i => (
-        <SvgText key={i} x={xOf(points[i].t)} y={H - 6} fontSize={9} fill={colors.chartAxisLabel} textAnchor="middle">
-          {points[i].label}
+        <SvgText key={i} x={xOf(displayPoints[i].t)} y={H - 6} fontSize={9} fill={colors.chartAxisLabel} textAnchor="middle">
+          {displayPoints[i].label}
         </SvgText>
       ))}
     </Svg>
@@ -201,7 +208,7 @@ function PinnedMiniChart({ points, refMin, refMax, id }: {
   const safeId = id.replace(/[^a-zA-Z0-9]/g, '_');
 
   return (
-    <Svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+    <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
       <Defs>
         <SvgGradient id={`pm-${safeId}`} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#2C7BE5" />
@@ -363,10 +370,12 @@ export function HomeScreen() {
     });
   }, [bundle, pinnedKeys, analyses]);
 
-  // Animated interpolations (useNativeDriver: false — animating fontSize, paddingVertical)
+  // Animated interpolations (useNativeDriver: false — animating layout props)
   const heropadV = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [20, 10], extrapolate: 'clamp' });
   const heroGap = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [16, 10], extrapolate: 'clamp' });
   const avatarScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 40 / 84], extrapolate: 'clamp' });
+  // Avatar layout width stays 84px; compensate with negative marginRight so the name slides left
+  const avatarMarginRight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [0, -(84 - 40)], extrapolate: 'clamp' });
   const nameFontSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [30, 18], extrapolate: 'clamp' });
   const helloOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.6], outputRange: [1, 0], extrapolate: 'clamp' });
   const metaOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -400,8 +409,14 @@ export function HomeScreen() {
       {/* Collapsible profile hero — sits outside ScrollView so it stays sticky */}
       {analyses.length > 0 && (
         <Animated.View style={[styles.hero, { paddingVertical: heropadV, gap: heroGap }]}>
-          {/* Avatar with scale transform */}
-          <Animated.View style={{ transform: [{ scale: avatarScale }], transformOrigin: 'left center' }}>
+          {/* Avatar with scale transform + negative marginRight so the name slides toward the wordmark */}
+          <Animated.View
+            style={{
+              transform: [{ scale: avatarScale }],
+              transformOrigin: 'left center',
+              marginRight: avatarMarginRight,
+            }}
+          >
             <PersonAvatar name={profile?.name} size={84} />
           </Animated.View>
 

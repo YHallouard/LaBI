@@ -15,7 +15,7 @@ export function UploadScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={styles.root}>
       {/* Sheet grabber */}
       <View style={styles.grabber} />
 

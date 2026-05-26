@@ -192,7 +192,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private async setupDatabaseStructure(db: Database): Promise<void> {
     await this.ensureAllRequiredTablesExist(db);
     await this.handleMigrations(db);
-    if (__DEV__) {
+    if (process.env.NODE_ENV === "test") {
       await this.populateTestDataForDevelopment(db);
     }
   }
@@ -1078,7 +1078,7 @@ export class SQLiteDatabaseStorage implements DatabaseStoragePort {
   private async performCompleteReset(db: Database): Promise<void> {
     await this.dropAllExistingTables(db);
     await this.recreateAllTables(db);
-    if (__DEV__) {
+    if (process.env.NODE_ENV === "test") {
       await this.populateTestDataForDevelopment(db);
     }
     await this.verifyResetWasSuccessful(db);
