@@ -1,12 +1,18 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Animated,
   View,
   Text,
   Pressable,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import Animated, {
+  useSharedValue,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -318,7 +324,13 @@ export function HomeScreen() {
   const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const scrollY = useSharedValue(0);
+
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
+    },
+  });
 
   const load = useCallback(async () => {
     if (!bundle) return;
@@ -369,24 +381,62 @@ export function HomeScreen() {
     });
   }, [bundle, pinnedKeys, analyses]);
 
-  // Animated interpolations (useNativeDriver: false — animating layout props)
-  const heropadV = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [48, 10], extrapolate: 'clamp' });
-  const heroGap = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [18, 10], extrapolate: 'clamp' });
-  const avatarScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 40 / 104], extrapolate: 'clamp' });
-  const avatarSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [104, 40], extrapolate: 'clamp' });
-  const nameFontSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [32, 18], extrapolate: 'clamp' });
-  const nameLineHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [36, 20], extrapolate: 'clamp' });
-  const helloFontSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [13, 11], extrapolate: 'clamp' });
-  const helloOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.6], outputRange: [1, 0], extrapolate: 'clamp' });
-  const helloHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.6], outputRange: [18, 0], extrapolate: 'clamp' });
-  const metaOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [1, 0], extrapolate: 'clamp' });
-  const metaHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [21, 0], extrapolate: 'clamp' });
-  // Brand wordmark shrink (26→13) + container collapse (34→20)
-  const wordmarkScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 12 / 26], extrapolate: 'clamp' });
-  const wordmarkHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [34, 20], extrapolate: 'clamp' });
-  const wordmarkPadTop = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [8, 4], extrapolate: 'clamp' });
-  // Gradient parallax — moves up with scroll
-  const gradientTranslateY = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [0, -SHRINK_RANGE], extrapolate: 'clamp' });
+  // All animations run on the UI thread via Reanimated. Text uses `scale` instead
+  // of `fontSize` to avoid per-frame text re-measurement (Android scroll flicker).
+  const gradientAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -SHRINK_RANGE], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const wordmarkRowAnimStyle = useAnimatedStyle(() => ({
+    height: interpolate(scrollY.value, [0, SHRINK_RANGE], [34, 20], Extrapolation.CLAMP),
+    paddingTop: interpolate(scrollY.value, [0, SHRINK_RANGE], [8, 4], Extrapolation.CLAMP),
+  }));
+
+  const wordmarkAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 12 / 26], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const heroAnimStyle = useAnimatedStyle(() => ({
+    paddingVertical: interpolate(scrollY.value, [0, SHRINK_RANGE], [48, 10], Extrapolation.CLAMP),
+    gap: interpolate(scrollY.value, [0, SHRINK_RANGE], [18, 10], Extrapolation.CLAMP),
+  }));
+
+  const avatarBoxAnimStyle = useAnimatedStyle(() => ({
+    width: interpolate(scrollY.value, [0, SHRINK_RANGE], [104, 40], Extrapolation.CLAMP),
+    height: interpolate(scrollY.value, [0, SHRINK_RANGE], [104, 40], Extrapolation.CLAMP),
+  }));
+
+  const avatarAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 40 / 104], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const helloBoxAnimStyle = useAnimatedStyle(() => ({
+    height: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.6], [18, 0], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.6], [1, 0], Extrapolation.CLAMP),
+  }));
+
+  const helloAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 11 / 13], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const nameAnimStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 18 / 32], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const metaBoxAnimStyle = useAnimatedStyle(() => ({
+    height: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.4], [21, 0], Extrapolation.CLAMP),
+    opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.4], [1, 0], Extrapolation.CLAMP),
+  }));
 
   if (loading) {
     return (
@@ -406,7 +456,7 @@ export function HomeScreen() {
       {/* Hero gradient — anchored top, translates upward with scroll (parallax) */}
       <Animated.View
         pointerEvents="none"
-        style={[styles.gradientWrap, { transform: [{ translateY: gradientTranslateY }] }]}
+        style={[styles.gradientWrap, gradientAnimStyle]}
       >
         <LinearGradient
           colors={[
@@ -422,38 +472,31 @@ export function HomeScreen() {
       </Animated.View>
 
       {/* Brand mark — shrinks with scroll */}
-      <Animated.View style={[styles.brandRow, { height: wordmarkHeight, paddingTop: wordmarkPadTop }]}>
-        <Animated.View style={{ transform: [{ scale: wordmarkScale }], transformOrigin: 'top left' }}>
+      <Animated.View style={[styles.brandRow, wordmarkRowAnimStyle]}>
+        <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle]}>
           <HemeaWordmark size={26} />
         </Animated.View>
       </Animated.View>
 
       {/* Collapsible profile hero — sits outside ScrollView so it stays sticky */}
       {analyses.length > 0 && (
-        <Animated.View style={[styles.hero, { paddingVertical: heropadV, gap: heroGap }]}>
+        <Animated.View style={[styles.hero, heroAnimStyle]}>
           {/* Outer wrapper changes layout size (104→40), inner scales visually to match */}
-          <Animated.View style={{ width: avatarSize, height: avatarSize, overflow: 'visible' }}>
-            <Animated.View
-              style={{
-                width: 104,
-                height: 104,
-                transform: [{ scale: avatarScale }],
-                transformOrigin: 'top left',
-              }}
-            >
+          <Animated.View style={[styles.avatarBox, avatarBoxAnimStyle]}>
+            <Animated.View style={[styles.avatarInner, avatarAnimStyle]}>
               <PersonAvatar name={avatarName} size={104} imageUri={profile?.profileImage} />
             </Animated.View>
           </Animated.View>
 
           {/* Text group */}
           <View style={styles.heroText}>
-            <Animated.View style={{ height: helloHeight, opacity: helloOpacity, overflow: 'hidden' }}>
-              <Animated.Text style={[styles.helloText, { fontSize: helloFontSize }]}>Bonjour,</Animated.Text>
+            <Animated.View style={[styles.helloBox, helloBoxAnimStyle]}>
+              <Animated.Text style={[styles.helloText, helloAnimStyle]}>Bonjour,</Animated.Text>
             </Animated.View>
-            <Animated.Text style={[styles.heroName, { fontSize: nameFontSize, lineHeight: nameLineHeight }]}>
+            <Animated.Text style={[styles.heroName, styles.nameOrigin, nameAnimStyle]}>
               {displayName}
             </Animated.Text>
-            <Animated.View style={{ height: metaHeight, opacity: metaOpacity, overflow: 'hidden' }}>
+            <Animated.View style={[styles.metaBox, metaBoxAnimStyle]}>
               {profile && age !== null && (
                 <Text style={styles.metaText}>
                   <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
@@ -501,10 +544,7 @@ export function HomeScreen() {
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
           showsVerticalScrollIndicator={false}
           scrollEventThrottle={16}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: false }
-          )}
+          onScroll={scrollHandler}
         >
           {/* BalanceCard — shown only when magnitude data available */}
           {magnitudeData.length > 0 && (
@@ -574,23 +614,37 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     zIndex: 2,
   },
+  wordmarkOrigin: { transformOrigin: 'top left' },
   hero: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing[5],
     zIndex: 1,
   },
+  avatarBox: { overflow: 'visible' },
+  avatarInner: {
+    width: 104,
+    height: 104,
+    transformOrigin: 'top left',
+  },
   heroText: { flex: 1, minWidth: 0, gap: 2 },
+  helloBox: { overflow: 'hidden' },
+  metaBox: { overflow: 'hidden' },
   helloText: {
+    fontSize: 13,
     fontWeight: '600',
     color: colors.textBody,
     lineHeight: 18,
+    transformOrigin: 'left center',
   },
   heroName: {
+    fontSize: 32,
+    lineHeight: 36,
     fontWeight: '800',
     color: colors.textStrong,
     letterSpacing: -0.6,
   },
+  nameOrigin: { transformOrigin: 'left center' },
   metaText: {
     fontSize: 13,
     fontWeight: '500',
