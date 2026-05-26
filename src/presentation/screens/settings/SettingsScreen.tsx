@@ -1,29 +1,22 @@
 import React from 'react';
-import { View, ScrollView, StyleSheet, Pressable, Text } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   colors, spacing,
-  typography, ScreenHeader, ListSection, ListRow, HemeaWordmark,
+  typography, ScreenHeader, ListSection, ListRow, HemeaWordmark, ModalGrabber,
 } from '../../../design-system';
 
 export function SettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const dismiss = () => router.back();
-
   return (
     <View style={styles.root}>
-      {/* Modal header */}
-      <View style={styles.modalHeader}>
-        <View style={styles.grabber} />
-        <Pressable onPress={dismiss} style={styles.closeBtn}>
-          <Text style={[typography.body, { color: colors.primary }]}>Fermer</Text>
-        </Pressable>
-        <ScreenHeader title="Réglages" />
-      </View>
+      <ModalGrabber />
+      <View style={styles.headerSpacer} />
+      <ScreenHeader title="Réglages" />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
@@ -55,22 +48,7 @@ export function SettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  modalHeader: { paddingTop: spacing[2] },
-  grabber: {
-    width: 38,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginBottom: spacing[2],
-  },
-  closeBtn: {
-    position: 'absolute',
-    right: spacing[4],
-    top: spacing[3],
-    zIndex: 10,
-    paddingVertical: spacing[1],
-  },
+  headerSpacer: { height: spacing[3] },
   content: { paddingTop: spacing[2] },
   footer: { alignItems: 'center', paddingVertical: spacing[6] },
 });

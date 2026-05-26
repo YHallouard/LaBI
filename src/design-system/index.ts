@@ -14,3 +14,4 @@ export { PersonAvatar } from './components/PersonAvatar';
 export { Toggle } from './components/Toggle';
 export { SyncHeroCard } from './components/SyncHeroCard';
 export { DeviceDiscoveryRow } from './components/DeviceDiscoveryRow';
+export { ModalGrabber } from './components/ModalGrabber';

@@ -374,8 +374,7 @@ export function HomeScreen() {
   const heropadV = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [20, 10], extrapolate: 'clamp' });
   const heroGap = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [16, 10], extrapolate: 'clamp' });
   const avatarScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 40 / 84], extrapolate: 'clamp' });
-  // Avatar layout width stays 84px; compensate with negative marginRight so the name slides left
-  const avatarMarginRight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [0, -(84 - 40)], extrapolate: 'clamp' });
+  const avatarSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [84, 40], extrapolate: 'clamp' });
   const nameFontSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [30, 18], extrapolate: 'clamp' });
   const helloOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.6], outputRange: [1, 0], extrapolate: 'clamp' });
   const metaOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -409,15 +408,18 @@ export function HomeScreen() {
       {/* Collapsible profile hero — sits outside ScrollView so it stays sticky */}
       {analyses.length > 0 && (
         <Animated.View style={[styles.hero, { paddingVertical: heropadV, gap: heroGap }]}>
-          {/* Avatar with scale transform + negative marginRight so the name slides toward the wordmark */}
-          <Animated.View
-            style={{
-              transform: [{ scale: avatarScale }],
-              transformOrigin: 'left center',
-              marginRight: avatarMarginRight,
-            }}
-          >
-            <PersonAvatar name={profile?.name} size={84} />
+          {/* Outer wrapper changes layout size (84→40), inner scales visually to match */}
+          <Animated.View style={{ width: avatarSize, height: avatarSize, overflow: 'visible' }}>
+            <Animated.View
+              style={{
+                width: 84,
+                height: 84,
+                transform: [{ scale: avatarScale }],
+                transformOrigin: 'top left',
+              }}
+            >
+              <PersonAvatar name={profile?.name} size={84} />
+            </Animated.View>
           </Animated.View>
 
           {/* Text group */}

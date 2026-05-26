@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, ListRow, ListSection,
+  typography, ScreenHeader, ListRow, ListSection, ModalGrabber,
 } from '../../../design-system';
 
 const SECTIONS = [
@@ -37,6 +37,7 @@ export function PrivacySecurityScreen() {
 
   return (
     <View style={styles.root}>
+      <ModalGrabber />
       <ScreenHeader title="Confidentialité" subtitle="Protection de vos données" onBack={() => router.back()} />
 
       <ScrollView

@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUseCases } from '../../contexts/UseCasesContext';
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, Banner, PrimaryButton, ListRow, ListSection,
+  typography, ScreenHeader, Banner, PrimaryButton, ListRow, ListSection, ModalGrabber,
 } from '../../../design-system';
 
 export function ApiKeySettingsScreen() {
@@ -108,6 +108,7 @@ export function ApiKeySettingsScreen() {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <ModalGrabber />
       <ScreenHeader title="Clé API Mistral" subtitle="OCR et extraction des analyses" onBack={() => router.back()} />
 
       <ScrollView

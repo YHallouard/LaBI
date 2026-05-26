@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import {
   colors,
-  ScreenHeader,
+  ScreenHeader, ModalGrabber,
 } from '../../../design-system';
 
 const TUTORIAL_URL = 'https://yhallouard.github.io/LaBI/create-mistral-api-key.html';
@@ -20,6 +20,7 @@ export function MistralApiKeyTutorialScreen() {
 
   return (
     <View style={styles.root}>
+      <ModalGrabber />
       <ScreenHeader
         title="Clé API Mistral"
         subtitle="Guide pas à pas"

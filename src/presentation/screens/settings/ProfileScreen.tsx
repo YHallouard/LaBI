@@ -21,7 +21,7 @@ import { EditUserProfileUseCase } from '../../../domain/usecases/EditUserProfile
 import { RepositoryFactory } from '../../../infrastructure/repositories/RepositoryFactory';
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, PersonAvatar, Banner, PrimaryButton,
+  typography, ScreenHeader, PersonAvatar, Banner, PrimaryButton, ModalGrabber,
 } from '../../../design-system';
 
 export function ProfileScreen() {
@@ -129,6 +129,7 @@ export function ProfileScreen() {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <ModalGrabber />
       <ScreenHeader
         title="Profil"
         subtitle="Informations personnelles"

@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   colors, spacing,
-  ScreenHeader, ListRow, ListSection,
+  ScreenHeader, ListRow, ListSection, ModalGrabber,
 } from '../../../design-system';
 
 export function HelpCenterScreen() {
@@ -14,6 +14,7 @@ export function HelpCenterScreen() {
 
   return (
     <View style={styles.root}>
+      <ModalGrabber />
       <ScreenHeader title="Centre d'aide" subtitle="Questions fréquentes et support" onBack={() => router.back()} />
 
       <ScrollView

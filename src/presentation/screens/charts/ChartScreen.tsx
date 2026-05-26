@@ -21,7 +21,7 @@ import { useUseCases } from '../../contexts/UseCasesContext';
 import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_EXPLANATIONS } from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, StatCard,
+  typography, ScreenHeader, StatCard, ModalGrabber,
 } from '../../../design-system';
 
 // ─── Time range definitions ───────────────────────────────────────────────────
@@ -117,31 +117,32 @@ function MarkerInfoSheet({ marker, onClose }: { marker: InfoSheetMarker; onClose
   const info = LAB_VALUE_EXPLANATIONS[marker.key];
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose}>
-        <BlurView intensity={18} tint="dark" style={StyleSheet.absoluteFillObject} />
-      </Pressable>
-      <View style={[styles.sheetContainer, { paddingBottom: insets.bottom + 16 }]} pointerEvents="box-none">
-        <Pressable style={styles.sheet} onPress={e => e.stopPropagation()}>
-          {/* Grabber */}
-          <View style={styles.grabber} />
+    <Modal
+      visible
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
+        <ModalGrabber />
 
-          {/* Header */}
-          <View style={styles.sheetHeader}>
-            <View style={styles.sheetIconRow}>
-              <View style={styles.sheetIcon}>
-                <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[typography.label, { marginBottom: 2 }]}>À propos du marqueur</Text>
-                <Text style={[typography.h2, { letterSpacing: -0.1 }]}>{marker.key}</Text>
-              </View>
+        {/* Header */}
+        <View style={styles.sheetHeader}>
+          <View style={styles.sheetIconRow}>
+            <View style={styles.sheetIcon}>
+              <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
             </View>
-            <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Fermer">
-              <Ionicons name="close" size={16} color={colors.textBody} />
-            </Pressable>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={[typography.label, { marginBottom: 2 }]}>À propos du marqueur</Text>
+              <Text style={[typography.h2, { letterSpacing: -0.1 }]}>{marker.key}</Text>
+            </View>
           </View>
+          <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Fermer">
+            <Ionicons name="close" size={16} color={colors.textBody} />
+          </Pressable>
+        </View>
 
+        <ScrollView showsVerticalScrollIndicator={false}>
           {/* Info text */}
           {info ? (
             <Text style={[typography.body, styles.sheetBody]}>{info}</Text>
@@ -165,7 +166,7 @@ function MarkerInfoSheet({ marker, onClose }: { marker: InfoSheetMarker; onClose
           <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: 12 }]}>
             Information à but pédagogique. Pour toute question médicale, consultez un professionnel.
           </Text>
-        </Pressable>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -592,37 +593,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   // MarkerInfoSheet
-  sheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
-  sheetContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 2,
-    justifyContent: 'flex-end',
-  },
   sheet: {
+    flex: 1,
     backgroundColor: colors.bgElevated,
-    borderTopLeftRadius: radii['2xl'],
-    borderTopRightRadius: radii['2xl'],
-    paddingTop: 8,
     paddingHorizontal: spacing[5],
-    shadowColor: '#12263F',
-    shadowOffset: { width: 0, height: -10 },
-    shadowOpacity: 0.18,
-    shadowRadius: 30,
-    elevation: 20,
-  },
-  grabber: {
-    width: 38,
-    height: 4,
-    borderRadius: 999,
-    backgroundColor: colors.border,
-    alignSelf: 'center',
-    marginBottom: 14,
   },
   sheetHeader: {
     flexDirection: 'row',

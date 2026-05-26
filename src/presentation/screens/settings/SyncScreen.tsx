@@ -27,7 +27,7 @@ import { getDatabaseStorage } from '../../../infrastructure/database/DatabaseIni
 import {
   colors, spacing, radii, elevation, typography,
   ScreenHeader, ListSection, PrimaryButton,
-  SyncHeroCard, DeviceDiscoveryRow,
+  SyncHeroCard, DeviceDiscoveryRow, ModalGrabber,
 } from '../../../design-system';
 
 export function SyncScreen() {
@@ -214,6 +214,7 @@ export function SyncScreen() {
 
   return (
     <View style={styles.root}>
+      <ModalGrabber />
       <ScreenHeader
         title="Synchronisation"
         subtitle="Pair-à-pair · réseau local"

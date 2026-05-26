@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import {
   colors,
-  ScreenHeader,
+  ScreenHeader, ModalGrabber,
 } from '../../../design-system';
 
 const PRIVACY_POLICY_URL = 'https://yhallouard.github.io/LaBI/privacy-policy.html';
@@ -20,6 +20,7 @@ export function PrivacyPolicyWebViewScreen() {
 
   return (
     <View style={styles.root}>
+      <ModalGrabber />
       <ScreenHeader
         title="Politique de confidentialité"
         onBack={() => router.back()}

@@ -6,7 +6,7 @@ import { useRouter } from 'expo-router';
 import { APP_VERSION } from '../../../utils/appConstants';
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, ListRow, ListSection, HemeaWordmark,
+  typography, ScreenHeader, ListRow, ListSection, HemeaWordmark, ModalGrabber,
 } from '../../../design-system';
 
 export function AboutScreen() {
@@ -15,6 +15,7 @@ export function AboutScreen() {
 
   return (
     <View style={styles.root}>
+      <ModalGrabber />
       <ScreenHeader title="À propos" subtitle="Héméa" onBack={() => router.back()} />
 
       <ScrollView

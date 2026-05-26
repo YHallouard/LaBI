@@ -14,7 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useUseCases } from '../../contexts/UseCasesContext';
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, Banner, PrimaryButton, ListRow, ListSection,
+  typography, ScreenHeader, Banner, PrimaryButton, ListRow, ListSection, ModalGrabber,
 } from '../../../design-system';
 
 export function DatabaseSettingsScreen() {
@@ -69,6 +69,7 @@ export function DatabaseSettingsScreen() {
 
   return (
     <View style={styles.root}>
+      <ModalGrabber />
       <ScreenHeader title="Base de données" subtitle="Stockage local SQLite" onBack={() => router.back()} />
 
       <ScrollView
