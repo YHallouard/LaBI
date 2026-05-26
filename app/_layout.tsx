@@ -17,6 +17,15 @@ export default function RootLayout() {
               <Stack.Screen name="analyses" />
               <Stack.Screen name="upload" options={{ presentation: 'modal' }} />
               <Stack.Screen name="settings" options={{ presentation: 'modal' }} />
+              <Stack.Screen
+                name="marker-info"
+                options={{
+                  presentation: 'formSheet',
+                  sheetAllowedDetents: [0.5],
+                  sheetGrabberVisible: true,
+                  sheetCornerRadius: 24,
+                }}
+              />
               <Stack.Screen name="+not-found" />
             </Stack>
           </TimeRangeProvider>

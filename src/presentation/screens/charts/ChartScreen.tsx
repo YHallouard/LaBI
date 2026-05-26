@@ -4,13 +4,13 @@ import {
   Text,
   ScrollView,
   TextInput,
-  Modal,
   StyleSheet,
   ActivityIndicator,
   Pressable,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import Svg, { Line, Circle, Path, Text as SvgText, Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
@@ -21,7 +21,7 @@ import { useUseCases } from '../../contexts/UseCasesContext';
 import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_EXPLANATIONS } from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, StatCard, ModalGrabber,
+  typography, ScreenHeader, StatCard,
 } from '../../../design-system';
 
 // ─── Time range definitions ───────────────────────────────────────────────────
@@ -106,69 +106,6 @@ function SimpleChart({
         </SvgText>
       ))}
     </Svg>
-  );
-}
-
-// ─── MarkerInfoSheet ──────────────────────────────────────────────────────────
-type InfoSheetMarker = { key: string; unit: string; refMin?: number; refMax?: number };
-
-function MarkerInfoSheet({ marker, onClose }: { marker: InfoSheetMarker; onClose: () => void }) {
-  const insets = useSafeAreaInsets();
-  const info = LAB_VALUE_EXPLANATIONS[marker.key];
-
-  return (
-    <Modal
-      visible
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
-        <ModalGrabber />
-
-        {/* Header */}
-        <View style={styles.sheetHeader}>
-          <View style={styles.sheetIconRow}>
-            <View style={styles.sheetIcon}>
-              <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={[typography.label, { marginBottom: 2 }]}>À propos du marqueur</Text>
-              <Text style={[typography.h2, { letterSpacing: -0.1 }]}>{marker.key}</Text>
-            </View>
-          </View>
-          <Pressable onPress={onClose} style={styles.closeBtn} accessibilityLabel="Fermer">
-            <Ionicons name="close" size={16} color={colors.textBody} />
-          </Pressable>
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Info text */}
-          {info ? (
-            <Text style={[typography.body, styles.sheetBody]}>{info}</Text>
-          ) : (
-            <Text style={[typography.small, { color: colors.textBody }]}>
-              Aucune information disponible pour ce marqueur.
-            </Text>
-          )}
-
-          {/* Reference range */}
-          {marker.refMin != null && marker.refMax != null && (
-            <View style={styles.rangeRow}>
-              <Text style={[typography.small, { fontWeight: '600', color: colors.textBody }]}>Plage normale</Text>
-              <Text style={[typography.small, { fontWeight: '700', color: colors.textStrong, fontVariant: ['tabular-nums'] }]}>
-                {marker.refMin} – {marker.refMax} {marker.unit}
-              </Text>
-            </View>
-          )}
-
-          {/* Disclaimer */}
-          <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: 12 }]}>
-            Information à but pédagogique. Pour toute question médicale, consultez un professionnel.
-          </Text>
-        </ScrollView>
-      </View>
-    </Modal>
   );
 }
 
@@ -298,6 +235,7 @@ const markerStyles = StyleSheet.create({
 // ─── ChartScreen ──────────────────────────────────────────────────────────────
 export function ChartScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { bundle } = useUseCases();
 
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
@@ -307,7 +245,6 @@ export function ChartScreen() {
   const [range, setRange] = useState<RangeKey>('1Y');
   const [fabOpen, setFabOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [infoMarker, setInfoMarker] = useState<InfoSheetMarker | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -463,7 +400,15 @@ export function ChartScreen() {
                   refMax={m.refMax}
                   pinned={pinnedKeys.includes(m.key)}
                   onTogglePin={() => handleTogglePin(m.key)}
-                  onOpenInfo={() => setInfoMarker({ key: m.key, unit: m.unit, refMin: m.refMin, refMax: m.refMax })}
+                  onOpenInfo={() => router.push({
+                    pathname: '/marker-info',
+                    params: {
+                      key: m.key,
+                      unit: m.unit ?? '',
+                      refMin: m.refMin?.toString() ?? '',
+                      refMax: m.refMax?.toString() ?? '',
+                    },
+                  })}
                 />
               ))}
             </View>
@@ -471,10 +416,6 @@ export function ChartScreen() {
         )}
       </ScrollView>
 
-      {/* MarkerInfoSheet */}
-      {infoMarker && (
-        <MarkerInfoSheet marker={infoMarker} onClose={() => setInfoMarker(null)} />
-      )}
     </View>
   );
 }
@@ -591,51 +532,5 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderColor: colors.border,
     alignItems: 'center',
-  },
-  // MarkerInfoSheet
-  sheet: {
-    flex: 1,
-    backgroundColor: colors.bgElevated,
-    paddingHorizontal: spacing[5],
-  },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 14,
-    gap: 12,
-  },
-  sheetIconRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
-  sheetIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.lg,
-    backgroundColor: colors.bgBlue,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.bg,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  sheetBody: {
-    color: colors.textBody,
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-  rangeRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.bgBlue,
-    borderRadius: radii.lg,
-    padding: 12,
-    marginTop: 4,
   },
 });

@@ -322,7 +322,6 @@ export function HomeScreen() {
 
   const load = useCallback(async () => {
     if (!bundle) return;
-    setLoading(true);
     try {
       const [a, p, mag, pinned] = await Promise.all([
         bundle.getAnalyses.execute(),
@@ -371,13 +370,23 @@ export function HomeScreen() {
   }, [bundle, pinnedKeys, analyses]);
 
   // Animated interpolations (useNativeDriver: false — animating layout props)
-  const heropadV = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [20, 10], extrapolate: 'clamp' });
-  const heroGap = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [16, 10], extrapolate: 'clamp' });
-  const avatarScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 40 / 84], extrapolate: 'clamp' });
-  const avatarSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [84, 40], extrapolate: 'clamp' });
-  const nameFontSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [30, 18], extrapolate: 'clamp' });
+  const heropadV = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [48, 10], extrapolate: 'clamp' });
+  const heroGap = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [18, 10], extrapolate: 'clamp' });
+  const avatarScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 40 / 104], extrapolate: 'clamp' });
+  const avatarSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [104, 40], extrapolate: 'clamp' });
+  const nameFontSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [32, 18], extrapolate: 'clamp' });
+  const nameLineHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [36, 20], extrapolate: 'clamp' });
+  const helloFontSize = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [13, 11], extrapolate: 'clamp' });
   const helloOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.6], outputRange: [1, 0], extrapolate: 'clamp' });
+  const helloHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.6], outputRange: [18, 0], extrapolate: 'clamp' });
   const metaOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [1, 0], extrapolate: 'clamp' });
+  const metaHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [21, 0], extrapolate: 'clamp' });
+  // Brand wordmark shrink (26→13) + container collapse (34→20)
+  const wordmarkScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 13 / 26], extrapolate: 'clamp' });
+  const wordmarkHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [34, 20], extrapolate: 'clamp' });
+  const wordmarkPadTop = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [8, 4], extrapolate: 'clamp' });
+  // Gradient parallax — moves up with scroll
+  const gradientTranslateY = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [0, -SHRINK_RANGE], extrapolate: 'clamp' });
 
   if (loading) {
     return (
@@ -389,52 +398,73 @@ export function HomeScreen() {
 
   const displayName = profile?.firstName ?? 'vous';
   const age = profile ? (bundle?.getUserAgeUseCase.execute(profile) ?? '—') : null;
+  const avatarName = profile?.name ?? (profile ? `${profile.firstName} ${profile.lastName}` : undefined);
+  const sexLetter = profile?.gender === 'female' ? 'F' : profile?.gender === 'male' ? 'M' : null;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Hero gradient */}
-      <LinearGradient
-        colors={['rgba(44,123,229,0.38)', 'rgba(44,123,229,0.30)', 'rgba(44,123,229,0.12)', 'rgba(248,249,250,0.0)']}
-        locations={[0, 0.18, 0.5, 0.85]}
-        style={StyleSheet.absoluteFillObject}
+      {/* Hero gradient — anchored top, translates upward with scroll (parallax) */}
+      <Animated.View
         pointerEvents="none"
-      />
+        style={[styles.gradientWrap, { transform: [{ translateY: gradientTranslateY }] }]}
+      >
+        <LinearGradient
+          colors={[
+            'rgba(44,123,229,0.72)',
+            'rgba(44,123,229,0.52)',
+            'rgba(44,123,229,0.28)',
+            'rgba(44,123,229,0.10)',
+            'rgba(248,249,250,0.0)',
+          ]}
+          locations={[0, 0.14, 0.38, 0.62, 0.88]}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </Animated.View>
 
-      {/* Brand mark */}
-      <View style={styles.brandRow}>
-        <HemeaWordmark size={16} />
-      </View>
+      {/* Brand mark — shrinks with scroll */}
+      <Animated.View style={[styles.brandRow, { height: wordmarkHeight, paddingTop: wordmarkPadTop }]}>
+        <Animated.View style={{ transform: [{ scale: wordmarkScale }], transformOrigin: 'top left' }}>
+          <HemeaWordmark size={26} />
+        </Animated.View>
+      </Animated.View>
 
       {/* Collapsible profile hero — sits outside ScrollView so it stays sticky */}
       {analyses.length > 0 && (
         <Animated.View style={[styles.hero, { paddingVertical: heropadV, gap: heroGap }]}>
-          {/* Outer wrapper changes layout size (84→40), inner scales visually to match */}
+          {/* Outer wrapper changes layout size (104→40), inner scales visually to match */}
           <Animated.View style={{ width: avatarSize, height: avatarSize, overflow: 'visible' }}>
             <Animated.View
               style={{
-                width: 84,
-                height: 84,
+                width: 104,
+                height: 104,
                 transform: [{ scale: avatarScale }],
                 transformOrigin: 'top left',
               }}
             >
-              <PersonAvatar name={profile?.name} size={84} />
+              <PersonAvatar name={avatarName} size={104} />
             </Animated.View>
           </Animated.View>
 
           {/* Text group */}
           <View style={styles.heroText}>
-            <Animated.Text style={[styles.helloText, { opacity: helloOpacity }]}>
-              Bonjour,
-            </Animated.Text>
-            <Animated.Text style={[styles.heroName, { fontSize: nameFontSize }]}>
+            <Animated.View style={{ height: helloHeight, opacity: helloOpacity, overflow: 'hidden' }}>
+              <Animated.Text style={[styles.helloText, { fontSize: helloFontSize }]}>Bonjour,</Animated.Text>
+            </Animated.View>
+            <Animated.Text style={[styles.heroName, { fontSize: nameFontSize, lineHeight: nameLineHeight }]}>
               {displayName}
             </Animated.Text>
-            <Animated.View style={{ opacity: metaOpacity }}>
+            <Animated.View style={{ height: metaHeight, opacity: metaOpacity, overflow: 'hidden' }}>
               {profile && age !== null && (
                 <Text style={styles.metaText}>
                   <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
-                  {' ans · '}
+                  {' ans'}
+                  {sexLetter && (
+                    <>
+                      {' · '}
+                      <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{sexLetter}</Text>
+                    </>
+                  )}
+                  {' · '}
                   <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{analyses.length}</Text>
                   {' analyses'}
                 </Text>
@@ -452,7 +482,7 @@ export function HomeScreen() {
       {analyses.length === 0 ? (
         /* Empty state */
         <View style={styles.emptyState}>
-          <PersonAvatar name={profile?.name} size={56} />
+          <PersonAvatar name={avatarName} size={56} />
           <View style={styles.emptyText}>
             <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
             <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
@@ -529,9 +559,20 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
+  gradientWrap: {
+    position: 'absolute',
+    top: -50,
+    left: 0,
+    right: 0,
+    height: 580,
+    zIndex: 0,
+  },
   brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing[5],
-    paddingTop: spacing[1],
+    overflow: 'hidden',
+    zIndex: 1,
   },
   hero: {
     flexDirection: 'row',
@@ -541,23 +582,22 @@ const styles = StyleSheet.create({
   },
   heroText: { flex: 1, minWidth: 0, gap: 2 },
   helloText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: colors.textMuted,
+    fontWeight: '600',
+    color: colors.textBody,
     lineHeight: 18,
   },
   heroName: {
     fontWeight: '800',
     color: colors.textStrong,
     letterSpacing: -0.6,
-    lineHeight: 34,
   },
   metaText: {
     fontSize: 13,
-    color: colors.textBody,
+    fontWeight: '500',
+    color: colors.textStrong,
     marginTop: 4,
   },
-  scroll: { flex: 1 },
+  scroll: { flex: 1, zIndex: 1 },
   scrollContent: {
     paddingHorizontal: spacing[4],
     paddingTop: spacing[3],
