@@ -23,45 +23,45 @@ export default function MarkerInfoScreen() {
   const refMax = refMaxStr ? Number(refMaxStr) : undefined;
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom + 16 }]}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={{ paddingHorizontal: spacing[5], paddingTop: spacing[4], paddingBottom: insets.bottom + 24 }}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
-        <View style={styles.iconRow}>
-          <View style={styles.icon}>
-            <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
-          </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={[typography.label, { marginBottom: 2 }]}>À propos du marqueur</Text>
-            <Text style={[typography.h2, { letterSpacing: -0.1 }]} numberOfLines={1}>{key}</Text>
-          </View>
+        <View style={styles.icon}>
+          <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+        </View>
+        <View style={styles.titleBlock}>
+          <Text style={typography.label}>À propos du marqueur</Text>
+          <Text style={[typography.h2, { letterSpacing: -0.1 }]} numberOfLines={1}>{key}</Text>
         </View>
         <Pressable onPress={() => router.back()} style={styles.closeBtn} accessibilityLabel="Fermer">
           <Ionicons name="close" size={16} color={colors.textBody} />
         </Pressable>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.body}>
-        {info ? (
-          <Text style={[typography.body, styles.infoText]}>{info}</Text>
-        ) : (
-          <Text style={[typography.small, { color: colors.textBody }]}>
-            Aucune information disponible pour ce marqueur.
-          </Text>
-        )}
-
-        {refMin != null && refMax != null && (
-          <View style={styles.rangeRow}>
-            <Text style={[typography.small, { fontWeight: '600', color: colors.textBody }]}>Plage normale</Text>
-            <Text style={[typography.small, { fontWeight: '700', color: colors.textStrong, fontVariant: ['tabular-nums'] }]}>
-              {refMin} – {refMax} {unit_}
-            </Text>
-          </View>
-        )}
-
-        <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: 12 }]}>
-          Information à but pédagogique. Pour toute question médicale, consultez un professionnel.
+      {info ? (
+        <Text style={[typography.body, styles.infoText]}>{info}</Text>
+      ) : (
+        <Text style={[typography.small, { color: colors.textBody }]}>
+          Aucune information disponible pour ce marqueur.
         </Text>
-      </ScrollView>
-    </View>
+      )}
+
+      {refMin != null && refMax != null && (
+        <View style={styles.rangeRow}>
+          <Text style={[typography.small, { fontWeight: '600', color: colors.textBody }]}>Plage normale</Text>
+          <Text style={[typography.small, { fontWeight: '700', color: colors.textStrong, fontVariant: ['tabular-nums'] }]}>
+            {refMin} – {refMax} {unit_}
+          </Text>
+        </View>
+      )}
+
+      <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: 12 }]}>
+        Information à but pédagogique. Pour toute question médicale, consultez un professionnel.
+      </Text>
+    </ScrollView>
   );
 }
 
@@ -69,17 +69,16 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.bgElevated,
-    paddingHorizontal: spacing[5],
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginTop: spacing[4],
-    marginBottom: 14,
+    alignItems: 'center',
     gap: 12,
+    marginBottom: 16,
   },
-  iconRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  titleBlock: {
+    flex: 1,
+  },
   icon: {
     width: 38,
     height: 38,
@@ -87,7 +86,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bgBlue,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
   closeBtn: {
     width: 32,
@@ -96,10 +94,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
-  },
-  body: {
-    paddingBottom: 16,
   },
   infoText: {
     color: colors.textBody,

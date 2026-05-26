@@ -382,7 +382,7 @@ export function HomeScreen() {
   const metaOpacity = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [1, 0], extrapolate: 'clamp' });
   const metaHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE * 0.4], outputRange: [21, 0], extrapolate: 'clamp' });
   // Brand wordmark shrink (26→13) + container collapse (34→20)
-  const wordmarkScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 13 / 26], extrapolate: 'clamp' });
+  const wordmarkScale = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [1, 12 / 26], extrapolate: 'clamp' });
   const wordmarkHeight = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [34, 20], extrapolate: 'clamp' });
   const wordmarkPadTop = scrollY.interpolate({ inputRange: [0, SHRINK_RANGE], outputRange: [8, 4], extrapolate: 'clamp' });
   // Gradient parallax — moves up with scroll
@@ -572,7 +572,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing[5],
     overflow: 'hidden',
-    zIndex: 1,
+    zIndex: 2,
   },
   hero: {
     flexDirection: 'row',

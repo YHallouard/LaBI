@@ -12,7 +12,7 @@ export function HemeaWordmark({ size = 22, color = colors.textStrong }: Props) {
   const dropSize = Math.round(size * 0.9);
   return (
     <View style={styles.row}>
-      <Text style={[styles.text, { fontSize: size, color }]}>Héméa</Text>
+      <Text style={[styles.text, { fontSize: size, lineHeight: size, color }]}>Héméa</Text>
       <Svg width={dropSize} height={dropSize} viewBox="0 0 24 24" style={styles.drop}>
         <Defs>
           <LinearGradient id="hg" x1="0" y1="0" x2="1" y2="1">
