@@ -15,7 +15,7 @@ import {
   LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_DEFAULT_RANGES,
 } from '../../../config/LabConfig';
 import {
-  colors, spacing, radii, elevation,
+  colors, spacing, radii,
   typography, ScreenHeader, ListSection, PrimaryButton, Banner, ModalGrabber,
 } from '../../../design-system';
 
@@ -249,34 +249,32 @@ export function AnalysisFormScreen() {
 
         {editMode && (
           <ListSection title="Date du bilan">
-            <View style={styles.card}>
-              <Pressable onPress={() => setShowDatePicker((v) => !v)} style={styles.dateBtn}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-                <Text style={styles.dateBtnText}>{formattedDate}</Text>
-                <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-              </Pressable>
-              {showDatePicker && (
-                <View style={styles.datePicker}>
-                  <DateTimePicker
-                    value={date}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onChange={(_, d) => {
-                      if (d) setDate(d);
-                      if (Platform.OS === 'android') setShowDatePicker(false);
-                    }}
-                    maximumDate={new Date()}
-                    minimumDate={new Date(2000, 0, 1)}
-                    style={Platform.OS === 'ios' ? { height: 180 } : undefined}
-                  />
-                  {Platform.OS === 'ios' && (
-                    <Pressable onPress={() => setShowDatePicker(false)} style={styles.datePickerDone}>
-                      <Text style={{ color: colors.primary, fontWeight: '600' }}>Confirmer</Text>
-                    </Pressable>
-                  )}
-                </View>
-              )}
-            </View>
+            <Pressable onPress={() => setShowDatePicker((v) => !v)} style={styles.dateBtn}>
+              <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+              <Text style={styles.dateBtnText}>{formattedDate}</Text>
+              <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+            </Pressable>
+            {showDatePicker && (
+              <View style={styles.datePicker}>
+                <DateTimePicker
+                  value={date}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(_, d) => {
+                    if (d) setDate(d);
+                    if (Platform.OS === 'android') setShowDatePicker(false);
+                  }}
+                  maximumDate={new Date()}
+                  minimumDate={new Date(2000, 0, 1)}
+                  style={Platform.OS === 'ios' ? { height: 180 } : undefined}
+                />
+                {Platform.OS === 'ios' && (
+                  <Pressable onPress={() => setShowDatePicker(false)} style={styles.datePickerDone}>
+                    <Text style={{ color: colors.primary, fontWeight: '600' }}>Confirmer</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
           </ListSection>
         )}
 
@@ -293,44 +291,42 @@ export function AnalysisFormScreen() {
 
           return (
             <ListSection key={catLabel} title={catLabel}>
-              <View style={styles.card}>
-                {visibleKeys.map((key, i) => {
-                  const unit = LAB_VALUE_UNITS[key] ?? '';
-                  const range = LAB_VALUE_DEFAULT_RANGES[key as keyof typeof LAB_VALUE_DEFAULT_RANGES];
-                  const isLast = i === visibleKeys.length - 1;
+              {visibleKeys.map((key, i) => {
+                const unit = LAB_VALUE_UNITS[key] ?? '';
+                const range = LAB_VALUE_DEFAULT_RANGES[key as keyof typeof LAB_VALUE_DEFAULT_RANGES];
+                const isLast = i === visibleKeys.length - 1;
 
-                  if (editMode) {
-                    return (
-                      <EditRow
-                        key={key}
-                        label={key}
-                        value={values[key] ?? ''}
-                        unit={unit}
-                        onChangeText={(v) => setValue(key, v)}
-                        isLast={isLast}
-                        rangeMin={range?.min}
-                        rangeMax={range?.max}
-                      />
-                    );
-                  }
-
-                  const labVal = analysis?.[key as keyof BiologicalAnalysis] as LabValue | undefined;
-                  const displayValue = labVal?.value?.toLocaleString('fr-FR', { maximumFractionDigits: 3 }) ?? '—';
-                  const outOfRange = isOutOfRange(key, labVal?.value);
+                if (editMode) {
                   return (
-                    <ValueRow
+                    <EditRow
                       key={key}
                       label={key}
-                      value={displayValue}
+                      value={values[key] ?? ''}
                       unit={unit}
-                      outOfRange={outOfRange}
+                      onChangeText={(v) => setValue(key, v)}
                       isLast={isLast}
                       rangeMin={range?.min}
                       rangeMax={range?.max}
                     />
                   );
-                })}
-              </View>
+                }
+
+                const labVal = analysis?.[key as keyof BiologicalAnalysis] as LabValue | undefined;
+                const displayValue = labVal?.value?.toLocaleString('fr-FR', { maximumFractionDigits: 3 }) ?? '—';
+                const outOfRange = isOutOfRange(key, labVal?.value);
+                return (
+                  <ValueRow
+                    key={key}
+                    label={key}
+                    value={displayValue}
+                    unit={unit}
+                    outOfRange={outOfRange}
+                    isLast={isLast}
+                    rangeMin={range?.min}
+                    rangeMax={range?.max}
+                  />
+                );
+              })}
             </ListSection>
           );
         })}
@@ -355,14 +351,6 @@ const styles = StyleSheet.create({
   errorWrap: { paddingHorizontal: spacing[4], marginBottom: spacing[3] },
   deleteWrap: { paddingHorizontal: spacing[4], paddingTop: spacing[6] },
 
-  card: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-    marginHorizontal: spacing[4],
-    marginBottom: spacing[1],
-    ...elevation[1],
-  },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
