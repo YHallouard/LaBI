@@ -7,12 +7,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-
 import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
 import { useUseCases } from '../../contexts/UseCasesContext';
 import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_DEFAULT_RANGES } from '../../../config/LabConfig';
 import {
-  colors, spacing, radii,
+  colors, spacing, radii, elevation,
   typography, ScreenHeader, ListSection, PrimaryButton,
 } from '../../../design-system';
 
@@ -23,28 +22,42 @@ function isOutOfRange(key: string, value: number | null | undefined): boolean {
   return value < range.min || value > range.max;
 }
 
-function ValueRow({ label, value, unit, outOfRange, isLast }: {
+function ValueRow({ label, value, unit, outOfRange, isLast, rangeMin, rangeMax }: {
   label: string; value: string; unit: string; outOfRange: boolean; isLast: boolean;
+  rangeMin?: number; rangeMax?: number;
 }) {
   return (
     <View style={[styles.valueRow, !isLast && styles.valueRowBorder]}>
-      <Text style={styles.valueRowLabel} numberOfLines={1}>{label}</Text>
-      <Text style={[styles.valueText, outOfRange && styles.alertValue]}>
-        {value}{unit ? ` ${unit}` : ''}
+      <View style={styles.valueRowLeft}>
+        <Text style={styles.valueRowLabel} numberOfLines={1}>{label}</Text>
+        {rangeMin != null && rangeMax != null && (
+          <Text style={styles.valueRowRange}>
+            Plage : {rangeMin} – {rangeMax}{unit ? ` ${unit}` : ''}
+          </Text>
+        )}
+      </View>
+      <Text style={outOfRange ? typography.valueAlert : typography.value}>
+        {value}
+        {unit ? <Text style={styles.valueUnit}> {unit}</Text> : null}
       </Text>
-      {outOfRange && (
-        <Ionicons name="warning-outline" size={14} color={colors.danger} style={{ marginLeft: 4 }} />
-      )}
     </View>
   );
 }
 
-function EditRow({ label, value, unit, onChangeText }: {
+function EditRow({ label, value, unit, onChangeText, rangeMin, rangeMax }: {
   label: string; value: string; unit: string; onChangeText: (v: string) => void;
+  rangeMin?: number; rangeMax?: number;
 }) {
   return (
     <View style={[styles.valueRow, styles.valueRowBorder]}>
-      <Text style={styles.valueRowLabel} numberOfLines={1}>{label}</Text>
+      <View style={styles.valueRowLeft}>
+        <Text style={styles.valueRowLabel} numberOfLines={1}>{label}</Text>
+        {rangeMin != null && rangeMax != null && (
+          <Text style={styles.valueRowRange}>
+            Plage : {rangeMin} – {rangeMax}{unit ? ` ${unit}` : ''}
+          </Text>
+        )}
+      </View>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -196,6 +209,7 @@ export function AnalysisDetailsScreen() {
                   const unit = LAB_VALUE_UNITS[key] ?? '';
                   const outOfRange = isOutOfRange(key, labVal.value);
                   const isLast = i === catMarkers.length - 1;
+                  const range = LAB_VALUE_DEFAULT_RANGES[key as keyof typeof LAB_VALUE_DEFAULT_RANGES];
 
                   if (editMode && editValues[key] !== undefined) {
                     return (
@@ -205,6 +219,8 @@ export function AnalysisDetailsScreen() {
                         value={editValues[key]}
                         unit={unit}
                         onChangeText={(v) => setEditValues(prev => ({ ...prev, [key]: v }))}
+                        rangeMin={range?.min}
+                        rangeMax={range?.max}
                       />
                     );
                   }
@@ -216,6 +232,8 @@ export function AnalysisDetailsScreen() {
                       unit={unit}
                       outOfRange={outOfRange}
                       isLast={isLast}
+                      rangeMin={range?.min}
+                      rangeMax={range?.max}
                     />
                   );
                 })}
@@ -247,37 +265,40 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.bgElevated,
     borderRadius: radii.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
     overflow: 'hidden',
     marginHorizontal: spacing[4],
     marginBottom: spacing[1],
+    ...elevation[1],
   },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing[4],
-    paddingVertical: 12,
+    paddingVertical: 14,
   },
   valueRowBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.divider,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
+  },
+  valueRowLeft: {
+    flex: 1,
+    marginRight: spacing[3],
   },
   valueRowLabel: {
-    ...typography.body,
-    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
     color: colors.text,
-    marginRight: spacing[2],
+    lineHeight: 20,
   },
-  valueText: {
-    ...typography.value,
-    color: colors.textBody,
-    textAlign: 'right',
-    fontVariant: ['tabular-nums'],
+  valueRowRange: {
+    ...typography.caption,
+    color: colors.textMuted,
+    marginTop: 2,
   },
-  alertValue: {
-    color: colors.danger,
-    fontWeight: '700',
+  valueUnit: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: colors.textMuted,
   },
 
   // Edit mode

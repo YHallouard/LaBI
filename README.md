@@ -36,6 +36,52 @@ npm start
 
 Then follow Expo instructions to run on iOS simulator or physical device.
 
+## Running on iOS Simulator
+
+### Start the iPhone Simulator
+
+First, make sure the iOS Simulator is running:
+
+```bash
+open -a Simulator
+```
+
+Or boot it via command line:
+
+```bash
+xcrun simctl boot "iPhone 16"
+```
+
+### Start the App on iPhone Simulator
+
+With the simulator running and Expo dev server started (`npm start`), press:
+
+```
+i
+```
+
+in the Expo CLI to launch the app on iOS.
+
+Alternatively, run directly in one command:
+
+```bash
+npx expo start --ios
+```
+
+Or specify a specific simulator device:
+
+```bash
+npx expo run:ios --device "iPhone 16"
+```
+
+### List Available Simulators
+
+To see all available iOS simulators:
+
+```bash
+xcrun simctl list devices
+```
+
 ## Testing
 
 Tests are located in `__tests__` folders next to the files they test. Run tests with:

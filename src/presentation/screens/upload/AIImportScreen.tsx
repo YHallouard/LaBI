@@ -12,6 +12,7 @@ import { useAnalysisProgress, AnalysisStepStatus } from '../../hooks/useAnalysis
 import { LAB_VALUE_CATEGORIES } from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation, typography, Banner, PrimaryButton,
+  ScreenHeader,
 } from '../../../design-system';
 
 const STEPS = [
@@ -113,21 +114,16 @@ export function AIImportScreen() {
   return (
     <View style={styles.root}>
       <View style={styles.grabber} />
-      <View style={styles.headerRow}>
-        <Pressable onPress={() => router.back()} style={styles.cancelBtn}>
-          <Text style={[typography.body, { color: colors.primary }]}>Annuler</Text>
-        </Pressable>
-        <Text style={[typography.lead, styles.headerTitle]}>Import IA</Text>
-        <View style={{ width: 70 }} />
-      </View>
+      <ScreenHeader
+        title="Import IA"
+        subtitle="Sélectionnez un PDF de bilan sanguin. Mistral en extraira automatiquement les valeurs."
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[typography.body, styles.description]}>
-          Sélectionnez un PDF de bilan sanguin. Mistral en extraira automatiquement les valeurs.
-        </Text>
 
         {success && (
           <View style={styles.bannerWrap}>
