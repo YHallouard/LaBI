@@ -441,7 +441,7 @@ export function HomeScreen() {
                 transformOrigin: 'top left',
               }}
             >
-              <PersonAvatar name={avatarName} size={104} />
+              <PersonAvatar name={avatarName} size={104} imageUri={profile?.profileImage} />
             </Animated.View>
           </Animated.View>
 
@@ -482,7 +482,7 @@ export function HomeScreen() {
       {analyses.length === 0 ? (
         /* Empty state */
         <View style={styles.emptyState}>
-          <PersonAvatar name={avatarName} size={56} />
+          <PersonAvatar name={avatarName} size={56} imageUri={profile?.profileImage} />
           <View style={styles.emptyText}>
             <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
             <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>

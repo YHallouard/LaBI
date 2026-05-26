@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../tokens';
 
 interface Props {
   name?: string;
   size?: number;
+  imageUri?: string;
 }
 
 function getInitials(name?: string): string {
@@ -19,9 +20,9 @@ function getInitials(name?: string): string {
     .toUpperCase();
 }
 
-export function PersonAvatar({ name, size = 56 }: Props) {
+export function PersonAvatar({ name, size = 56, imageUri }: Props) {
   const initials = getInitials(name);
-  const innerSize = size - 4; // 2px padding each side
+  const innerSize = size - 4;
   const fontSize = Math.round(size * 0.36);
 
   return (
@@ -51,18 +52,27 @@ export function PersonAvatar({ name, size = 56 }: Props) {
           backgroundColor: colors.bgElevated,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         }}
       >
-        <Text
-          style={{
-            fontSize,
-            fontWeight: '700',
-            color: colors.textStrong,
-            letterSpacing: fontSize * -0.02,
-          }}
-        >
-          {initials}
-        </Text>
+        {imageUri ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={{ width: innerSize, height: innerSize }}
+            resizeMode="cover"
+          />
+        ) : (
+          <Text
+            style={{
+              fontSize,
+              fontWeight: '700',
+              color: colors.textStrong,
+              letterSpacing: fontSize * -0.02,
+            }}
+          >
+            {initials}
+          </Text>
+        )}
       </View>
     </LinearGradient>
   );

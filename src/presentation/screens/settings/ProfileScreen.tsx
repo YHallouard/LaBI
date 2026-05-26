@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as ImagePicker from 'expo-image-picker';
 
 import { UserProfile, Gender } from '../../../domain/UserProfile';
 import { SaveUserProfileUseCase } from '../../../domain/usecases/SaveUserProfileUseCase';
@@ -46,6 +47,23 @@ export function ProfileScreen() {
 
   const [saveUC, setSaveUC] = useState<SaveUserProfileUseCase | null>(null);
   const [editUC, setEditUC] = useState<EditUserProfileUseCase | null>(null);
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setErrorMsg('Permission d\'accès à la galerie refusée.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setProfile(p => ({ ...p, profileImage: result.assets[0].uri }));
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -150,7 +168,14 @@ export function ProfileScreen() {
       >
         {/* Avatar + name display */}
         <View style={styles.avatarSection}>
-          <PersonAvatar name={displayName} size={80} />
+          <Pressable onPress={isEditMode ? handlePickImage : undefined} style={styles.avatarWrapper}>
+            <PersonAvatar name={displayName} size={80} imageUri={profile.profileImage} />
+            {isEditMode && (
+              <View style={styles.cameraOverlay}>
+                <Ionicons name="camera" size={16} color="#fff" />
+              </View>
+            )}
+          </Pressable>
           {profileExists && (
             <View style={styles.avatarInfo}>
               <Text style={[typography.h2, { textAlign: 'center' }]}>{displayName || '—'}</Text>
@@ -306,6 +331,20 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { paddingHorizontal: spacing[4], paddingTop: spacing[2], gap: spacing[4] },
   avatarSection: { alignItems: 'center', paddingVertical: spacing[4], gap: spacing[3] },
+  avatarWrapper: { position: 'relative' },
+  cameraOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.bg,
+  },
   avatarInfo: { alignItems: 'center', gap: 2 },
   editBtn: {
     width: 36,
