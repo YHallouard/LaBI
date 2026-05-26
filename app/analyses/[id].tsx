@@ -1,2 +1,2 @@
-import { AnalysisDetailsScreen } from '../../src/presentation/screens/home/AnalysisDetailsScreen';
-export default AnalysisDetailsScreen;
+import { AnalysisFormScreen } from '../../src/presentation/screens/analyses/AnalysisFormScreen';
+export default AnalysisFormScreen;

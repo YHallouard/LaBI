@@ -1,18 +1,22 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Alert,
-  ActivityIndicator, TextInput,
+  View, Text, ScrollView, TextInput, Pressable, StyleSheet,
+  ActivityIndicator, Alert, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
 import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
 import { useUseCases } from '../../contexts/UseCasesContext';
-import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_DEFAULT_RANGES } from '../../../config/LabConfig';
+import {
+  LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_DEFAULT_RANGES,
+} from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation,
-  typography, ScreenHeader, ListSection, PrimaryButton,
+  typography, ScreenHeader, ListSection, PrimaryButton, Banner, ModalGrabber,
 } from '../../../design-system';
 
 function isOutOfRange(key: string, value: number | null | undefined): boolean {
@@ -44,12 +48,13 @@ function ValueRow({ label, value, unit, outOfRange, isLast, rangeMin, rangeMax }
   );
 }
 
-function EditRow({ label, value, unit, onChangeText, rangeMin, rangeMax }: {
-  label: string; value: string; unit: string; onChangeText: (v: string) => void;
+function EditRow({ label, value, unit, onChangeText, isLast, rangeMin, rangeMax }: {
+  label: string; value: string; unit: string;
+  onChangeText: (v: string) => void; isLast: boolean;
   rangeMin?: number; rangeMax?: number;
 }) {
   return (
-    <View style={[styles.valueRow, styles.valueRowBorder]}>
+    <View style={[styles.valueRow, !isLast && styles.valueRowBorder]}>
       <View style={styles.valueRowLeft}>
         <Text style={styles.valueRowLabel} numberOfLines={1}>{label}</Text>
         {rangeMin != null && rangeMax != null && (
@@ -62,6 +67,8 @@ function EditRow({ label, value, unit, onChangeText, rangeMin, rangeMax }: {
         value={value}
         onChangeText={onChangeText}
         keyboardType="decimal-pad"
+        placeholder="—"
+        placeholderTextColor={colors.textMuted}
         style={styles.editInput}
         selectTextOnFocus
       />
@@ -70,58 +77,95 @@ function EditRow({ label, value, unit, onChangeText, rangeMin, rangeMax }: {
   );
 }
 
-export function AnalysisDetailsScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+export function AnalysisFormScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { bundle } = useUseCases();
+  const isNew = !id;
 
   const [analysis, setAnalysis] = useState<BiologicalAnalysis | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
-  const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(!isNew);
+  const [editMode, setEditMode] = useState(isNew);
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [values, setValues] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const seedValuesFromAnalysis = (a: BiologicalAnalysis) => {
+    const vals: Record<string, string> = {};
+    Object.values(LAB_VALUE_CATEGORIES).flat().forEach((key) => {
+      const v = a[key as keyof BiologicalAnalysis] as LabValue | undefined;
+      if (v?.value != null) vals[key] = String(v.value);
+    });
+    setValues(vals);
+  };
 
   useFocusEffect(
     useCallback(() => {
-      if (!bundle || !id) return;
-      bundle.getAnalysisById.execute(id).then((a) => { setAnalysis(a ?? null); setLoading(false); });
-    }, [bundle, id]),
+      if (isNew || !bundle || !id) return;
+      bundle.getAnalysisById.execute(id).then((a) => {
+        if (a) {
+          setAnalysis(a);
+          setDate(new Date(a.date));
+          seedValuesFromAnalysis(a);
+        }
+        setLoading(false);
+      });
+    }, [bundle, id, isNew]),
   );
 
   const enterEdit = () => {
-    if (!analysis) return;
-    const vals: Record<string, string> = {};
-    Object.values(LAB_VALUE_CATEGORIES).flat().forEach((key) => {
-      const v = analysis[key as keyof BiologicalAnalysis] as LabValue | undefined;
-      if (v?.value != null) vals[key] = String(v.value);
-    });
-    setEditValues(vals);
     setEditMode(true);
+    setErrorMsg(null);
   };
 
   const cancelEdit = () => {
+    if (isNew) {
+      router.back();
+      return;
+    }
     setEditMode(false);
-    setEditValues({});
+    setErrorMsg(null);
+    if (analysis) {
+      setDate(new Date(analysis.date));
+      seedValuesFromAnalysis(analysis);
+    }
   };
 
+  const setValue = (key: string, v: string) =>
+    setValues((prev) => ({ ...prev, [key]: v }));
+
   const handleSave = async () => {
-    if (!bundle || !analysis) return;
+    if (!bundle) return;
+    setErrorMsg(null);
+
+    const labValues: Record<string, LabValue> = {};
+    Object.entries(values).forEach(([k, v]) => {
+      const n = parseFloat(v.replace(',', '.'));
+      if (!isNaN(n)) labValues[k] = { value: n, unit: LAB_VALUE_UNITS[k] ?? '' };
+    });
+
+    if (Object.keys(labValues).length === 0) {
+      setErrorMsg('Entrez au moins une valeur.');
+      return;
+    }
+
     setSaving(true);
     try {
-      let updated = analysis;
-      for (const [key, strVal] of Object.entries(editValues)) {
-        const num = parseFloat(strVal);
-        if (isNaN(num)) continue;
-        const original = analysis[key as keyof BiologicalAnalysis] as LabValue | undefined;
-        if (original?.value !== num) {
-          updated = await bundle.updateAnalysis.updateLabValue(analysis.id, key, num);
-        }
+      if (isNew) {
+        const newAnalysis: BiologicalAnalysis = { id: '', date, ...labValues };
+        await bundle.createAnalysis.execute(newAnalysis);
+        router.back();
+      } else if (analysis) {
+        const updated: BiologicalAnalysis = { ...analysis, date, ...labValues };
+        await bundle.updateAnalysis.execute(updated);
+        setAnalysis(updated);
+        setEditMode(false);
       }
-      setAnalysis(updated);
-      setEditMode(false);
     } catch (e) {
-      Alert.alert('Erreur', `${e}`);
+      setErrorMsg(`Erreur : ${e instanceof Error ? e.message : 'inconnue'}`);
     } finally {
       setSaving(false);
     }
@@ -150,7 +194,7 @@ export function AnalysisDetailsScreen() {
     );
   }
 
-  if (!analysis) {
+  if (!isNew && !analysis) {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <Text style={[typography.body, { color: colors.textBody }]}>Analyse introuvable.</Text>
@@ -161,7 +205,9 @@ export function AnalysisDetailsScreen() {
     );
   }
 
-  const date = new Date(analysis.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const formattedDate = date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const title = isNew ? 'Nouvelle analyse' : 'Détail du bilan';
+  const subtitle = isNew ? 'Saisie manuelle' : formattedDate;
 
   const headerRight = editMode ? (
     <View style={styles.headerActions}>
@@ -169,7 +215,7 @@ export function AnalysisDetailsScreen() {
         <Text style={[typography.body, { color: colors.textBody }]}>Annuler</Text>
       </Pressable>
       <Pressable onPress={handleSave} disabled={saving} style={styles.headerActionBtn}>
-        <Text style={[typography.body, { color: colors.primary, fontWeight: '600' }]}>
+        <Text style={[typography.body, { color: colors.primary, fontWeight: '700' }]}>
           {saving ? '…' : 'Enregistrer'}
         </Text>
       </Pressable>
@@ -181,10 +227,11 @@ export function AnalysisDetailsScreen() {
   );
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
+    <View style={[styles.root, { paddingTop: isNew ? 0 : insets.top }]}>
+      {isNew && <ModalGrabber />}
       <ScreenHeader
-        title="Détail du bilan"
-        subtitle={date}
+        title={title}
+        subtitle={subtitle}
         onBack={editMode ? cancelEdit : () => router.back()}
         right={headerRight}
       />
@@ -194,36 +241,82 @@ export function AnalysisDetailsScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {errorMsg && (
+          <View style={styles.errorWrap}>
+            <Banner kind="error">{errorMsg}</Banner>
+          </View>
+        )}
+
+        {editMode && (
+          <ListSection title="Date du bilan">
+            <View style={styles.card}>
+              <Pressable onPress={() => setShowDatePicker((v) => !v)} style={styles.dateBtn}>
+                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
+                <Text style={styles.dateBtnText}>{formattedDate}</Text>
+                <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+              </Pressable>
+              {showDatePicker && (
+                <View style={styles.datePicker}>
+                  <DateTimePicker
+                    value={date}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(_, d) => {
+                      if (d) setDate(d);
+                      if (Platform.OS === 'android') setShowDatePicker(false);
+                    }}
+                    maximumDate={new Date()}
+                    minimumDate={new Date(2000, 0, 1)}
+                    style={Platform.OS === 'ios' ? { height: 180 } : undefined}
+                  />
+                  {Platform.OS === 'ios' && (
+                    <Pressable onPress={() => setShowDatePicker(false)} style={styles.datePickerDone}>
+                      <Text style={{ color: colors.primary, fontWeight: '600' }}>Confirmer</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </View>
+          </ListSection>
+        )}
+
         {Object.entries(LAB_VALUE_CATEGORIES).map(([catLabel, markerKeys]) => {
-          const catMarkers = (markerKeys as string[]).filter((key) => {
-            const v = analysis[key as keyof BiologicalAnalysis];
-            return v != null && typeof v === 'object' && 'value' in (v as object);
-          });
-          if (catMarkers.length === 0) return null;
+          const keys = markerKeys as string[];
+          // In view mode, only show markers with a value
+          const visibleKeys = editMode
+            ? keys
+            : keys.filter((key) => {
+                const v = analysis?.[key as keyof BiologicalAnalysis];
+                return v != null && typeof v === 'object' && 'value' in (v as object);
+              });
+          if (visibleKeys.length === 0) return null;
+
           return (
             <ListSection key={catLabel} title={catLabel}>
               <View style={styles.card}>
-                {catMarkers.map((key, i) => {
-                  const labVal = analysis[key as keyof BiologicalAnalysis] as LabValue;
-                  const displayValue = labVal.value?.toLocaleString('fr-FR', { maximumFractionDigits: 3 }) ?? '—';
+                {visibleKeys.map((key, i) => {
                   const unit = LAB_VALUE_UNITS[key] ?? '';
-                  const outOfRange = isOutOfRange(key, labVal.value);
-                  const isLast = i === catMarkers.length - 1;
                   const range = LAB_VALUE_DEFAULT_RANGES[key as keyof typeof LAB_VALUE_DEFAULT_RANGES];
+                  const isLast = i === visibleKeys.length - 1;
 
-                  if (editMode && editValues[key] !== undefined) {
+                  if (editMode) {
                     return (
                       <EditRow
                         key={key}
                         label={key}
-                        value={editValues[key]}
+                        value={values[key] ?? ''}
                         unit={unit}
-                        onChangeText={(v) => setEditValues(prev => ({ ...prev, [key]: v }))}
+                        onChangeText={(v) => setValue(key, v)}
+                        isLast={isLast}
                         rangeMin={range?.min}
                         rangeMax={range?.max}
                       />
                     );
                   }
+
+                  const labVal = analysis?.[key as keyof BiologicalAnalysis] as LabValue | undefined;
+                  const displayValue = labVal?.value?.toLocaleString('fr-FR', { maximumFractionDigits: 3 }) ?? '—';
+                  const outOfRange = isOutOfRange(key, labVal?.value);
                   return (
                     <ValueRow
                       key={key}
@@ -242,7 +335,7 @@ export function AnalysisDetailsScreen() {
           );
         })}
 
-        {!editMode && (
+        {!editMode && !isNew && (
           <View style={styles.deleteWrap}>
             <PrimaryButton variant="danger" size="lg" onPress={handleDelete} style={{ width: '100%' }}>
               Supprimer cette analyse
@@ -259,9 +352,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
   backLink: { marginTop: spacing[3] },
   content: { paddingTop: spacing[2] },
+  errorWrap: { paddingHorizontal: spacing[4], marginBottom: spacing[3] },
   deleteWrap: { paddingHorizontal: spacing[4], paddingTop: spacing[6] },
 
-  // Value rows
   card: {
     backgroundColor: colors.bgElevated,
     borderRadius: radii.lg,
@@ -277,13 +370,10 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   valueRowBorder: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
   },
-  valueRowLeft: {
-    flex: 1,
-    marginRight: spacing[3],
-  },
+  valueRowLeft: { flex: 1, marginRight: spacing[3] },
   valueRowLabel: {
     fontSize: 14,
     fontWeight: '500',
@@ -301,7 +391,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
 
-  // Edit mode
   editInput: {
     ...typography.value,
     color: colors.text,
@@ -320,7 +409,25 @@ const styles = StyleSheet.create({
     minWidth: 32,
   },
 
-  // Header action buttons (edit mode)
+  dateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    paddingVertical: spacing[3],
+    paddingHorizontal: spacing[3],
+  },
+  dateBtnText: { flex: 1, fontSize: 16, color: colors.textStrong },
+  datePicker: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  datePickerDone: {
+    alignItems: 'center',
+    padding: spacing[3],
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+
   headerActions: {
     flexDirection: 'row',
     gap: spacing[3],

@@ -1,2 +1,2 @@
-import { ManualEntryScreen } from '../../src/presentation/screens/upload/ManualEntryScreen';
-export default ManualEntryScreen;
+import { AnalysisFormScreen } from '../../src/presentation/screens/analyses/AnalysisFormScreen';
+export default AnalysisFormScreen;
