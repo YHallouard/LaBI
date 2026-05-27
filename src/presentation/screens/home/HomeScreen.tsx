@@ -10,10 +10,8 @@ import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
   useAnimatedStyle,
-  useAnimatedReaction,
   interpolate,
   Extrapolation,
-  runOnJS,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -342,8 +340,6 @@ export function HomeScreen() {
   const [magnitudeData, setMagnitudeData] = useState<HealthMagnitudeDataPoint[]>([]);
   const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showHello, setShowHello] = useState(true);
-  const [showMeta, setShowMeta] = useState(true);
 
   const scrollY = useSharedValue(0);
 
@@ -402,16 +398,6 @@ export function HomeScreen() {
     });
   }, [bundle, pinnedKeys, analyses]);
 
-  // Unmount Hello/Meta at thresholds (matches design Home.jsx — no per-frame height animation).
-  // runOnJS schedules on JS thread; max 2 state updates total per scroll direction.
-  useAnimatedReaction(
-    () => scrollY.value,
-    (current) => {
-      runOnJS(setShowHello)(current < SHRINK_RANGE * 0.6);
-      runOnJS(setShowMeta)(current < SHRINK_RANGE * 0.4);
-    },
-  );
-
   const gradientAnimStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -SHRINK_RANGE], Extrapolation.CLAMP) },
@@ -441,8 +427,9 @@ export function HomeScreen() {
   }));
 
   const nameAnimStyle = useAnimatedStyle(() => ({
-    fontSize: interpolate(scrollY.value, [0, SHRINK_RANGE], [32, 18], Extrapolation.CLAMP),
-    lineHeight: interpolate(scrollY.value, [0, SHRINK_RANGE], [36, 20], Extrapolation.CLAMP),
+    transform: [
+      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 18 / 32], Extrapolation.CLAMP) },
+    ],
   }));
 
   const metaAnimStyle = useAnimatedStyle(() => ({
@@ -458,12 +445,6 @@ export function HomeScreen() {
   const fabSlideStyle = useAnimatedStyle(() => ({
     transform: [
       { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -FAB_MARGIN_TOP], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const scrollAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -COLLAPSE_DELTA], Extrapolation.CLAMP) },
     ],
   }));
 
@@ -524,33 +505,29 @@ export function HomeScreen() {
             </View>
 
             <Animated.View style={[styles.heroText, heroTextSlideStyle]} pointerEvents="none">
-              {showHello && (
-                <Animated.View style={helloAnimStyle}>
-                  <Text style={styles.helloText}>Bonjour,</Text>
-                </Animated.View>
-              )}
-              <Animated.Text style={[styles.heroName, nameAnimStyle]}>
+              <Animated.View style={helloAnimStyle}>
+                <Text style={styles.helloText}>Bonjour,</Text>
+              </Animated.View>
+              <Animated.Text style={[styles.heroName, styles.nameOrigin, nameAnimStyle]}>
                 {displayName}
               </Animated.Text>
-              {showMeta && (
-                <Animated.View style={metaAnimStyle}>
-                  {profile && age !== null && (
-                    <Text style={styles.metaText}>
-                      <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
-                      {' ans'}
-                      {sexLetter && (
-                        <>
-                          {' · '}
-                          <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{sexLetter}</Text>
-                        </>
-                      )}
-                      {' · '}
-                      <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{analyses.length}</Text>
-                      {' analyses'}
-                    </Text>
-                  )}
-                </Animated.View>
-              )}
+              <Animated.View style={metaAnimStyle}>
+                {profile && age !== null && (
+                  <Text style={styles.metaText}>
+                    <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
+                    {' ans'}
+                    {sexLetter && (
+                      <>
+                        {' · '}
+                        <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{sexLetter}</Text>
+                      </>
+                    )}
+                    {' · '}
+                    <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{analyses.length}</Text>
+                    {' analyses'}
+                  </Text>
+                )}
+              </Animated.View>
             </Animated.View>
 
             <Animated.View style={[styles.fabWrap, fabSlideStyle]}>
@@ -694,6 +671,7 @@ const styles = StyleSheet.create({
     color: colors.textStrong,
     letterSpacing: -0.6,
   },
+  nameOrigin: { transformOrigin: 'left center' },
   metaText: {
     fontSize: 13,
     fontWeight: '500',
