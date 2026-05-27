@@ -36,23 +36,8 @@ import { PrimaryButton } from '../../../design-system/components/PrimaryButton';
 import { HemeaWordmark } from '../../../design-system/components/HemeaWordmark';
 
 const SHRINK_RANGE = 80;
-
-const BRAND_EXPANDED_H = 34;
-const BRAND_COLLAPSED_H = 20;
-const HERO_PAD_EXPANDED = 48;
-const HERO_PAD_COLLAPSED = 10;
-const AVATAR_EXPANDED = 104;
-const AVATAR_COLLAPSED = 40;
-const HERO_GAP_EXPANDED = 18;
-const HERO_GAP_COLLAPSED = 10;
-const FAB_SIZE = 40;
-const FAB_MARGIN_TOP = (AVATAR_EXPANDED - FAB_SIZE) / 2;
-
-const BRAND_DELTA = BRAND_EXPANDED_H - BRAND_COLLAPSED_H;
-const PAD_TOP_DELTA = HERO_PAD_EXPANDED - HERO_PAD_COLLAPSED;
-const AVATAR_DELTA = AVATAR_EXPANDED - AVATAR_COLLAPSED;
-const PAD_BOT_DELTA = HERO_PAD_EXPANDED - HERO_PAD_COLLAPSED;
-const COLLAPSE_DELTA = BRAND_DELTA + PAD_TOP_DELTA + AVATAR_DELTA + PAD_BOT_DELTA;
+const STICKY_HEADER_HEIGHT = 64;
+const WORDMARK_ROW_HEIGHT = 34;
 
 // ─── BalanceTrendChart ────────────────────────────────────────────────────────
 type ChartPoint = { t: number; v: number; label: string };
@@ -405,53 +390,15 @@ export function HomeScreen() {
   }));
 
   const wordmarkAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 13 / 26], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const heroAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(BRAND_DELTA + PAD_TOP_DELTA)], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const avatarAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, AVATAR_COLLAPSED / AVATAR_EXPANDED], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const helloAnimStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.5], [1, 0], Extrapolation.CLAMP),
   }));
 
-  const nameAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 18 / 32], Extrapolation.CLAMP) },
-    ],
+  const expandedHeroAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.7], [1, 0], Extrapolation.CLAMP),
   }));
 
-  const metaAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.4], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  const heroTextSlideStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(AVATAR_DELTA + HERO_GAP_EXPANDED - HERO_GAP_COLLAPSED)], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const fabSlideStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -FAB_MARGIN_TOP], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const scrollAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -COLLAPSE_DELTA], Extrapolation.CLAMP) },
-    ],
+  const stickyHeaderAnimStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(scrollY.value, [SHRINK_RANGE * 0.5, SHRINK_RANGE], [0, 1], Extrapolation.CLAMP),
   }));
 
   if (loading) {
@@ -472,52 +419,60 @@ export function HomeScreen() {
       {/* Hero gradient — anchored top, translates upward with scroll (parallax) */}
       <Animated.View
         pointerEvents="none"
+        collapsable={false}
+        renderToHardwareTextureAndroid
         style={[styles.gradientWrap, gradientAnimStyle]}
       >
-        <View collapsable={false} renderToHardwareTextureAndroid style={StyleSheet.absoluteFill}>
-          <LinearGradient
-            colors={[
-              'rgba(44,123,229,0.72)',
-              'rgba(44,123,229,0.52)',
-              'rgba(44,123,229,0.28)',
-              'rgba(44,123,229,0.10)',
-              'rgba(248,249,250,0.0)',
-            ]}
-            locations={[0, 0.14, 0.38, 0.62, 0.88]}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
+        <LinearGradient
+          colors={[
+            'rgba(44,123,229,0.72)',
+            'rgba(44,123,229,0.52)',
+            'rgba(44,123,229,0.28)',
+            'rgba(44,123,229,0.10)',
+            'rgba(248,249,250,0.0)',
+          ]}
+          locations={[0, 0.14, 0.38, 0.62, 0.88]}
+          style={StyleSheet.absoluteFillObject}
+        />
       </Animated.View>
 
-      {/* Brand mark — static height, only child transform changes */}
-      <View style={styles.brandRow}>
-        <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle]}>
-          <View collapsable={false} renderToHardwareTextureAndroid>
+      {analyses.length === 0 ? (
+        <>
+          <View style={styles.wordmarkRow}>
             <HemeaWordmark size={26} />
           </View>
-        </Animated.View>
-      </View>
-
-      {/* Collapsible profile hero — transform-only: translateY pulls up, children scale/fade */}
-      {analyses.length > 0 && (
-        <Animated.View style={[styles.hero, heroAnimStyle]} pointerEvents="box-none">
-          <View style={styles.heroRow} pointerEvents="box-none">
-            <View style={styles.avatarBox} pointerEvents="none">
-              <Animated.View style={[styles.avatarInner, avatarAnimStyle]}>
-                <View collapsable={false} renderToHardwareTextureAndroid>
-                  <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={profile?.profileImage} />
-                </View>
-              </Animated.View>
+          <View style={styles.emptyState}>
+            <PersonAvatar name={avatarName} size={56} imageUri={profile?.profileImage} />
+            <View style={styles.emptyText}>
+              <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
+              <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
+              <Text style={[typography.body, styles.emptyBody]}>
+                Importez un bilan sanguin pour commencer.
+              </Text>
             </View>
+            <PrimaryButton onPress={() => router.push('/upload')} size="md">
+              Importer un PDF
+            </PrimaryButton>
+          </View>
+        </>
+      ) : (
+        <>
+          <Animated.ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={scrollHandler}
+          >
+            <Animated.View style={[styles.wordmarkRow, wordmarkAnimStyle]} pointerEvents="none">
+              <HemeaWordmark size={26} />
+            </Animated.View>
 
-            <Animated.View style={[styles.heroText, heroTextSlideStyle]} pointerEvents="none">
-              <Animated.View style={helloAnimStyle}>
+            <Animated.View style={[styles.expandedHero, expandedHeroAnimStyle]}>
+              <PersonAvatar name={avatarName} size={104} imageUri={profile?.profileImage} />
+              <View style={styles.expandedHeroText}>
                 <Text style={styles.helloText}>Bonjour,</Text>
-              </Animated.View>
-              <Animated.Text style={[styles.heroName, styles.nameOrigin, nameAnimStyle]}>
-                {displayName}
-              </Animated.Text>
-              <Animated.View style={metaAnimStyle}>
+                <Text style={styles.heroName}>{displayName}</Text>
                 {profile && age !== null && (
                   <Text style={styles.metaText}>
                     <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
@@ -533,89 +488,84 @@ export function HomeScreen() {
                     {' analyses'}
                   </Text>
                 )}
-              </Animated.View>
+              </View>
             </Animated.View>
 
-            <Animated.View style={[styles.fabWrap, fabSlideStyle]}>
-              <GlassFAB size={FAB_SIZE} onPress={() => router.push('/settings')} accessibilityLabel="Réglages">
-                <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
-              </GlassFAB>
-            </Animated.View>
-          </View>
-        </Animated.View>
-      )}
+            {magnitudeData.length > 0 && (
+              <BalanceCard data={magnitudeData} />
+            )}
 
-      {analyses.length === 0 ? (
-        /* Empty state */
-        <View style={styles.emptyState}>
-          <PersonAvatar name={avatarName} size={56} imageUri={profile?.profileImage} />
-          <View style={styles.emptyText}>
-            <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
-            <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
-            <Text style={[typography.body, styles.emptyBody]}>
-              Importez un bilan sanguin pour commencer.
-            </Text>
-          </View>
-          <PrimaryButton onPress={() => router.push('/upload')} size="md">
-            Importer un PDF
-          </PrimaryButton>
-        </View>
-      ) : (
-        /* Main content */
-        <Animated.ScrollView
-          style={[styles.scroll, scrollAnimStyle]}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 + COLLAPSE_DELTA }]}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          overScrollMode="never"
-          onScroll={scrollHandler}
-        >
-          {/* BalanceCard — shown only when magnitude data available */}
-          {magnitudeData.length > 0 && (
-            <BalanceCard data={magnitudeData} />
-          )}
-
-          {/* "Mes analyses" CTA */}
-          <Pressable
-            onPress={() => router.push('/analyses')}
-            style={({ pressed }) => [styles.analysesCta, { opacity: pressed ? 0.85 : 1 }]}
-          >
-            <View style={styles.ctaIcon}>
-              <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-            </View>
-            <View style={styles.ctaText}>
-              <Text style={[typography.lead, { color: colors.textStrong }]}>Mes analyses</Text>
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                {analyses.length} bilans importés
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
-
-          {/* Pinned charts section */}
-          <View style={styles.pinnedHeader}>
-            <Text style={[typography.label]}>Graphiques épinglés</Text>
-            <Pressable onPress={() => router.push('/(tabs)/charts')}>
-              <Text style={styles.seeAllText}>Tous les graphiques</Text>
+            <Pressable
+              onPress={() => router.push('/analyses')}
+              style={({ pressed }) => [styles.analysesCta, { opacity: pressed ? 0.85 : 1 }]}
+            >
+              <View style={styles.ctaIcon}>
+                <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.ctaText}>
+                <Text style={[typography.lead, { color: colors.textStrong }]}>Mes analyses</Text>
+                <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+                  {analyses.length} bilans importés
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </Pressable>
-          </View>
 
-          {pinnedSeries.length === 0 ? (
-            <View style={styles.emptyPinned}>
-              <Text style={[typography.small, { color: colors.textBody, textAlign: 'center', marginBottom: 8 }]}>
-                Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l&apos;onglet Graphiques.
-              </Text>
-              <PrimaryButton size="sm" variant="ghost" onPress={() => router.push('/(tabs)/charts')}>
-                Parcourir les graphiques
-              </PrimaryButton>
+            <View style={styles.pinnedHeader}>
+              <Text style={[typography.label]}>Graphiques épinglés</Text>
+              <Pressable onPress={() => router.push('/(tabs)/charts')}>
+                <Text style={styles.seeAllText}>Tous les graphiques</Text>
+              </Pressable>
             </View>
-          ) : (
-            pinnedSeries.map(series => (
-              <PinnedChartCard key={series.key} series={series} onUnpin={() => handleUnpin(series.key)} />
-            ))
-          )}
-        </Animated.ScrollView>
+
+            {pinnedSeries.length === 0 ? (
+              <View style={styles.emptyPinned}>
+                <Text style={[typography.small, { color: colors.textBody, textAlign: 'center', marginBottom: 8 }]}>
+                  Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l&apos;onglet Graphiques.
+                </Text>
+                <PrimaryButton size="sm" variant="ghost" onPress={() => router.push('/(tabs)/charts')}>
+                  Parcourir les graphiques
+                </PrimaryButton>
+              </View>
+            ) : (
+              pinnedSeries.map(series => (
+                <PinnedChartCard key={series.key} series={series} onUnpin={() => handleUnpin(series.key)} />
+              ))
+            )}
+          </Animated.ScrollView>
+
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.stickyHeader,
+              { top: insets.top, height: STICKY_HEADER_HEIGHT },
+              stickyHeaderAnimStyle,
+            ]}
+          >
+            <PersonAvatar name={avatarName} size={40} imageUri={profile?.profileImage} />
+            <View style={styles.stickyText}>
+              <Text style={styles.stickyName} numberOfLines={1}>{displayName}</Text>
+              {profile && age !== null && (
+                <Text style={styles.stickyMeta} numberOfLines={1}>
+                  {age} ans
+                  {sexLetter && ` · ${sexLetter}`}
+                  {' · '}
+                  {analyses.length} analyses
+                </Text>
+              )}
+            </View>
+          </Animated.View>
+        </>
       )}
+
+      <View
+        pointerEvents="box-none"
+        style={[styles.settingsFabSlot, { top: insets.top + 10 }]}
+      >
+        <GlassFAB size={40} onPress={() => router.push('/settings')} accessibilityLabel="Réglages">
+          <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
+        </GlassFAB>
+      </View>
     </View>
   );
 }
@@ -631,44 +581,26 @@ const styles = StyleSheet.create({
     height: 580,
     zIndex: 0,
   },
-  brandRow: {
-    height: BRAND_EXPANDED_H,
+  wordmarkRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: WORDMARK_ROW_HEIGHT,
     paddingTop: 8,
-    paddingHorizontal: spacing[5],
-    overflow: 'hidden',
-    zIndex: 3,
   },
-  wordmarkOrigin: { transformOrigin: 'top left' },
-  hero: {
-    paddingTop: HERO_PAD_EXPANDED,
-    paddingBottom: HERO_PAD_EXPANDED,
-    paddingHorizontal: spacing[5],
-    zIndex: 2,
-  },
-  heroRow: {
+  expandedHero: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    columnGap: HERO_GAP_EXPANDED,
+    alignItems: 'center',
+    gap: 18,
+    paddingTop: 24,
+    paddingBottom: 32,
+    paddingRight: 50,
   },
-  avatarBox: {
-    width: AVATAR_EXPANDED,
-    height: AVATAR_EXPANDED,
-  },
-  avatarInner: {
-    width: AVATAR_EXPANDED,
-    height: AVATAR_EXPANDED,
-    transformOrigin: 'top left',
-  },
-  heroText: { flex: 1, minWidth: 0 },
-  fabWrap: { marginTop: FAB_MARGIN_TOP },
+  expandedHeroText: { flex: 1, minWidth: 0, gap: 2 },
   helloText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textBody,
     lineHeight: 18,
-    transformOrigin: 'left center',
   },
   heroName: {
     fontSize: 32,
@@ -677,17 +609,43 @@ const styles = StyleSheet.create({
     color: colors.textStrong,
     letterSpacing: -0.6,
   },
-  nameOrigin: { transformOrigin: 'left center' },
   metaText: {
     fontSize: 13,
     fontWeight: '500',
     color: colors.textStrong,
     marginTop: 4,
   },
-  scroll: { flex: 1, zIndex: 0 },
+  stickyHeader: {
+    position: 'absolute',
+    left: spacing[5],
+    right: spacing[5] + 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    zIndex: 3,
+  },
+  stickyText: { flex: 1, minWidth: 0, justifyContent: 'center' },
+  stickyName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: colors.textStrong,
+    letterSpacing: -0.3,
+    lineHeight: 20,
+  },
+  stickyMeta: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.textBody,
+    marginTop: 2,
+  },
+  settingsFabSlot: {
+    position: 'absolute',
+    right: spacing[5],
+    zIndex: 4,
+  },
+  scroll: { flex: 1, zIndex: 1 },
   scrollContent: {
     paddingHorizontal: spacing[4],
-    paddingTop: spacing[3],
     gap: spacing[4],
   },
   analysesCta: {

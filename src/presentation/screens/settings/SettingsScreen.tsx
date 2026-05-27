@@ -16,7 +16,10 @@ export function SettingsScreen() {
     <View style={styles.root}>
       <ModalGrabber />
       <View style={styles.headerSpacer} />
-      <ScreenHeader title="Réglages" />
+      <ScreenHeader 
+        title="Réglages" 
+        onBack={() => router.back()}
+      />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
