@@ -331,287 +331,318 @@ const pinnedStyles = StyleSheet.create({
 
 // ─── HomeScreen ───────────────────────────────────────────────────────────────
 export function HomeScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { bundle } = useUseCases();
+const router = useRouter();
+const insets = useSafeAreaInsets();
+const { bundle } = useUseCases();
 
-  const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [magnitudeData, setMagnitudeData] = useState<HealthMagnitudeDataPoint[]>([]);
-  const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
+const [profile, setProfile] = useState<UserProfile | null>(null);
+const [magnitudeData, setMagnitudeData] = useState<HealthMagnitudeDataPoint[]>([]);
+const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
+const [loading, setLoading] = useState(true);
 
-  const scrollY = useSharedValue(0);
+const scrollY = useSharedValue(0);
 
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      scrollY.value = e.contentOffset.y;
-    },
-  });
+const scrollHandler = useAnimatedScrollHandler({
+  onScroll: (e) => {
+    scrollY.value = e.contentOffset.y;
+  },
+});
 
-  const load = useCallback(async () => {
-    if (!bundle) return;
-    try {
-      const [a, p, mag, pinned] = await Promise.all([
-        bundle.getAnalyses.execute(),
-        bundle.retrieveUserProfileUseCase.execute(),
-        bundle.calculateHealthMagnitudeUseCase.execute(),
-        bundle.getPinnedMetricsUseCase.execute(),
-      ]);
-      setAnalyses(a);
-      setProfile(p);
-      setMagnitudeData(mag);
-      setPinnedKeys(pinned);
-    } finally {
-      setLoading(false);
-    }
-  }, [bundle]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  const handleUnpin = useCallback(async (key: string) => {
-    if (!bundle) return;
-    const updated = pinnedKeys.filter(k => k !== key);
-    setPinnedKeys(updated);
-    await bundle.savePinnedMetricsUseCase.execute(updated);
-  }, [bundle, pinnedKeys]);
-
-  // Build pinned series from analyses + ref ranges (getReferenceRange already initialized by calculateHealthMagnitude)
-  const pinnedSeries = useMemo<PinnedSeries[]>(() => {
-    if (!bundle || pinnedKeys.length === 0 || analyses.length === 0) return [];
-    const sorted = [...analyses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    return pinnedKeys.flatMap(key => {
-      const points = sorted.flatMap(a => {
-        const lv = a[key] as LabValue | undefined;
-        if (typeof lv?.value !== 'number') return [];
-        return [{ t: new Date(a.date).getTime(), v: lv.value }];
-      });
-      if (points.length === 0) return [];
-
-      const lastA = [...sorted].reverse().find(a => typeof (a[key] as LabValue | undefined)?.value === 'number')!;
-      const range = bundle.getReferenceRangeUseCase.execute(key, lastA.date);
-      const unit = (lastA[key] as LabValue).unit;
-      const lastVal = points[points.length - 1].v;
-
-      return [{ key, unit, refMin: range?.min ?? 0, refMax: range?.max ?? 0, points, lastVal }];
-    });
-  }, [bundle, pinnedKeys, analyses]);
-
-  const gradientAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -SHRINK_RANGE], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const wordmarkAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 13 / 26], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const heroAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(BRAND_DELTA + PAD_TOP_DELTA)], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const avatarAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, AVATAR_COLLAPSED / AVATAR_EXPANDED], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const helloAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.5], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  const nameAnimStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 18 / 32], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const metaAnimStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.4], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  const heroTextSlideStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(AVATAR_DELTA + HERO_GAP_EXPANDED - HERO_GAP_COLLAPSED)], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  const fabSlideStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -FAB_MARGIN_TOP], Extrapolation.CLAMP) },
-    ],
-  }));
-
-  if (loading) {
-    return (
-      <View style={[styles.center, { paddingTop: insets.top }]}>
-        <ActivityIndicator color={colors.primary} />
-      </View>
-    );
+const load = useCallback(async () => {
+  if (!bundle) return;
+  try {
+    const [a, p, mag, pinned] = await Promise.all([
+      bundle.getAnalyses.execute(),
+      bundle.retrieveUserProfileUseCase.execute(),
+      bundle.calculateHealthMagnitudeUseCase.execute(),
+      bundle.getPinnedMetricsUseCase.execute(),
+    ]);
+    setAnalyses(a);
+    setProfile(p);
+    setMagnitudeData(mag);
+    setPinnedKeys(pinned);
+  } finally {
+    setLoading(false);
   }
+}, [bundle]);
 
-  const displayName = profile?.firstName ?? 'vous';
-  const age = profile ? (bundle?.getUserAgeUseCase.execute(profile) ?? '—') : null;
-  const avatarName = profile?.name ?? (profile ? `${profile.firstName} ${profile.lastName}` : undefined);
-  const sexLetter = profile?.gender === 'female' ? 'F' : profile?.gender === 'male' ? 'M' : null;
+useFocusEffect(useCallback(() => { load(); }, [load]));
 
+const handleUnpin = useCallback(async (key: string) => {
+  if (!bundle) return;
+  const updated = pinnedKeys.filter(k => k !== key);
+  setPinnedKeys(updated);
+  await bundle.savePinnedMetricsUseCase.execute(updated);
+}, [bundle, pinnedKeys]);
+
+// Build pinned series from analyses + ref ranges (getReferenceRange already initialized by calculateHealthMagnitude)
+const pinnedSeries = useMemo<PinnedSeries[]>(() => {
+  if (!bundle || pinnedKeys.length === 0 || analyses.length === 0) return [];
+  const sorted = [...analyses].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  return pinnedKeys.flatMap(key => {
+    const points = sorted.flatMap(a => {
+      const lv = a[key] as LabValue | undefined;
+      if (typeof lv?.value !== 'number') return [];
+      return [{ t: new Date(a.date).getTime(), v: lv.value }];
+    });
+    if (points.length === 0) return [];
+
+    const lastA = [...sorted].reverse().find(a => typeof (a[key] as LabValue | undefined)?.value === 'number')!;
+    const range = bundle.getReferenceRangeUseCase.execute(key, lastA.date);
+    const unit = (lastA[key] as LabValue).unit;
+    const lastVal = points[points.length - 1].v;
+
+    return [{ key, unit, refMin: range?.min ?? 0, refMax: range?.max ?? 0, points, lastVal }];
+  });
+}, [bundle, pinnedKeys, analyses]);
+
+const gradientAnimStyle = useAnimatedStyle(() => ({
+  transform: [
+    /* TODO: il faut la translater plus que ça, il verait diparaitre entièrement*/
+    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -SHRINK_RANGE], Extrapolation.CLAMP) },
+  ],
+}));
+
+const wordmarkAnimStyle = useAnimatedStyle(() => ({
+  transform: [
+    { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 13 / 26], Extrapolation.CLAMP) },
+  ],
+}));
+
+const brandRowHeightAnimStyle = useAnimatedStyle(() => ({
+  height: interpolate(
+    scrollY.value,
+    [0, SHRINK_RANGE],
+    [BRAND_EXPANDED_H, BRAND_COLLAPSED_H],
+    Extrapolation.CLAMP
+  ),
+}));
+
+const heroAnimStyle = useAnimatedStyle(() => ({
+  // transform: [
+  //   { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(BRAND_DELTA + PAD_TOP_DELTA)], Extrapolation.CLAMP) },
+  // ],
+  marginTop: interpolate(
+    scrollY.value,
+    [0, SHRINK_RANGE],
+    // TODO: Rename HERO_PAD_EXPANDED
+    [HERO_PAD_EXPANDED, 0],
+    Extrapolation.CLAMP
+  ),
+  // paddingBottom: interpolate(
+  //   scrollY.value,
+  //   [0, SHRINK_RANGE],
+  //   [HERO_PAD_EXPANDED, HERO_PAD_COLLAPSED + insets.top + spacing[4]],
+  //   Extrapolation.CLAMP
+  // ),
+  // height: interpolate(
+  //   scrollY.value,
+  //   [0, SHRINK_RANGE],
+  //   [HERO_PAD_EXPANDED, HERO_PAD_COLLAPSED],
+  //   Extrapolation.CLAMP
+  // ),
+}));
+
+const avatarAnimStyle = useAnimatedStyle(() => ({
+  transform: [
+    { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, AVATAR_COLLAPSED / AVATAR_EXPANDED], Extrapolation.CLAMP) },
+  ],
+}));
+
+const helloAnimStyle = useAnimatedStyle(() => ({
+  opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.5], [1, 0], Extrapolation.CLAMP),
+}));
+
+const nameAnimStyle = useAnimatedStyle(() => ({
+  transform: [
+    { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 18 / 32], Extrapolation.CLAMP) },
+  ],
+}));
+
+const metaAnimStyle = useAnimatedStyle(() => ({
+  opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.4], [1, 0], Extrapolation.CLAMP),
+}));
+
+const heroTextSlideStyle = useAnimatedStyle(() => ({
+  paddingTop: interpolate(scrollY.value, [0, SHRINK_RANGE], [HERO_GAP_EXPANDED, 0]),
+  paddingBottom: interpolate(scrollY.value, [0, SHRINK_RANGE], [HERO_GAP_EXPANDED, 0]),
+  transform: [
+    { translateX: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(AVATAR_DELTA + HERO_GAP_EXPANDED - HERO_GAP_COLLAPSED)], Extrapolation.CLAMP) },
+    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, - spacing[4]], Extrapolation.CLAMP)}
+  ],
+}));
+
+const fabSlideStyle = useAnimatedStyle(() => ({
+  transform: [
+    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -FAB_MARGIN_TOP], Extrapolation.CLAMP) },
+  ],
+}));
+
+if (loading) {
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Hero gradient — anchored top, translates upward with scroll (parallax) */}
-      <Animated.View
-        pointerEvents="none"
-        style={[styles.gradientWrap, gradientAnimStyle]}
-      >
-        <View collapsable={false} renderToHardwareTextureAndroid style={StyleSheet.absoluteFill}>
-          <LinearGradient
-            colors={[
-              'rgba(44,123,229,0.72)',
-              'rgba(44,123,229,0.52)',
-              'rgba(44,123,229,0.28)',
-              'rgba(44,123,229,0.10)',
-              'rgba(248,249,250,0.0)',
-            ]}
-            locations={[0, 0.14, 0.38, 0.62, 0.88]}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
-      </Animated.View>
-
-      {/* Brand mark — static height, only child transform changes */}
-      <View style={styles.brandRow}>
-        <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle]}>
-          <View collapsable={false} renderToHardwareTextureAndroid>
-            <HemeaWordmark size={26} />
-          </View>
-        </Animated.View>
-      </View>
-
-      {/* Collapsible profile hero — transform-only: translateY pulls up, children scale/fade */}
-      {analyses.length > 0 && (
-        <Animated.View style={[styles.hero, heroAnimStyle]} pointerEvents="box-none">
-          <View style={styles.heroRow} pointerEvents="box-none">
-            <View style={styles.avatarBox} pointerEvents="none">
-              <Animated.View style={[styles.avatarInner, avatarAnimStyle]}>
-                <View collapsable={false} renderToHardwareTextureAndroid>
-                  <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={profile?.profileImage} />
-                </View>
-              </Animated.View>
-            </View>
-
-            <Animated.View style={[styles.heroText, heroTextSlideStyle]} pointerEvents="none">
-              <Animated.View style={helloAnimStyle}>
-                <Text style={styles.helloText}>Bonjour,</Text>
-              </Animated.View>
-              <Animated.Text style={[styles.heroName, styles.nameOrigin, nameAnimStyle]}>
-                {displayName}
-              </Animated.Text>
-              <Animated.View style={metaAnimStyle}>
-                {profile && age !== null && (
-                  <Text style={styles.metaText}>
-                    <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
-                    {' ans'}
-                    {sexLetter && (
-                      <>
-                        {' · '}
-                        <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{sexLetter}</Text>
-                      </>
-                    )}
-                    {' · '}
-                    <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{analyses.length}</Text>
-                    {' analyses'}
-                  </Text>
-                )}
-              </Animated.View>
-            </Animated.View>
-
-            <Animated.View style={[styles.fabWrap, fabSlideStyle]}>
-              <GlassFAB size={FAB_SIZE} onPress={() => router.push('/settings')} accessibilityLabel="Réglages">
-                <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
-              </GlassFAB>
-            </Animated.View>
-          </View>
-        </Animated.View>
-      )}
-
-      {analyses.length === 0 ? (
-        /* Empty state */
-        <View style={styles.emptyState}>
-          <PersonAvatar name={avatarName} size={56} imageUri={profile?.profileImage} />
-          <View style={styles.emptyText}>
-            <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
-            <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
-            <Text style={[typography.body, styles.emptyBody]}>
-              Importez un bilan sanguin pour commencer.
-            </Text>
-          </View>
-          <PrimaryButton onPress={() => router.push('/upload')} size="md">
-            Importer un PDF
-          </PrimaryButton>
-        </View>
-      ) : (
-        /* Main content */
-        <Animated.ScrollView
-          style={[styles.scroll, scrollAnimStyle]}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 + COLLAPSE_DELTA }]}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          overScrollMode="never"
-          onScroll={scrollHandler}
-        >
-          {/* BalanceCard — shown only when magnitude data available */}
-          {magnitudeData.length > 0 && (
-            <BalanceCard data={magnitudeData} />
-          )}
-
-          {/* "Mes analyses" CTA */}
-          <Pressable
-            onPress={() => router.push('/analyses')}
-            style={({ pressed }) => [styles.analysesCta, { opacity: pressed ? 0.85 : 1 }]}
-          >
-            <View style={styles.ctaIcon}>
-              <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-            </View>
-            <View style={styles.ctaText}>
-              <Text style={[typography.lead, { color: colors.textStrong }]}>Mes analyses</Text>
-              <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-                {analyses.length} bilans importés
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </Pressable>
-
-          {/* Pinned charts section */}
-          <View style={styles.pinnedHeader}>
-            <Text style={[typography.label]}>Graphiques épinglés</Text>
-            <Pressable onPress={() => router.push('/(tabs)/charts')}>
-              <Text style={styles.seeAllText}>Tous les graphiques</Text>
-            </Pressable>
-          </View>
-
-          {pinnedSeries.length === 0 ? (
-            <View style={styles.emptyPinned}>
-              <Text style={[typography.small, { color: colors.textBody, textAlign: 'center', marginBottom: 8 }]}>
-                Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l&apos;onglet Graphiques.
-              </Text>
-              <PrimaryButton size="sm" variant="ghost" onPress={() => router.push('/(tabs)/charts')}>
-                Parcourir les graphiques
-              </PrimaryButton>
-            </View>
-          ) : (
-            pinnedSeries.map(series => (
-              <PinnedChartCard key={series.key} series={series} onUnpin={() => handleUnpin(series.key)} />
-            ))
-          )}
-        </Animated.ScrollView>
-      )}
+    <View style={[styles.center, { paddingTop: insets.top }]}>
+      <ActivityIndicator color={colors.primary} />
     </View>
   );
+}
+
+const displayName = profile?.firstName ?? 'vous';
+const age = profile ? (bundle?.getUserAgeUseCase.execute(profile) ?? '—') : null;
+const avatarName = profile?.name ?? (profile ? `${profile.firstName} ${profile.lastName}` : undefined);
+const sexLetter = profile?.gender === 'female' ? 'F' : profile?.gender === 'male' ? 'M' : null;
+
+return (
+  <View style={[styles.root, { paddingTop: insets.top}]}>
+    {/* Hero gradient — anchored top, translates upward with scroll (parallax) */}
+    {/* <Animated.View
+      pointerEvents="none"
+      style={[styles.gradientWrap, gradientAnimStyle]}
+    >
+      <View collapsable={false} renderToHardwareTextureAndroid style={StyleSheet.absoluteFill}>
+        <LinearGradient
+          colors={[
+            'rgba(44,123,229,0.72)',
+            'rgba(44,123,229,0.52)',
+            'rgba(44,123,229,0.28)',
+            'rgba(44,123,229,0.10)',
+            'rgba(250, 248, 248, 0)',
+          ]}
+          locations={[0, 0.14, 0.38, 0.62, 0.88]}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+    </Animated.View> */}
+
+    {/* Brand mark — static height, only child transform changes */}
+    {/* <View style={[styles.brandRow, {backgroundColor: "blue"}]}>
+      
+    </View> */}
+    <Animated.View style={[styles.brandRow, brandRowHeightAnimStyle]}>
+      <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle, {backgroundColor: "blue"}]}>
+          <HemeaWordmark size={26} />
+      </Animated.View>
+    </Animated.View>
+
+    {/* Collapsible profile hero — transform-only: translateY pulls up, children scale/fade */}
+    {/* heroAnimStyle */}
+    <Animated.View style={[styles.hero , heroAnimStyle, {backgroundColor: 'red'}]}> 
+      {/* <View style={styles.heroRow} pointerEvents="box-none"> */}
+      {/* </View> */}
+
+        {/* <View style={styles.avatarBox} pointerEvents="none">
+        </View> */}
+        <Animated.View style={[styles.avatarInner, avatarAnimStyle, {backgroundColor: "blue"}]}>
+          <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={profile?.profileImage} />
+        </Animated.View>
+
+        {/* <Animated.View style={[styles.heroText, heroTextSlideStyle]} pointerEvents="none">
+          <Animated.View style={helloAnimStyle}>
+            <Text style={styles.helloText}>Bonjour,</Text>
+          </Animated.View>
+          <Animated.Text style={[styles.heroName, styles.nameOrigin, nameAnimStyle]}>
+            {displayName}
+          </Animated.Text>
+          <Animated.View style={metaAnimStyle}>
+            {profile && age !== null && (
+              <Text style={styles.metaText}>
+                <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
+                {' ans'}
+                {sexLetter && (
+                  <>
+                    {' · '}
+                    <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{sexLetter}</Text>
+                  </>
+                )}
+                {' · '}
+                <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{analyses.length}</Text>
+                {' analyses'}
+              </Text>
+            )}
+          </Animated.View>
+        </Animated.View> */}
+
+        {/* <Animated.View style={[styles.fabWrap, fabSlideStyle]}>
+          <GlassFAB size={FAB_SIZE} onPress={() => router.push('/settings')} accessibilityLabel="Réglages">
+            <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
+          </GlassFAB>
+        </Animated.View> */}
+    </Animated.View>
+
+    {analyses.length === 0 ? (
+      /* Empty state */
+      <View style={styles.emptyState}>
+        <PersonAvatar name={avatarName} size={56} imageUri={profile?.profileImage} />
+        <View style={styles.emptyText}>
+          <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
+          <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
+          <Text style={[typography.body, styles.emptyBody]}>
+            Importez un bilan sanguin pour commencer.
+          </Text>
+        </View>
+        <PrimaryButton onPress={() => router.push('/upload')} size="md">
+          Importer un PDF
+        </PrimaryButton>
+      </View>
+    ) : (
+      /* Main content */
+      <Animated.ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        overScrollMode="never"
+        onScroll={scrollHandler}
+      >
+        {/* BalanceCard — shown only when magnitude data available */}
+        {magnitudeData.length > 0 && (
+          <BalanceCard data={magnitudeData} />
+        )}
+
+        {/* "Mes analyses" CTA */}
+        <Pressable
+          onPress={() => router.push('/analyses')}
+          style={({ pressed }) => [styles.analysesCta, { opacity: pressed ? 0.85 : 1 }]}
+        >
+          <View style={styles.ctaIcon}>
+            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.ctaText}>
+            <Text style={[typography.lead, { color: colors.textStrong }]}>Mes analyses</Text>
+            <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+              {analyses.length} bilans importés
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </Pressable>
+
+        {/* Pinned charts section */}
+        <View style={styles.pinnedHeader}>
+          <Text style={[typography.label]}>Graphiques épinglés</Text>
+          <Pressable onPress={() => router.push('/(tabs)/charts')}>
+            <Text style={styles.seeAllText}>Tous les graphiques</Text>
+          </Pressable>
+        </View>
+
+        {pinnedSeries.length === 0 ? (
+          <View style={styles.emptyPinned}>
+            <Text style={[typography.small, { color: colors.textBody, textAlign: 'center', marginBottom: 8 }]}>
+              Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l&apos;onglet Graphiques.
+            </Text>
+            <PrimaryButton size="sm" variant="ghost" onPress={() => router.push('/(tabs)/charts')}>
+              Parcourir les graphiques
+            </PrimaryButton>
+          </View>
+        ) : (
+          pinnedSeries.map(series => (
+            <PinnedChartCard key={series.key} series={series} onUnpin={() => handleUnpin(series.key)} />
+          ))
+        )}
+      </Animated.ScrollView>
+    )}
+  </View>
+);
 }
 
 const styles = StyleSheet.create({
@@ -626,33 +657,37 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   brandRow: {
-    height: BRAND_EXPANDED_H,
+    // height: BRAND_EXPANDED_H,
     flexDirection: 'row',
     alignItems: 'center',
     paddingTop: 8,
     paddingHorizontal: spacing[5],
     overflow: 'hidden',
-    zIndex: 3,
+    // zIndex: 3,
   },
-  wordmarkOrigin: { transformOrigin: 'top left' },
-  hero: {
-    paddingTop: HERO_PAD_EXPANDED,
-    paddingBottom: HERO_PAD_EXPANDED,
+  wordmarkOrigin: { 
+    transformOrigin: 'top left',
     paddingHorizontal: spacing[5],
-    zIndex: 2,
+  },
+  hero: {
+    // marginTop: BRAND_EXPANDED_H,
+    // paddingTop: HERO_PAD_EXPANDED,
+    // paddingBottom: HERO_PAD_EXPANDED,
+    paddingHorizontal: spacing[5],
+    // zIndex: 2,
   },
   heroRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     columnGap: HERO_GAP_EXPANDED,
   },
-  avatarBox: {
-    width: AVATAR_EXPANDED,
-    height: AVATAR_EXPANDED,
-  },
+  // avatarBox: {
+  //   width: AVATAR_EXPANDED,
+  //   height: AVATAR_EXPANDED,
+  // },
   avatarInner: {
     width: AVATAR_EXPANDED,
-    height: AVATAR_EXPANDED,
+    // height: AVATAR_EXPANDED,
     transformOrigin: 'top left',
   },
   heroText: { flex: 1, minWidth: 0 },
