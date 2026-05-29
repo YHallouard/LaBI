@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Platform, View, Text, StyleSheet } from 'react-native';
 import { colors, radii, elevation, spacing } from '../tokens';
 import { typography } from '../typography';
 
@@ -34,7 +34,10 @@ const styles = StyleSheet.create({
     ...elevation[1],
   },
   cardAlert: {
-    backgroundColor: colors.dangerTint,
+    // Android elevation renders a native shadow that clips badly with
+    // semi-transparent backgrounds, producing a grey halo. Use an opaque
+    // tint on Android (dangerTint blended onto white #F8F9FA ≈ #FCECED).
+    backgroundColor: Platform.OS === 'android' ? '#FCECED' : colors.dangerTint,
   },
   valueRow: {
     flexDirection: 'row',

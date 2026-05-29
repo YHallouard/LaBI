@@ -7,12 +7,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Pressable,
+  Animated,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import Svg, { Line, Circle, Path, Text as SvgText, Defs, LinearGradient as SvgGradient, Stop, Rect } from 'react-native-svg';
 
 import { BiologicalAnalysis, LabValue } from '../../../domain/entities/BiologicalAnalysis';
@@ -23,6 +22,10 @@ import {
   colors, spacing, radii, elevation,
   typography, ScreenHeader, StatCard,
 } from '../../../design-system';
+import { BlurView } from 'expo-blur';
+import { GlassFAB } from '../../../design-system/components/GlassFAB';
+import { GlassSurface } from '../../../design-system/components/GlassSurface';
+import { BottomSheet } from '../../../design-system/components/BottomSheet';
 
 // ─── Time range definitions ───────────────────────────────────────────────────
 type RangeKey = '3M' | '6M' | '1Y' | '3Y' | 'Tout';
@@ -235,7 +238,6 @@ const markerStyles = StyleSheet.create({
 // ─── ChartScreen ──────────────────────────────────────────────────────────────
 export function ChartScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const { bundle } = useUseCases();
 
   const [analyses, setAnalyses] = useState<BiologicalAnalysis[]>([]);
@@ -243,8 +245,10 @@ export function ChartScreen() {
   const [pinnedKeys, setPinnedKeys] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState<RangeKey>('1Y');
-  const [fabOpen, setFabOpen] = useState(false);
+  const [pillOpen, setPillOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [infoMarker, setInfoMarker] = useState<{ key: string; unit: string; refMin?: number; refMax?: number } | null>(null);
+  const pillAnim = useState(() => new Animated.Value(0))[0];
 
   useFocusEffect(
     useCallback(() => {
@@ -318,40 +322,74 @@ export function ChartScreen() {
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <ScreenHeader title="Graphiques" subtitle="Évolution dans le temps" />
 
-      {/* Glass FAB pill — time range picker */}
-      <Pressable
-        onPress={() => setFabOpen(o => !o)}
-        style={[styles.rangeFab, { top: insets.top + 14 }]}
-      >
-        <BlurView intensity={60} tint="systemUltraThinMaterialLight" style={styles.rangeFabBlur}>
-          <Ionicons name="time-outline" size={14} color={colors.primary} />
-          <Text style={styles.rangeFabLabel}>{RANGES.find(r => r.key === range)?.label ?? range}</Text>
-          <Ionicons name={fabOpen ? 'chevron-up' : 'chevron-down'} size={11} color={colors.primary} />
-        </BlurView>
-      </Pressable>
+      {/* Glass FAB — icon-only, toggles pill picker */}
+      <View style={[styles.rangeFab, { top: insets.top + 14 }]}>
+        <GlassFAB
+          size={40}
+          onPress={() => {
+            const opening = !pillOpen;
+            setPillOpen(opening);
+            Animated.spring(pillAnim, {
+              toValue: opening ? 1 : 0,
+              useNativeDriver: true,
+              friction: 8,
+              tension: 100,
+            }).start();
+          }}
+          accessibilityLabel="Plage temporelle"
+        >
+          <Ionicons name="time-outline" size={18} color={colors.primary} />
+        </GlassFAB>
+      </View>
 
-      {/* Popover */}
-      {fabOpen && (
-        <>
-          <Pressable style={styles.rangeScrim} onPress={() => setFabOpen(false)} />
-          <View style={[styles.rangePopover, { top: insets.top + 58 }]}>
-            {RANGES.map(r => (
-              <Pressable
-                key={r.key}
-                onPress={() => { setRange(r.key); setFabOpen(false); }}
-                style={[styles.rangeOption, r.key === range && styles.rangeOptionActive]}
-              >
-                <Text style={[styles.rangeOptionText, r.key === range && styles.rangeOptionTextActive]}>
-                  {r.label}
-                </Text>
-                {r.key === range && (
-                  <Ionicons name="checkmark" size={14} color={colors.primary} />
-                )}
-              </Pressable>
-            ))}
-          </View>
-        </>
+      {/* Backdrop blur when pill is open — covers entire screen */}
+      {pillOpen && (
+        <Pressable
+          style={[StyleSheet.absoluteFill, { top: -insets.top, zIndex: 4 }]}
+          onPress={() => {
+            setPillOpen(false);
+            Animated.spring(pillAnim, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
+          }}
+        >
+          <BlurView
+            intensity={12}
+            tint="light"
+            style={StyleSheet.absoluteFill}
+          />
+        </Pressable>
       )}
+      <Animated.View
+        pointerEvents={pillOpen ? 'auto' : 'none'}
+        style={[
+          styles.pillContainer,
+          { top: insets.top + 60 },
+          {
+            opacity: pillAnim,
+            transform: [
+              { scale: pillAnim.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) },
+              { translateY: pillAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) },
+            ],
+          },
+        ]}
+      >
+        <GlassSurface radius={radii.xl} borderColor="rgba(255,255,255,0.75)" style={styles.pillInner}>
+          {RANGES.map(r => (
+            <Pressable
+              key={r.key}
+              onPress={() => {
+                setRange(r.key);
+                setPillOpen(false);
+                Animated.spring(pillAnim, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
+              }}
+              style={[styles.pillOption, r.key === range && styles.pillOptionActive]}
+            >
+              <Text style={[styles.pillOptionText, r.key === range && styles.pillOptionTextActive]}>
+                {r.label}
+              </Text>
+            </Pressable>
+          ))}
+        </GlassSurface>
+      </Animated.View>
 
       {/* Search bar */}
       <View style={styles.searchBar}>
@@ -400,15 +438,7 @@ export function ChartScreen() {
                   refMax={m.refMax}
                   pinned={pinnedKeys.includes(m.key)}
                   onTogglePin={() => handleTogglePin(m.key)}
-                  onOpenInfo={() => router.push({
-                    pathname: '/marker-info',
-                    params: {
-                      key: m.key,
-                      unit: m.unit ?? '',
-                      refMin: m.refMin?.toString() ?? '',
-                      refMax: m.refMax?.toString() ?? '',
-                    },
-                  })}
+                  onOpenInfo={() => setInfoMarker({ key: m.key, unit: m.unit, refMin: m.refMin, refMax: m.refMax })}
                 />
               ))}
             </View>
@@ -416,6 +446,39 @@ export function ChartScreen() {
         )}
       </ScrollView>
 
+      {/* Marker info glass BottomSheet */}
+      <BottomSheet visible={infoMarker !== null} onClose={() => setInfoMarker(null)}>
+        <View style={styles.infoSheet}>
+          <View style={styles.infoHeader}>
+            <View style={styles.infoIcon}>
+              <Ionicons name="information-circle-outline" size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={typography.label}>À propos du marqueur</Text>
+              <Text style={[typography.h3, { letterSpacing: -0.1 }]} numberOfLines={1}>
+                {infoMarker?.key ?? ''}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={[typography.body, { color: colors.textBody, lineHeight: 22, marginBottom: spacing[4] }]}>
+            {infoMarker ? (LAB_VALUE_EXPLANATIONS[infoMarker.key] ?? 'Aucune description disponible.') : ''}
+          </Text>
+
+          {infoMarker?.refMin != null && infoMarker?.refMax != null && (
+            <View style={styles.infoRange}>
+              <Text style={[typography.small, { fontWeight: '600', color: colors.textBody }]}>Plage normale</Text>
+              <Text style={[typography.small, { fontWeight: '700', color: colors.textStrong, fontVariant: ['tabular-nums'] }]}>
+                {infoMarker.refMin} – {infoMarker.refMax} {infoMarker.unit}
+              </Text>
+            </View>
+          )}
+
+          <Text style={[typography.caption, { color: colors.textMuted, textAlign: 'center', marginTop: spacing[3] }]}>
+            Information à but pédagogique. Pour toute question médicale, consultez un professionnel.
+          </Text>
+        </View>
+      </BottomSheet>
     </View>
   );
 }
@@ -428,69 +491,72 @@ const styles = StyleSheet.create({
     right: 18,
     zIndex: 5,
   },
-  rangeFabBlur: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.55)',
-    backgroundColor: 'rgba(255,255,255,0.62)',
-    shadowColor: '#12263F',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-  rangeFabLabel: {
-    fontSize: 13,
-    fontWeight: '700' as const,
-    color: colors.primary,
-    letterSpacing: -0.1,
-  },
-  rangeScrim: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 6,
-  },
-  rangePopover: {
-    position: 'absolute',
+  pillContainer: {
+    position: 'absolute' as const,
     right: 18,
-    zIndex: 7,
-    minWidth: 120,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 14,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.7)',
+    zIndex: 6,
     shadowColor: '#12263F',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.18,
-    shadowRadius: 30,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 6,
   },
-  rangeOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: 'transparent',
+  pillInner: {
+    flexDirection: 'column' as const,
+    padding: 5,
+    gap: 2,
   },
-  rangeOptionActive: {
-    backgroundColor: colors.bgBlue,
+  pillOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: radii.lg,
   },
-  rangeOptionText: {
-    fontSize: 14,
+  pillOptionActive: {
+    backgroundColor: '#fff',
+    shadowColor: '#12263F',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  pillOptionText: {
+    fontSize: 15,
     fontWeight: '500' as const,
-    color: colors.text,
+    color: colors.textBody,
   },
-  rangeOptionTextActive: {
+  pillOptionTextActive: {
     fontWeight: '700' as const,
     color: colors.primary,
+  },
+  infoSheet: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
+    paddingBottom: spacing[8],
+  },
+  infoHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+    marginBottom: spacing[4],
+  },
+  infoIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radii.lg,
+    backgroundColor: colors.bgBlue,
+    borderWidth: 1,
+    borderColor: colors.primary + '25',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  infoRange: {
+    flexDirection: 'row' as const,
+    justifyContent: 'space-between' as const,
+    alignItems: 'center' as const,
+    backgroundColor: colors.bgBlue,
+    borderWidth: 1,
+    borderColor: colors.primary + '25',
+    borderRadius: radii.lg,
+    padding: 12,
   },
   searchBar: {
     flexDirection: 'row',

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs';
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../../src/design-system/tokens';
+import { colors, radii } from '../../src/design-system/tokens';
+import { GlassSurface } from '../../src/design-system/components/GlassSurface';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -58,17 +58,16 @@ function GlassPillTabBar({ state, navigation }: BottomTabBarProps) {
 
   return (
     <View style={[styles.barContainer, { bottom }]} pointerEvents="box-none">
-      {/* Shadow wrapper — separate from overflow:hidden to preserve shadow on iOS */}
+      {/* Glass pill — uses native Liquid Glass on iOS 26+, BlurView fallback
+           on older iOS, opaque white on Android */}
       <View style={styles.pillShadow}>
-        <View style={styles.pillClip}>
-          {Platform.OS === 'ios' ? (
-            <BlurView intensity={28} tint="systemUltraThinMaterialLight" style={styles.pillInner}>
-              {pillContent}
-            </BlurView>
-          ) : (
-            <View style={[styles.pillInner, styles.pillAndroid]}>{pillContent}</View>
-          )}
-        </View>
+        <GlassSurface
+          radius={radii.pill}
+          borderColor="rgba(255,255,255,0.65)"
+          style={styles.pillInner}
+        >
+          {pillContent}
+        </GlassSurface>
       </View>
 
       {/* Primary import FAB */}
@@ -113,20 +112,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 30,
   },
-  pillClip: {
-    borderRadius: 9999,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.65)',
-  },
   pillInner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
     padding: 5,
-  },
-  pillAndroid: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
   },
   tab: {
     width: 78,

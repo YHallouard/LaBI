@@ -37,6 +37,7 @@ import { PersonAvatar } from '../../../design-system/components/PersonAvatar';
 import { PrimaryButton } from '../../../design-system/components/PrimaryButton';
 import { HemeaWordmark } from '../../../design-system/components/HemeaWordmark';
 import { GlassFAB } from '../../../design-system/components/GlassFAB';
+import { BottomSheet } from '../../../design-system/components/BottomSheet';
 
 const SHRINK_RANGE = 80;
 
@@ -225,6 +226,7 @@ function BalanceTrendChart({ points, refMax = 1.0 }: { points: ChartPoint[]; ref
 
 // ─── BalanceCard ──────────────────────────────────────────────────────────────
 function BalanceCard({ data }: { data: HealthMagnitudeDataPoint[] }) {
+  const [infoVisible, setInfoVisible] = useState(false);
   if (data.length === 0) return null;
   const sorted = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const latest = sorted[sorted.length - 1].magnitude;
@@ -236,33 +238,53 @@ function BalanceCard({ data }: { data: HealthMagnitudeDataPoint[] }) {
   }));
 
   return (
-    <View style={balanceStyles.card}>
-      <View style={balanceStyles.header}>
-        <View style={{ flex: 1 }}>
-          <Text style={[typography.label, { marginBottom: 2 }]}>Indicateur</Text>
-          <Text style={[typography.h3, { marginBottom: 3 }]}>Équilibre biologique</Text>
-          <Text style={[typography.small, { color: colors.textBody }]}>
-            Évolution de votre score de déséquilibre
+    <>
+      <Pressable onPress={() => setInfoVisible(true)} style={balanceStyles.card}>
+        <View style={balanceStyles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={[typography.label, { marginBottom: 2 }]}>Indicateur</Text>
+            <Text style={[typography.h3, { marginBottom: 3 }]}>Équilibre biologique</Text>
+            <Text style={[typography.small, { color: colors.textBody }]}>
+              Évolution de votre score de déséquilibre
+            </Text>
+          </View>
+          <View style={[balanceStyles.badge, { backgroundColor: isGood ? colors.successTint : colors.dangerTint }]}>
+            <Text style={[balanceStyles.badgeVal, { color: isGood ? colors.successDeep : colors.danger }]}>
+              {latest.toFixed(2)}
+            </Text>
+            <Text style={[balanceStyles.badgeSub, { color: isGood ? colors.successDeep : colors.danger }]}>
+              actuel
+            </Text>
+          </View>
+        </View>
+        <BalanceTrendChart points={points} refMax={1.0} />
+        <View style={balanceStyles.legend}>
+          <View style={balanceStyles.legendLeft}>
+            <View style={balanceStyles.legendSwatch} />
+            <Text style={[typography.caption, { color: colors.textMuted }]}>Zone d&apos;équilibre (≤ 1.00)</Text>
+          </View>
+          <Text style={[typography.caption, { color: colors.textMuted }]}>Plus bas = meilleur</Text>
+        </View>
+      </Pressable>
+
+      <BottomSheet visible={infoVisible} onClose={() => setInfoVisible(false)}>
+        <View style={balanceStyles.infoSheet}>
+          <Text style={[typography.h2, { marginBottom: spacing[3] }]}>
+            Indice d&apos;Équilibre Biologique
+          </Text>
+          <Text style={[typography.body, { color: colors.textBody, marginBottom: spacing[3] }]}>
+            L&apos;IEB représente l&apos;état global de vos analyses.
+            Restez{' '}
+            <Text style={{ fontWeight: '700', color: colors.textStrong }}>en dessous de 1.00</Text>
+            {' '}pour être dans la zone d&apos;équilibre.
+          </Text>
+          <Text style={[typography.body, { color: colors.textBody }]}>
+            Plus l&apos;indice est bas, plus vos résultats sont équilibrés.
+            Chaque marqueur hors de sa plage de référence contribue à augmenter le score.
           </Text>
         </View>
-        <View style={[balanceStyles.badge, { backgroundColor: isGood ? colors.successTint : colors.dangerTint }]}>
-          <Text style={[balanceStyles.badgeVal, { color: isGood ? colors.successDeep : colors.danger }]}>
-            {latest.toFixed(2)}
-          </Text>
-          <Text style={[balanceStyles.badgeSub, { color: isGood ? colors.successDeep : colors.danger }]}>
-            actuel
-          </Text>
-        </View>
-      </View>
-      <BalanceTrendChart points={points} refMax={1.0} />
-      <View style={balanceStyles.legend}>
-        <View style={balanceStyles.legendLeft}>
-          <View style={balanceStyles.legendSwatch} />
-          <Text style={[typography.caption, { color: colors.textMuted }]}>Zone d&apos;équilibre (≤ 1.00)</Text>
-        </View>
-        <Text style={[typography.caption, { color: colors.textMuted }]}>Plus bas = meilleur</Text>
-      </View>
-    </View>
+      </BottomSheet>
+    </>
   );
 }
 
@@ -303,6 +325,11 @@ const balanceStyles = StyleSheet.create({
   legend: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   legendLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendSwatch: { width: 14, height: 8, backgroundColor: 'rgba(0,200,0,0.22)', borderRadius: 3 },
+  infoSheet: {
+    paddingHorizontal: spacing[5],
+    paddingTop: spacing[2],
+    paddingBottom: spacing[8],
+  },
 });
 
 // ─── PinnedMiniChart ──────────────────────────────────────────────────────────
