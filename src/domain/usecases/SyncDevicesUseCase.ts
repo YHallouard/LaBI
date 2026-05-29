@@ -467,14 +467,14 @@ export class SyncDevicesUseCase {
       }
 
       const userProfile: UserProfile = {
-        id: profileData.id,
+        id: String(profileData.id),
         firstName: profileData.firstName,
         lastName: profileData.lastName,
         name: `${profileData.firstName} ${profileData.lastName}`.trim(),
         birthDate: new Date(profileData.birthDate),
         gender: profileData.gender,
         profileImage: profileImagePath,
-        pinnedMetrics: profileData.pinnedMetrics || [],
+        pinnedMetrics: parsePinnedMetrics(profileData.pinnedMetrics),
       };
 
       await this.userProfileRepository.save(userProfile);
@@ -559,6 +559,20 @@ export class SyncDevicesUseCase {
     this.syncingService.clearDiscoveredDevices();
   }
 }
+
+const parsePinnedMetrics = (raw: unknown): string[] => {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
 
 const getImageFormat = (filePath: string): string => {
   const extension = filePath.toLowerCase().split(".").pop();

@@ -81,9 +81,7 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
         : new Date(),
       gender: profileData.gender as Gender,
       profileImage: profileData.profileImage,
-      pinnedMetrics: profileData.pinnedMetrics
-        ? JSON.parse(profileData.pinnedMetrics)
-        : [],
+      pinnedMetrics: parsePinnedMetricsSafe(profileData.pinnedMetrics),
     };
   }
 
@@ -228,4 +226,18 @@ export class SQLiteUserProfileRepository implements UserProfileRepository {
     const query = `DELETE FROM ${this.tableName}`;
     await this.db.execAsync(query);
   }
+}
+
+function parsePinnedMetricsSafe(raw: unknown): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
