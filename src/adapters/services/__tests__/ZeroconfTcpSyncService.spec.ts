@@ -16,6 +16,7 @@ type Internals = {
     scan: jest.Mock;
     stop: jest.Mock;
     removeDeviceListeners: jest.Mock;
+    removeAllListeners: jest.Mock;
     on: jest.Mock;
     off: jest.Mock;
   };

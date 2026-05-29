@@ -79,7 +79,13 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
 
   async startScanning(): Promise<void> {
     this.discoveredDevices.clear();
-    this.zeroconf.removeDeviceListeners();
+
+    // Remove only our JS-level listeners — never call removeDeviceListeners()
+    // which destroys the native DeviceEventEmitter bridge and silently breaks
+    // all future event delivery.
+    this.zeroconf.removeAllListeners('resolved');
+    this.zeroconf.removeAllListeners('remove');
+    this.zeroconf.removeAllListeners('error');
 
     this.zeroconf.scan(SYNC_SERVICE_TYPE, 'tcp', 'local.');
 
@@ -117,7 +123,9 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
 
   async stopScanning(): Promise<void> {
     this.zeroconf.stop();
-    this.zeroconf.removeDeviceListeners();
+    this.zeroconf.removeAllListeners('resolved');
+    this.zeroconf.removeAllListeners('remove');
+    this.zeroconf.removeAllListeners('error');
     this.discoveredDevices.clear();
   }
 

@@ -4,6 +4,7 @@ const Zeroconf = jest.fn().mockImplementation(() => ({
   scan: jest.fn(),
   stop: jest.fn(),
   removeDeviceListeners: jest.fn(),
+  removeAllListeners: jest.fn(),
   on: jest.fn(),
   off: jest.fn(),
 }));
