@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Platform,
+  LayoutChangeEvent,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -155,8 +156,14 @@ function ProfileHero({ compactProgress, displayName, avatarName, avatarUri, age,
 type ChartPoint = { t: number; v: number; label: string };
 
 function BalanceTrendChart({ points, refMax = 1.0 }: { points: ChartPoint[]; refMax?: number }) {
-  if (points.length === 0) return null;
-  const W = 320, H = 110;
+  const [containerW, setContainerW] = useState(0);
+  const onLayout = (e: LayoutChangeEvent) => setContainerW(e.nativeEvent.layout.width);
+
+  if (points.length === 0 || containerW === 0) {
+    return <View onLayout={onLayout} style={{ height: containerW === 0 ? 110 : 0 }} />;
+  }
+
+  const W = containerW, H = 110;
   const pad = { l: 6, r: 6, t: 8, b: 22 };
   // When all points share the same timestamp (e.g. analyses from same PDF date),
   // spread them evenly across the time axis so the chart remains readable.
@@ -176,51 +183,53 @@ function BalanceTrendChart({ points, refMax = 1.0 }: { points: ChartPoint[]; ref
   const labelIdxs = [0, Math.floor((displayPoints.length - 1) / 2), displayPoints.length - 1].filter((v, i, a) => a.indexOf(v) === i);
 
   return (
-    <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-      <Defs>
-        <SvgGradient id="bal-band" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#00C800" stopOpacity={0.22} />
-          <Stop offset="1" stopColor="#00C800" stopOpacity={0.04} />
-        </SvgGradient>
-        <SvgGradient id="bal-line" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#2C7BE5" />
-          <Stop offset="1" stopColor="#4484B2" />
-        </SvgGradient>
-      </Defs>
-      <SvgLine x1={pad.l} x2={W - pad.r} y1={pad.t} y2={pad.t} stroke="#F1F4F8" />
-      <SvgLine x1={pad.l} x2={W - pad.r} y1={H - pad.b} y2={H - pad.b} stroke="#F1F4F8" />
-      <Rect
-        x={0}
-        y={Math.min(bandTop, bandBot)}
-        width={W}
-        height={Math.abs(bandBot - bandTop)}
-        fill="url(#bal-band)"
-      />
-      <Path
-        d={pathD}
-        fill="none"
-        stroke="url(#bal-line)"
-        strokeWidth={2.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      {displayPoints.map((p, i) => (
-        <Circle
-          key={i}
-          cx={xOf(p.t)}
-          cy={yOf(p.v)}
-          r={i === displayPoints.length - 1 ? 5 : 3.5}
-          fill={p.v > refMax ? colors.danger : colors.primary}
-          stroke="#fff"
-          strokeWidth={1.5}
+    <View onLayout={onLayout}>
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <Defs>
+          <SvgGradient id="bal-band" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#00C800" stopOpacity={0.22} />
+            <Stop offset="1" stopColor="#00C800" stopOpacity={0.04} />
+          </SvgGradient>
+          <SvgGradient id="bal-line" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#2C7BE5" />
+            <Stop offset="1" stopColor="#4484B2" />
+          </SvgGradient>
+        </Defs>
+        <SvgLine x1={pad.l} x2={W - pad.r} y1={pad.t} y2={pad.t} stroke="#F1F4F8" />
+        <SvgLine x1={pad.l} x2={W - pad.r} y1={H - pad.b} y2={H - pad.b} stroke="#F1F4F8" />
+        <Rect
+          x={0}
+          y={Math.min(bandTop, bandBot)}
+          width={W}
+          height={Math.abs(bandBot - bandTop)}
+          fill="url(#bal-band)"
         />
-      ))}
-      {labelIdxs.map(i => (
-        <SvgText key={i} x={xOf(displayPoints[i].t)} y={H - 6} fontSize={9} fill={colors.chartAxisLabel} textAnchor="middle">
-          {displayPoints[i].label}
-        </SvgText>
-      ))}
-    </Svg>
+        <Path
+          d={pathD}
+          fill="none"
+          stroke="url(#bal-line)"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {displayPoints.map((p, i) => (
+          <Circle
+            key={i}
+            cx={xOf(p.t)}
+            cy={yOf(p.v)}
+            r={i === displayPoints.length - 1 ? 5 : 3.5}
+            fill={p.v > refMax ? colors.danger : colors.primary}
+            stroke="#fff"
+            strokeWidth={1.5}
+          />
+        ))}
+        {labelIdxs.map(i => (
+          <SvgText key={i} x={xOf(displayPoints[i].t)} y={H - 6} fontSize={9} fill={colors.chartAxisLabel} textAnchor="middle">
+            {displayPoints[i].label}
+          </SvgText>
+        ))}
+      </Svg>
+    </View>
   );
 }
 
@@ -339,8 +348,14 @@ function PinnedMiniChart({ points, refMin, refMax, id }: {
   refMax: number;
   id: string;
 }) {
-  if (points.length < 2) return null;
-  const W = 280, H = 60;
+  const [containerW, setContainerW] = useState(0);
+  const onLayout = (e: LayoutChangeEvent) => setContainerW(e.nativeEvent.layout.width);
+
+  if (points.length < 2 || containerW === 0) {
+    return <View onLayout={onLayout} style={{ height: containerW === 0 ? 60 : 0 }} />;
+  }
+
+  const W = containerW, H = 60;
   const pad = { l: 4, r: 4, t: 4, b: 4 };
   const allV = points.map(p => p.v);
   const minV = Math.min(...allV, refMin > 0 ? refMin * 0.9 : 0);
@@ -354,30 +369,32 @@ function PinnedMiniChart({ points, refMin, refMax, id }: {
   const safeId = id.replace(/[^a-zA-Z0-9]/g, '_');
 
   return (
-    <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-      <Defs>
-        <SvgGradient id={`pm-${safeId}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#2C7BE5" />
-          <Stop offset="1" stopColor="#4484B2" />
-        </SvgGradient>
-      </Defs>
-      {hasBand && (
-        <Rect
-          x={0}
-          y={Math.min(yOf(refMax), yOf(refMin))}
-          width={W}
-          height={Math.abs(yOf(refMax) - yOf(refMin))}
-          fill="rgba(0,200,0,0.12)"
-        />
-      )}
-      <Path d={pathD} fill="none" stroke={`url(#pm-${safeId})`} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-      {points.map((p, i) => {
-        const isOut = hasBand && (p.v < refMin || p.v > refMax);
-        return (
-          <Circle key={i} cx={xOf(p.t)} cy={yOf(p.v)} r={i === points.length - 1 ? 4 : 3} fill={isOut ? colors.danger : colors.primary} stroke="#fff" strokeWidth={1.2} />
-        );
-      })}
-    </Svg>
+    <View onLayout={onLayout}>
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <Defs>
+          <SvgGradient id={`pm-${safeId}`} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#2C7BE5" />
+            <Stop offset="1" stopColor="#4484B2" />
+          </SvgGradient>
+        </Defs>
+        {hasBand && (
+          <Rect
+            x={0}
+            y={Math.min(yOf(refMax), yOf(refMin))}
+            width={W}
+            height={Math.abs(yOf(refMax) - yOf(refMin))}
+            fill="rgba(0,200,0,0.12)"
+          />
+        )}
+        <Path d={pathD} fill="none" stroke={`url(#pm-${safeId})`} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => {
+          const isOut = hasBand && (p.v < refMin || p.v > refMax);
+          return (
+            <Circle key={i} cx={xOf(p.t)} cy={yOf(p.v)} r={i === points.length - 1 ? 4 : 3} fill={isOut ? colors.danger : colors.primary} stroke="#fff" strokeWidth={1.2} />
+          );
+        })}
+      </Svg>
+    </View>
   );
 }
 

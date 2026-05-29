@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Pressable,
   Animated,
+  LayoutChangeEvent,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,8 +58,14 @@ function SimpleChart({
   refMax?: number;
   marker: string;
 }) {
-  if (points.length < 2) return null;
-  const W = 320, H = 130;
+  const [containerW, setContainerW] = useState(0);
+  const onLayout = (e: LayoutChangeEvent) => setContainerW(e.nativeEvent.layout.width);
+
+  if (points.length < 2 || containerW === 0) {
+    return <View onLayout={onLayout} style={{ height: containerW === 0 ? 130 : 0 }} />;
+  }
+
+  const W = containerW, H = 130;
   const pad = { l: 28, r: 12, t: 10, b: 22 };
   const values = points.map(p => p.v);
   const dataMin = Math.min(...values, refMin ?? Infinity);
@@ -76,39 +83,41 @@ function SimpleChart({
   const labelIdxs = [0, Math.floor(points.length / 2), points.length - 1].filter((v, i, arr) => arr.indexOf(v) === i);
 
   return (
-    <Svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-      <Defs>
-        <SvgGradient id={svgId} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#00C800" stopOpacity="0.22" />
-          <Stop offset="1" stopColor="#00C800" stopOpacity="0.04" />
-        </SvgGradient>
-      </Defs>
-      {[0, 0.33, 0.66, 1].map((f, i) => (
-        <Line key={i}
-          x1={pad.l} x2={W - pad.r}
-          y1={pad.t + f * (H - pad.t - pad.b)}
-          y2={pad.t + f * (H - pad.t - pad.b)}
-          stroke={colors.chartGrid} strokeWidth="1"
-        />
-      ))}
-      {bandTop != null && bandBot != null && (
-        <Rect x={pad.l} y={bandTop} width={W - pad.l - pad.r} height={Math.max(0, bandBot - bandTop)} fill={`url(#${svgId})`} />
-      )}
-      <Path d={pathD} fill="none" stroke={colors.chartLine} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {points.map((p, i) => {
-        const out = (refMin != null && p.v < refMin) || (refMax != null && p.v > refMax);
-        return (
-          <Circle key={i} cx={xOf(p.t)} cy={yOf(p.v)} r={out ? 4.5 : 4} fill={out ? colors.danger : colors.primary} stroke="#fff" strokeWidth="1.5" />
-        );
-      })}
-      <SvgText fontSize="9" fill={colors.chartAxisLabel} textAnchor="end" x={pad.l - 4} y={pad.t + 4}>{vMax.toFixed(1)}</SvgText>
-      <SvgText fontSize="9" fill={colors.chartAxisLabel} textAnchor="end" x={pad.l - 4} y={H - pad.b + 3}>{vMin.toFixed(1)}</SvgText>
-      {labelIdxs.map(i => (
-        <SvgText key={i} fontSize="9" fill={colors.chartAxisLabel} textAnchor="middle" x={xOf(points[i].t)} y={H - 6}>
-          {points[i].label}
-        </SvgText>
-      ))}
-    </Svg>
+    <View onLayout={onLayout}>
+      <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+        <Defs>
+          <SvgGradient id={svgId} x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#00C800" stopOpacity="0.22" />
+            <Stop offset="1" stopColor="#00C800" stopOpacity="0.04" />
+          </SvgGradient>
+        </Defs>
+        {[0, 0.33, 0.66, 1].map((f, i) => (
+          <Line key={i}
+            x1={pad.l} x2={W - pad.r}
+            y1={pad.t + f * (H - pad.t - pad.b)}
+            y2={pad.t + f * (H - pad.t - pad.b)}
+            stroke={colors.chartGrid} strokeWidth="1"
+          />
+        ))}
+        {bandTop != null && bandBot != null && (
+          <Rect x={pad.l} y={bandTop} width={W - pad.l - pad.r} height={Math.max(0, bandBot - bandTop)} fill={`url(#${svgId})`} />
+        )}
+        <Path d={pathD} fill="none" stroke={colors.chartLine} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => {
+          const out = (refMin != null && p.v < refMin) || (refMax != null && p.v > refMax);
+          return (
+            <Circle key={i} cx={xOf(p.t)} cy={yOf(p.v)} r={out ? 4.5 : 4} fill={out ? colors.danger : colors.primary} stroke="#fff" strokeWidth="1.5" />
+          );
+        })}
+        <SvgText fontSize="9" fill={colors.chartAxisLabel} textAnchor="end" x={pad.l - 4} y={pad.t + 4}>{vMax.toFixed(1)}</SvgText>
+        <SvgText fontSize="9" fill={colors.chartAxisLabel} textAnchor="end" x={pad.l - 4} y={H - pad.b + 3}>{vMin.toFixed(1)}</SvgText>
+        {labelIdxs.map(i => (
+          <SvgText key={i} fontSize="9" fill={colors.chartAxisLabel} textAnchor="middle" x={xOf(points[i].t)} y={H - 6}>
+            {points[i].label}
+          </SvgText>
+        ))}
+      </Svg>
+    </View>
   );
 }
 
