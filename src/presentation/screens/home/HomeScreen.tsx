@@ -5,13 +5,16 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   interpolate,
   Extrapolation,
+  SharedValue,
 } from 'react-native-reanimated';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
@@ -44,7 +47,7 @@ const HERO_PAD_COLLAPSED = 10;
 const AVATAR_EXPANDED = 104;
 const AVATAR_COLLAPSED = 40;
 
-// Derived layout constants for the transform-only hero (Plan B).
+// Derived layout constants for the transform-only hero (iOS shrink mode).
 // The hero's height is the ONLY animated layout prop; everything inside is
 // position:absolute and animated purely via transform/opacity (UI-thread fast
 // path) so layout and transform never desync → no Android flicker.
@@ -55,6 +58,97 @@ const AVATAR_DY = HERO_PAD_COLLAPSED - HERO_PAD_EXPANDED; // -38: avatar top edg
 const TEXT_DX = -(AVATAR_EXPANDED - AVATAR_COLLAPSED); // -64: follow shrinking avatar
 const TEXT_DY = (HERO_COLLAPSED_H - HERO_EXPANDED_H) / 2; // -70: recenter in collapsed bar
 const FAB_SIZE = 40;
+
+// Android crossfade constants — compact bar fades in after the big wordmark
+// has scrolled past (~50px), then completes over the next 60px.
+// No layout props are animated → zero flicker on Android.
+const CROSSFADE_HOLD = 50;   // scroll distance before fade starts
+const CROSSFADE_RANGE = 60;  // fade window
+const COMPACT_BAR_H = 58;
+
+// ─── Android crossfade: CompactBar ───────────────────────────────────────────
+// Pinned absolute overlay that fades in once the hero scrolls out of view.
+// Only opacity + translateY are animated → no layout work → no Android flicker.
+type CompactBarProps = {
+  compactProgress: SharedValue<number>;
+  displayName: string;
+  avatarName?: string;
+  avatarUri?: string;
+  topInset: number;
+  onOpenSettings: () => void;
+};
+function CompactBar({ compactProgress, displayName, avatarName, avatarUri, topInset, onOpenSettings }: CompactBarProps) {
+  const barStyle = useAnimatedStyle(() => {
+    const p = interpolate(compactProgress.value, [0, 1], [0, 1], Extrapolation.CLAMP);
+    return {
+      opacity: p,
+      transform: [{ translateY: (p - 1) * 8 }],
+      backgroundColor: `rgba(255,255,255,${0.92 * p})`,
+      borderBottomColor: `rgba(18,38,63,${0.06 * p})`,
+      pointerEvents: p > 0.5 ? 'auto' : 'none',
+    } as any;
+  });
+  return (
+    <Animated.View style={[styles.compactBar, { top: topInset, height: COMPACT_BAR_H }, barStyle]}>
+      <HemeaWordmark size={18} />
+      <View style={styles.compactDivider} />
+      <PersonAvatar name={avatarName} size={28} imageUri={avatarUri} />
+      <Text style={styles.compactName} numberOfLines={1}>{displayName}</Text>
+      <View style={{ flex: 1 }} />
+      <GlassFAB size={34} onPress={onOpenSettings} accessibilityLabel="Réglages">
+        <Ionicons name="settings-outline" size={15} color={colors.textStrong} />
+      </GlassFAB>
+    </Animated.View>
+  );
+}
+
+// ─── Android crossfade: ProfileHero ──────────────────────────────────────────
+// Lives INSIDE the scroll flow — fixed layout, never resized.
+// Only the big wordmark's opacity is animated as the compact bar fades in.
+type ProfileHeroProps = {
+  compactProgress: SharedValue<number>;
+  displayName: string;
+  avatarName?: string;
+  avatarUri?: string;
+  age: number | null;
+  sexLetter: string | null;
+  analysesCount: number;
+  profile: UserProfile | null;
+  onOpenSettings: () => void;
+};
+function ProfileHero({ compactProgress, displayName, avatarName, avatarUri, age, sexLetter, analysesCount, profile, onOpenSettings }: ProfileHeroProps) {
+  const wordmarkStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(compactProgress.value, [0, 1], [1, 0], Extrapolation.CLAMP),
+    transform: [{ translateY: interpolate(compactProgress.value, [0, 1], [0, -4], Extrapolation.CLAMP) }],
+  }));
+  return (
+    <View style={styles.profileHero}>
+      <Animated.View style={[styles.profileHeroWordmark, wordmarkStyle]}>
+        <HemeaWordmark size={26} />
+      </Animated.View>
+      <View style={styles.profileHeroRow}>
+        <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={avatarUri} />
+        <View style={styles.profileHeroText}>
+          <Text style={styles.helloText}>Bonjour,</Text>
+          <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
+          {profile && age !== null && (
+            <Text style={styles.metaText} numberOfLines={1}>
+              <Text style={styles.metaBold}>{age}</Text>
+              {' ans'}
+              {sexLetter && <><Text>{' · '}</Text><Text style={styles.metaBold}>{sexLetter}</Text></>}
+              {' · '}
+              <Text style={styles.metaBold}>{analysesCount}</Text>
+              {' analyses'}
+            </Text>
+          )}
+        </View>
+        <GlassFAB size={FAB_SIZE} onPress={onOpenSettings} accessibilityLabel="Réglages">
+          <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
+        </GlassFAB>
+      </View>
+    </View>
+  );
+}
 
 // ─── BalanceTrendChart ────────────────────────────────────────────────────────
 type ChartPoint = { t: number; v: number; label: string };
@@ -410,6 +504,24 @@ const metaAnimStyle = useAnimatedStyle(() => ({
     [1, 0], Extrapolation.CLAMP),
 }));
 
+// Gradient parallax — shared by both modes. Translates upward with scroll
+// so the blue wash scrolls away naturally with the hero content.
+const gradientAnimStyle = useAnimatedStyle(() => ({
+  transform: [{ translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -SHRINK_RANGE], Extrapolation.CLAMP) }],
+}));
+
+// Crossfade progress for Android — starts after 50px of scroll, completes
+// over the next 60px. Drives CompactBar and ProfileHero wordmark only.
+const crossfadeProgress = useSharedValue(0);
+const crossfadeScrollHandler = useAnimatedScrollHandler({
+  onScroll: (e) => {
+    scrollY.value = e.contentOffset.y;
+    crossfadeProgress.value = Math.max(0, Math.min(1, (e.contentOffset.y - CROSSFADE_HOLD) / CROSSFADE_RANGE));
+  },
+});
+
+const isCrossfade = Platform.OS === 'android';
+
 const load = useCallback(async () => {
   if (!bundle) return;
   try {
@@ -472,135 +584,191 @@ const avatarName = profile?.name ?? (profile ? `${profile.firstName} ${profile.l
 const age = profile ? (bundle?.getUserAgeUseCase.execute(profile) ?? null) : null;
 const sexLetter = profile?.gender === 'female' ? 'F' : profile?.gender === 'male' ? 'M' : null;
 
-return (
-  <View style={[styles.root, { paddingTop: insets.top }]}>
-    {/* Brand mark — fixed height; wordmark scales from its left edge (transform only) */}
-    <View style={styles.brandRow}>
-      <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle]}>
-        <HemeaWordmark size={26} />
-      </Animated.View>
+const avatarUri = resolveProfileImageUri(profile?.profileImage);
+
+// Shared scrollable content (balance card, CTA, pinned charts).
+const mainContent = (
+  <>
+    {magnitudeData.length > 0 && <BalanceCard data={magnitudeData} />}
+
+    <Pressable
+      onPress={() => router.push('/analyses')}
+      style={({ pressed }) => [styles.analysesCta, { opacity: pressed ? 0.85 : 1 }]}
+    >
+      <View style={styles.ctaIcon}>
+        <Ionicons name="document-text-outline" size={18} color={colors.primary} />
+      </View>
+      <View style={styles.ctaText}>
+        <Text style={[typography.lead, { color: colors.textStrong }]}>Mes analyses</Text>
+        <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
+          {analyses.length} bilans importés
+        </Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+    </Pressable>
+
+    <View style={styles.pinnedHeader}>
+      <Text style={[typography.label]}>Graphiques épinglés</Text>
+      <Pressable onPress={() => router.push('/(tabs)/charts')}>
+        <Text style={styles.seeAllText}>Tous les graphiques</Text>
+      </Pressable>
     </View>
 
-    {/* Profile hero — only the container height animates (layout); content is
-        position:absolute and animated purely via transform/opacity → no flicker */}
-    {analyses.length > 0 && (
-      <Animated.View style={[styles.hero, heroHeightStyle]}>
-        <Animated.View style={[styles.avatarWrap, avatarAnimStyle]}>
-          <PersonAvatar
-            name={avatarName}
-            size={AVATAR_EXPANDED}
-            imageUri={resolveProfileImageUri(profile?.profileImage)}
-          />
-        </Animated.View>
-
-        <Animated.View style={[styles.heroText, heroTextAnimStyle]}>
-          <Animated.Text style={[styles.helloText, helloAnimStyle]}>
-            Bonjour,
-          </Animated.Text>
-          <Animated.View style={[styles.nameOrigin, nameAnimStyle]}>
-            <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
-          </Animated.View>
-          <Animated.View style={metaAnimStyle}>
-            {profile && age !== null && (
-              <Text style={styles.metaText} numberOfLines={1}>
-                <Text style={styles.metaBold}>{age}</Text>
-                {' ans'}
-                {sexLetter && (
-                  <>
-                    {' · '}
-                    <Text style={styles.metaBold}>{sexLetter}</Text>
-                  </>
-                )}
-                {' · '}
-                <Text style={styles.metaBold}>{analyses.length}</Text>
-                {' analyses'}
-              </Text>
-            )}
-          </Animated.View>
-        </Animated.View>
-
-        <Animated.View style={[styles.fabWrap, fabAnimStyle]}>
-          <GlassFAB
-            size={FAB_SIZE}
-            onPress={() => router.push('/settings')}
-            accessibilityLabel="Réglages"
-          >
-            <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
-          </GlassFAB>
-        </Animated.View>
-      </Animated.View>
-    )}
-
-    {analyses.length === 0 ? (
-      /* Empty state */
-      <View style={styles.emptyState}>
-        <PersonAvatar name={avatarName} size={56} imageUri={resolveProfileImageUri(profile?.profileImage)} />
-        <View style={styles.emptyText}>
-          <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
-          <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
-          <Text style={[typography.body, styles.emptyBody]}>
-            Importez un bilan sanguin pour commencer.
-          </Text>
-        </View>
-        <PrimaryButton onPress={() => router.push('/upload')} size="md">
-          Importer un PDF
+    {pinnedSeries.length === 0 ? (
+      <View style={styles.emptyPinned}>
+        <Text style={[typography.small, { color: colors.textBody, textAlign: 'center', marginBottom: 8 }]}>
+          Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l&apos;onglet Graphiques.
+        </Text>
+        <PrimaryButton size="sm" variant="ghost" onPress={() => router.push('/(tabs)/charts')}>
+          Parcourir les graphiques
         </PrimaryButton>
       </View>
     ) : (
-      /* Main content */
-      <Animated.ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={16}
-        overScrollMode="never"
-        onScroll={scrollHandler}
-      >
-        {/* BalanceCard — shown only when magnitude data available */}
-        {magnitudeData.length > 0 && (
-          <BalanceCard data={magnitudeData} />
-        )}
+      pinnedSeries.map(series => (
+        <PinnedChartCard key={series.key} series={series} onUnpin={() => handleUnpin(series.key)} />
+      ))
+    )}
+  </>
+);
 
-        {/* "Mes analyses" CTA */}
-        <Pressable
-          onPress={() => router.push('/analyses')}
-          style={({ pressed }) => [styles.analysesCta, { opacity: pressed ? 0.85 : 1 }]}
-        >
-          <View style={styles.ctaIcon}>
-            <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-          </View>
-          <View style={styles.ctaText}>
-            <Text style={[typography.lead, { color: colors.textStrong }]}>Mes analyses</Text>
-            <Text style={[typography.caption, { color: colors.textMuted, marginTop: 2 }]}>
-              {analyses.length} bilans importés
+return (
+  <View style={[styles.root, { paddingTop: isCrossfade ? 0 : insets.top }]}>
+    {/* Hero gradient — anchored top, translates upward with scroll (parallax).
+        Rendered in both modes; on Android it covers the status bar area too. */}
+    <Animated.View
+      pointerEvents="none"
+      collapsable={false}
+      renderToHardwareTextureAndroid
+      style={[styles.gradientWrap, { top: isCrossfade ? 0 : -50 }, gradientAnimStyle]}
+    >
+      <LinearGradient
+        colors={[
+          'rgba(44,123,229,0.72)',
+          'rgba(44,123,229,0.52)',
+          'rgba(44,123,229,0.28)',
+          'rgba(44,123,229,0.10)',
+          'rgba(248,249,250,0.0)',
+        ]}
+        locations={[0, 0.14, 0.38, 0.62, 0.88]}
+        style={StyleSheet.absoluteFill}
+      />
+    </Animated.View>
+
+    {analyses.length === 0 ? (
+      /* ── Empty state (both platforms) ── */
+      <>
+        <View style={[styles.brandRow, { paddingTop: isCrossfade ? insets.top : 0 }]}>
+          <HemeaWordmark size={26} />
+        </View>
+        <View style={styles.emptyState}>
+          <PersonAvatar name={avatarName} size={56} imageUri={avatarUri} />
+          <View style={styles.emptyText}>
+            <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
+            <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
+            <Text style={[typography.body, styles.emptyBody]}>
+              Importez un bilan sanguin pour commencer.
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-        </Pressable>
-
-        {/* Pinned charts section */}
-        <View style={styles.pinnedHeader}>
-          <Text style={[typography.label]}>Graphiques épinglés</Text>
-          <Pressable onPress={() => router.push('/(tabs)/charts')}>
-            <Text style={styles.seeAllText}>Tous les graphiques</Text>
-          </Pressable>
+          <PrimaryButton onPress={() => router.push('/upload')} size="md">
+            Importer un PDF
+          </PrimaryButton>
+        </View>
+      </>
+    ) : isCrossfade ? (
+      /* ── Android: hero scrolls away, compact bar cross-fades in ── */
+      <>
+        <CompactBar
+          compactProgress={crossfadeProgress}
+          displayName={displayName}
+          avatarName={avatarName}
+          avatarUri={avatarUri}
+          topInset={insets.top}
+          onOpenSettings={() => router.push('/settings')}
+        />
+        <Animated.ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top, paddingBottom: insets.bottom + 120 }]}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          overScrollMode="never"
+          onScroll={crossfadeScrollHandler}
+        >
+          {/* ProfileHero lives inside the scroll — no layout animation */}
+          <ProfileHero
+            compactProgress={crossfadeProgress}
+            displayName={displayName}
+            avatarName={avatarName}
+            avatarUri={avatarUri}
+            age={age}
+            sexLetter={sexLetter}
+            analysesCount={analyses.length}
+            profile={profile}
+            onOpenSettings={() => router.push('/settings')}
+          />
+          {mainContent}
+        </Animated.ScrollView>
+      </>
+    ) : (
+      /* ── iOS: brand row + hero with transform-only shrink ── */
+      <>
+        <View style={styles.brandRow}>
+          <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle]}>
+            <HemeaWordmark size={26} />
+          </Animated.View>
         </View>
 
-        {pinnedSeries.length === 0 ? (
-          <View style={styles.emptyPinned}>
-            <Text style={[typography.small, { color: colors.textBody, textAlign: 'center', marginBottom: 8 }]}>
-              Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l&apos;onglet Graphiques.
-            </Text>
-            <PrimaryButton size="sm" variant="ghost" onPress={() => router.push('/(tabs)/charts')}>
-              Parcourir les graphiques
-            </PrimaryButton>
-          </View>
-        ) : (
-          pinnedSeries.map(series => (
-            <PinnedChartCard key={series.key} series={series} onUnpin={() => handleUnpin(series.key)} />
-          ))
-        )}
-      </Animated.ScrollView>
+        <Animated.View style={[styles.hero, heroHeightStyle]}>
+          <Animated.View style={[styles.avatarWrap, avatarAnimStyle]}>
+            <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={avatarUri} />
+          </Animated.View>
+
+          <Animated.View style={[styles.heroText, heroTextAnimStyle]}>
+            <Animated.Text style={[styles.helloText, helloAnimStyle]}>
+              Bonjour,
+            </Animated.Text>
+            <Animated.View style={[styles.nameOrigin, nameAnimStyle]}>
+              <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
+            </Animated.View>
+            <Animated.View style={metaAnimStyle}>
+              {profile && age !== null && (
+                <Text style={styles.metaText} numberOfLines={1}>
+                  <Text style={styles.metaBold}>{age}</Text>
+                  {' ans'}
+                  {sexLetter && (
+                    <>
+                      {' · '}
+                      <Text style={styles.metaBold}>{sexLetter}</Text>
+                    </>
+                  )}
+                  {' · '}
+                  <Text style={styles.metaBold}>{analyses.length}</Text>
+                  {' analyses'}
+                </Text>
+              )}
+            </Animated.View>
+          </Animated.View>
+
+          <Animated.View style={[styles.fabWrap, fabAnimStyle]}>
+            <GlassFAB
+              size={FAB_SIZE}
+              onPress={() => router.push('/settings')}
+              accessibilityLabel="Réglages"
+            >
+              <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
+            </GlassFAB>
+          </Animated.View>
+        </Animated.View>
+
+        <Animated.ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={scrollHandler}
+        >
+          {mainContent}
+        </Animated.ScrollView>
+      </>
     )}
   </View>
 );
@@ -735,4 +903,46 @@ const styles = StyleSheet.create({
   emptyText: { alignItems: 'center', gap: spacing[1] },
   emptyTitle: { textAlign: 'center', marginTop: spacing[2] },
   emptyBody: { textAlign: 'center', color: colors.textBody },
+  // ── Android CompactBar ────────────────────────────────────────────────────
+  compactBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: spacing[4],
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  compactDivider: {
+    width: 1,
+    height: 18,
+    backgroundColor: 'rgba(18,38,63,0.12)',
+  },
+  compactName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.textStrong,
+    letterSpacing: -0.2,
+    flexShrink: 1,
+  },
+  // ── Android ProfileHero ───────────────────────────────────────────────────
+  profileHero: {
+    paddingHorizontal: spacing[5],
+    paddingBottom: spacing[4],
+  },
+  profileHeroWordmark: {
+    marginBottom: 20,
+  },
+  profileHeroRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18,
+  },
+  profileHeroText: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
 });
