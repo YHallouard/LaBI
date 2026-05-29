@@ -89,7 +89,7 @@ function CompactBar({ compactProgress, displayName, avatarName, avatarUri, topIn
     } as any;
   });
   return (
-    <Animated.View style={[styles.compactBar, { top: topInset, height: COMPACT_BAR_H }, barStyle]}>
+    <Animated.View style={[styles.compactBar, { top: 0, height: COMPACT_BAR_H + topInset, paddingTop: topInset }, barStyle]}>
       <HemeaWordmark size={18} />
       <View style={styles.compactDivider} />
       <PersonAvatar name={avatarName} size={28} imageUri={avatarUri} />
