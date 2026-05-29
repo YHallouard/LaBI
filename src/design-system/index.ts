@@ -15,3 +15,5 @@ export { Toggle } from './components/Toggle';
 export { SyncHeroCard } from './components/SyncHeroCard';
 export { DeviceDiscoveryRow } from './components/DeviceDiscoveryRow';
 export { ModalGrabber } from './components/ModalGrabber';
+export { BottomSheet } from './components/BottomSheet';
+export { BottomSheetModalProvider } from '@expo/ui/community/bottom-sheet';

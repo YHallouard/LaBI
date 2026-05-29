@@ -16,7 +16,6 @@ import Animated, {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, {
   Path, Circle, Line as SvgLine, Text as SvgText,
@@ -28,12 +27,13 @@ import { BiologicalAnalysis } from '../../../domain/entities/BiologicalAnalysis'
 import { UserProfile } from '../../../domain/UserProfile';
 import { HealthMagnitudeDataPoint } from '../../../domain/usecases/CalculateHealthMagnitudeUseCase';
 import { useUseCases } from '../../contexts/UseCasesContext';
+import { resolveProfileImageUri } from '../../../infrastructure/profile/profileImageStorage';
 import { colors, spacing, radii, elevation } from '../../../design-system/tokens';
 import { typography } from '../../../design-system/typography';
 import { PersonAvatar } from '../../../design-system/components/PersonAvatar';
-import { GlassFAB } from '../../../design-system/components/GlassFAB';
 import { PrimaryButton } from '../../../design-system/components/PrimaryButton';
 import { HemeaWordmark } from '../../../design-system/components/HemeaWordmark';
+import { GlassFAB } from '../../../design-system/components/GlassFAB';
 
 const SHRINK_RANGE = 80;
 
@@ -45,14 +45,6 @@ const AVATAR_EXPANDED = 104;
 const AVATAR_COLLAPSED = 40;
 const HERO_GAP_EXPANDED = 18;
 const HERO_GAP_COLLAPSED = 10;
-const FAB_SIZE = 40;
-const FAB_MARGIN_TOP = (AVATAR_EXPANDED - FAB_SIZE) / 2;
-
-const BRAND_DELTA = BRAND_EXPANDED_H - BRAND_COLLAPSED_H;
-const PAD_TOP_DELTA = HERO_PAD_EXPANDED - HERO_PAD_COLLAPSED;
-const AVATAR_DELTA = AVATAR_EXPANDED - AVATAR_COLLAPSED;
-const PAD_BOT_DELTA = HERO_PAD_EXPANDED - HERO_PAD_COLLAPSED;
-const COLLAPSE_DELTA = BRAND_DELTA + PAD_TOP_DELTA + AVATAR_DELTA + PAD_BOT_DELTA;
 
 // ─── BalanceTrendChart ────────────────────────────────────────────────────────
 type ChartPoint = { t: number; v: number; label: string };
@@ -349,6 +341,55 @@ const scrollHandler = useAnimatedScrollHandler({
   },
 });
 
+// Pure Reanimated animations — all on UI thread, no JS bridge
+const brandRowAnimStyle = useAnimatedStyle(() => ({
+  height: interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [BRAND_EXPANDED_H, BRAND_COLLAPSED_H], Extrapolation.CLAMP),
+}));
+
+const wordmarkAnimStyle = useAnimatedStyle(() => {
+  const scale = interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [1, BRAND_COLLAPSED_H / BRAND_EXPANDED_H], Extrapolation.CLAMP);
+  return { transform: [{ scale }] };
+});
+
+const heroAnimStyle = useAnimatedStyle(() => ({
+  paddingVertical: interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [HERO_PAD_EXPANDED, HERO_PAD_COLLAPSED], Extrapolation.CLAMP),
+  gap: interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [HERO_GAP_EXPANDED, HERO_GAP_COLLAPSED], Extrapolation.CLAMP),
+}));
+
+// avatarWrap shrinks its layout footprint 104 → 40 so the hero truly collapses to ~60px
+const avatarWrapStyle = useAnimatedStyle(() => {
+  const s = interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [AVATAR_EXPANDED, AVATAR_COLLAPSED], Extrapolation.CLAMP);
+  return { width: s, height: s };
+});
+
+// avatarInner scales visually so PersonAvatar (rendered at 104) fits the shrunk wrap
+const avatarScaleStyle = useAnimatedStyle(() => {
+  const scale = interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [1, AVATAR_COLLAPSED / AVATAR_EXPANDED], Extrapolation.CLAMP);
+  return { transform: [{ scale }] };
+});
+
+const helloAnimStyle = useAnimatedStyle(() => ({
+  opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.6],
+    [1, 0], Extrapolation.CLAMP),
+}));
+
+const nameAnimStyle = useAnimatedStyle(() => {
+  const scale = interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [1, 18 / 32], Extrapolation.CLAMP);
+  return { transform: [{ scale }] };
+});
+
+const metaAnimStyle = useAnimatedStyle(() => ({
+  opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.4],
+    [1, 0], Extrapolation.CLAMP),
+}));
+
 const load = useCallback(async () => {
   if (!bundle) return;
   try {
@@ -398,88 +439,6 @@ const pinnedSeries = useMemo<PinnedSeries[]>(() => {
   });
 }, [bundle, pinnedKeys, analyses]);
 
-const gradientAnimStyle = useAnimatedStyle(() => ({
-  transform: [
-    /* TODO: il faut la translater plus que ça, il verait diparaitre entièrement*/
-    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -SHRINK_RANGE], Extrapolation.CLAMP) },
-  ],
-}));
-
-const wordmarkAnimStyle = useAnimatedStyle(() => ({
-  transform: [
-    { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 13 / 26], Extrapolation.CLAMP) },
-  ],
-}));
-
-const brandRowHeightAnimStyle = useAnimatedStyle(() => ({
-  height: interpolate(
-    scrollY.value,
-    [0, SHRINK_RANGE],
-    [BRAND_EXPANDED_H, BRAND_COLLAPSED_H],
-    Extrapolation.CLAMP
-  ),
-}));
-
-const heroAnimStyle = useAnimatedStyle(() => ({
-  // transform: [
-  //   { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(BRAND_DELTA + PAD_TOP_DELTA)], Extrapolation.CLAMP) },
-  // ],
-  marginTop: interpolate(
-    scrollY.value,
-    [0, SHRINK_RANGE],
-    // TODO: Rename HERO_PAD_EXPANDED
-    [HERO_PAD_EXPANDED, 0],
-    Extrapolation.CLAMP
-  ),
-  // paddingBottom: interpolate(
-  //   scrollY.value,
-  //   [0, SHRINK_RANGE],
-  //   [HERO_PAD_EXPANDED, HERO_PAD_COLLAPSED + insets.top + spacing[4]],
-  //   Extrapolation.CLAMP
-  // ),
-  // height: interpolate(
-  //   scrollY.value,
-  //   [0, SHRINK_RANGE],
-  //   [HERO_PAD_EXPANDED, HERO_PAD_COLLAPSED],
-  //   Extrapolation.CLAMP
-  // ),
-}));
-
-const avatarAnimStyle = useAnimatedStyle(() => ({
-  transform: [
-    { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, AVATAR_COLLAPSED / AVATAR_EXPANDED], Extrapolation.CLAMP) },
-  ],
-}));
-
-const helloAnimStyle = useAnimatedStyle(() => ({
-  opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.5], [1, 0], Extrapolation.CLAMP),
-}));
-
-const nameAnimStyle = useAnimatedStyle(() => ({
-  transform: [
-    { scale: interpolate(scrollY.value, [0, SHRINK_RANGE], [1, 18 / 32], Extrapolation.CLAMP) },
-  ],
-}));
-
-const metaAnimStyle = useAnimatedStyle(() => ({
-  opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.4], [1, 0], Extrapolation.CLAMP),
-}));
-
-const heroTextSlideStyle = useAnimatedStyle(() => ({
-  paddingTop: interpolate(scrollY.value, [0, SHRINK_RANGE], [HERO_GAP_EXPANDED, 0]),
-  paddingBottom: interpolate(scrollY.value, [0, SHRINK_RANGE], [HERO_GAP_EXPANDED, 0]),
-  transform: [
-    { translateX: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -(AVATAR_DELTA + HERO_GAP_EXPANDED - HERO_GAP_COLLAPSED)], Extrapolation.CLAMP) },
-    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, - spacing[4]], Extrapolation.CLAMP)}
-  ],
-}));
-
-const fabSlideStyle = useAnimatedStyle(() => ({
-  transform: [
-    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, -FAB_MARGIN_TOP], Extrapolation.CLAMP) },
-  ],
-}));
-
 if (loading) {
   return (
     <View style={[styles.center, { paddingTop: insets.top }]}>
@@ -489,91 +448,72 @@ if (loading) {
 }
 
 const displayName = profile?.firstName ?? 'vous';
-const age = profile ? (bundle?.getUserAgeUseCase.execute(profile) ?? '—') : null;
 const avatarName = profile?.name ?? (profile ? `${profile.firstName} ${profile.lastName}` : undefined);
+const age = profile ? (bundle?.getUserAgeUseCase.execute(profile) ?? null) : null;
 const sexLetter = profile?.gender === 'female' ? 'F' : profile?.gender === 'male' ? 'M' : null;
 
 return (
-  <View style={[styles.root, { paddingTop: insets.top}]}>
-    {/* Hero gradient — anchored top, translates upward with scroll (parallax) */}
-    {/* <Animated.View
-      pointerEvents="none"
-      style={[styles.gradientWrap, gradientAnimStyle]}
-    >
-      <View collapsable={false} renderToHardwareTextureAndroid style={StyleSheet.absoluteFill}>
-        <LinearGradient
-          colors={[
-            'rgba(44,123,229,0.72)',
-            'rgba(44,123,229,0.52)',
-            'rgba(44,123,229,0.28)',
-            'rgba(44,123,229,0.10)',
-            'rgba(250, 248, 248, 0)',
-          ]}
-          locations={[0, 0.14, 0.38, 0.62, 0.88]}
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
-    </Animated.View> */}
-
-    {/* Brand mark — static height, only child transform changes */}
-    {/* <View style={[styles.brandRow, {backgroundColor: "blue"}]}>
-      
-    </View> */}
-    <Animated.View style={[styles.brandRow, brandRowHeightAnimStyle]}>
-      <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle, {backgroundColor: "blue"}]}>
-          <HemeaWordmark size={26} />
+  <View style={[styles.root, { paddingTop: insets.top }]}>
+    {/* Brand mark — height + wordmark size shrink together (matches design Home.jsx) */}
+    <Animated.View style={[styles.brandRow, brandRowAnimStyle]}>
+      <Animated.View style={wordmarkAnimStyle}>
+        <HemeaWordmark size={26} />
       </Animated.View>
     </Animated.View>
 
-    {/* Collapsible profile hero — transform-only: translateY pulls up, children scale/fade */}
-    {/* heroAnimStyle */}
-    <Animated.View style={[styles.hero , heroAnimStyle, {backgroundColor: 'red'}]}> 
-      {/* <View style={styles.heroRow} pointerEvents="box-none"> */}
-      {/* </View> */}
-
-        {/* <View style={styles.avatarBox} pointerEvents="none">
-        </View> */}
-        <Animated.View style={[styles.avatarInner, avatarAnimStyle, {backgroundColor: "blue"}]}>
-          <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={profile?.profileImage} />
+    {/* Profile hero — avatar shrinks layout; hello/name/meta fade with scroll */}
+    {analyses.length > 0 && (
+      <Animated.View style={[styles.hero, heroAnimStyle]}>
+        <Animated.View style={[styles.avatarWrap, avatarWrapStyle]}>
+          <Animated.View style={avatarScaleStyle}>
+            <PersonAvatar
+              name={avatarName}
+              size={AVATAR_EXPANDED}
+              imageUri={resolveProfileImageUri(profile?.profileImage)}
+            />
+          </Animated.View>
         </Animated.View>
 
-        {/* <Animated.View style={[styles.heroText, heroTextSlideStyle]} pointerEvents="none">
-          <Animated.View style={helloAnimStyle}>
-            <Text style={styles.helloText}>Bonjour,</Text>
-          </Animated.View>
-          <Animated.Text style={[styles.heroName, styles.nameOrigin, nameAnimStyle]}>
-            {displayName}
+        <View style={styles.heroText}>
+          <Animated.Text style={[styles.helloText, helloAnimStyle]}>
+            Bonjour,
           </Animated.Text>
+          <Animated.View style={[styles.nameOrigin, nameAnimStyle]}>
+            <Text style={styles.heroName} numberOfLines={1}>{displayName}</Text>
+          </Animated.View>
           <Animated.View style={metaAnimStyle}>
             {profile && age !== null && (
-              <Text style={styles.metaText}>
-                <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{age}</Text>
+              <Text style={styles.metaText} numberOfLines={1}>
+                <Text style={styles.metaBold}>{age}</Text>
                 {' ans'}
                 {sexLetter && (
                   <>
                     {' · '}
-                    <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{sexLetter}</Text>
+                    <Text style={styles.metaBold}>{sexLetter}</Text>
                   </>
                 )}
                 {' · '}
-                <Text style={{ color: colors.textStrong, fontWeight: '700' }}>{analyses.length}</Text>
+                <Text style={styles.metaBold}>{analyses.length}</Text>
                 {' analyses'}
               </Text>
             )}
           </Animated.View>
-        </Animated.View> */}
+        </View>
 
-        {/* <Animated.View style={[styles.fabWrap, fabSlideStyle]}>
-          <GlassFAB size={FAB_SIZE} onPress={() => router.push('/settings')} accessibilityLabel="Réglages">
-            <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
-          </GlassFAB>
-        </Animated.View> */}
-    </Animated.View>
+        <GlassFAB
+          size={40}
+          onPress={() => router.push('/settings')}
+          accessibilityLabel="Réglages"
+        >
+          <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
+        </GlassFAB>
+      </Animated.View>
+    )}
 
     {analyses.length === 0 ? (
       /* Empty state */
       <View style={styles.emptyState}>
-        <PersonAvatar name={avatarName} size={56} imageUri={profile?.profileImage} />
+        <PersonAvatar name={avatarName} size={56} imageUri={resolveProfileImageUri(profile?.profileImage)} />
         <View style={styles.emptyText}>
           <Text style={[styles.heroName, { fontSize: 24 }]}>{displayName}</Text>
           <Text style={[typography.h3, styles.emptyTitle]}>Aucune analyse</Text>
@@ -657,41 +597,33 @@ const styles = StyleSheet.create({
     zIndex: 0,
   },
   brandRow: {
-    // height: BRAND_EXPANDED_H,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingTop: 8,
     paddingHorizontal: spacing[5],
     overflow: 'hidden',
-    // zIndex: 3,
-  },
-  wordmarkOrigin: { 
-    transformOrigin: 'top left',
-    paddingHorizontal: spacing[5],
   },
   hero: {
-    // marginTop: BRAND_EXPANDED_H,
-    // paddingTop: HERO_PAD_EXPANDED,
-    // paddingBottom: HERO_PAD_EXPANDED,
-    paddingHorizontal: spacing[5],
-    // zIndex: 2,
-  },
-  heroRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    columnGap: HERO_GAP_EXPANDED,
+    alignItems: 'center',
+    paddingHorizontal: spacing[5],
   },
-  // avatarBox: {
-  //   width: AVATAR_EXPANDED,
-  //   height: AVATAR_EXPANDED,
-  // },
-  avatarInner: {
+  avatarWrap: {
     width: AVATAR_EXPANDED,
-    // height: AVATAR_EXPANDED,
-    transformOrigin: 'top left',
+    height: AVATAR_EXPANDED,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heroText: { flex: 1, minWidth: 0 },
-  fabWrap: { marginTop: FAB_MARGIN_TOP },
+  heroText: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+    marginLeft: spacing[3],
+  },
+  metaBold: {
+    color: colors.textStrong,
+    fontWeight: '700',
+  },
   helloText: {
     fontSize: 13,
     fontWeight: '600',

@@ -154,14 +154,22 @@ export function AIImportScreen() {
           </View>
         )}
 
-        <PrimaryButton
-          onPress={handleImport}
-          disabled={analyzing}
-          size="lg"
-          style={styles.importBtn}
-        >
-          {analyzing ? 'Analyse en cours…' : 'Sélectionner un PDF'}
-        </PrimaryButton>
+        <View style={styles.uploadZone}>
+          <View style={styles.uploadIconCircle}>
+            <Ionicons name="cloud-upload-outline" size={26} color={colors.primary} />
+          </View>
+          <Text style={[typography.lead, styles.uploadTitle]}>Sélectionnez un PDF</Text>
+          <Text style={[typography.small, styles.uploadHint]}>
+            Bilan sanguin, biochimie, lipides… L&apos;extraction des valeurs est automatique.
+          </Text>
+          <PrimaryButton
+            onPress={handleImport}
+            disabled={analyzing}
+            size="lg"
+          >
+            {analyzing ? 'Analyse en cours…' : 'Sélectionner & analyser PDF'}
+          </PrimaryButton>
+        </View>
 
         {analyzing && (
           <View style={styles.stepsCard}>
@@ -195,7 +203,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: spacing[1],
     alignSelf: 'flex-start', marginTop: spacing[1],
   },
-  importBtn: { width: '100%' },
+  uploadZone: {
+    backgroundColor: colors.bgBlue,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.primary,
+    borderRadius: radii['2xl'],
+    paddingVertical: spacing[6],
+    paddingHorizontal: spacing[5],
+    alignItems: 'center',
+    gap: spacing[3],
+  },
+  uploadIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.bgElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation[2],
+  },
+  uploadTitle: {
+    color: colors.textStrong,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  uploadHint: {
+    color: colors.textBody,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
   stepsCard: {
     backgroundColor: colors.bgElevated, borderRadius: radii.xl,
     padding: spacing[4], gap: spacing[2], ...elevation[2],

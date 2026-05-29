@@ -24,8 +24,17 @@ import {
   colors, spacing, radii, elevation,
   typography, ScreenHeader, PersonAvatar, Banner, PrimaryButton, ModalGrabber,
 } from '../../../design-system';
+import {
+  persistProfileImage,
+  resolveProfileImageUri,
+} from '../../../infrastructure/profile/profileImageStorage';
 
-export function ProfileScreen() {
+type ProfileScreenProps = {
+  onboarding?: boolean;
+  onProfileSaved?: () => void;
+};
+
+export function ProfileScreen({ onboarding = false, onProfileSaved }: ProfileScreenProps = {}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -58,10 +67,11 @@ export function ProfileScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.7,
     });
     if (!result.canceled && result.assets[0]) {
-      setProfile(p => ({ ...p, profileImage: result.assets[0].uri }));
+      const fileName = await persistProfileImage(result.assets[0].uri);
+      setProfile(p => ({ ...p, profileImage: fileName }));
     }
   };
 
@@ -78,6 +88,7 @@ export function ProfileScreen() {
         if (existing) {
           setProfile(existing);
           setProfileExists(true);
+          if (!onboarding) setIsEditMode(false);
         } else {
           setIsEditMode(true);
         }
@@ -109,6 +120,10 @@ export function ProfileScreen() {
       }
       setProfile(validated);
       setProfileExists(true);
+      if (onboarding && onProfileSaved) {
+        onProfileSaved();
+        return;
+      }
       setIsEditMode(false);
       setSuccessMsg('Profil enregistré.');
       setTimeout(() => setSuccessMsg(null), 3000);
@@ -147,13 +162,13 @@ export function ProfileScreen() {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ModalGrabber />
+      {!onboarding && <ModalGrabber />}
       <ScreenHeader
-        title="Profil"
-        subtitle="Informations personnelles"
-        onBack={() => router.back()}
+        title={onboarding ? 'Créer mon profil' : 'Profil'}
+        subtitle={onboarding ? 'Ces informations permettent de calculer vos plages de référence.' : 'Informations personnelles'}
+        onBack={onboarding ? undefined : () => router.back()}
         right={
-          profileExists && !isEditMode ? (
+          !onboarding && profileExists && !isEditMode ? (
             <Pressable onPress={() => setIsEditMode(true)} style={styles.editBtn}>
               <Ionicons name="pencil-outline" size={18} color={colors.primary} />
             </Pressable>
@@ -169,7 +184,7 @@ export function ProfileScreen() {
         {/* Avatar + name display */}
         <View style={styles.avatarSection}>
           <Pressable onPress={isEditMode ? handlePickImage : undefined} style={styles.avatarWrapper}>
-            <PersonAvatar name={displayName} size={80} imageUri={profile.profileImage} />
+            <PersonAvatar name={displayName} size={80} imageUri={resolveProfileImageUri(profile.profileImage)} />
             {isEditMode && (
               <View style={styles.cameraOverlay}>
                 <Ionicons name="camera" size={16} color="#fff" />
@@ -310,7 +325,7 @@ export function ProfileScreen() {
             >
               Enregistrer
             </PrimaryButton>
-            {profileExists && (
+            {profileExists && !onboarding && (
               <PrimaryButton
                 onPress={() => { setIsEditMode(false); setErrorMsg(null); }}
                 variant="ghost"
