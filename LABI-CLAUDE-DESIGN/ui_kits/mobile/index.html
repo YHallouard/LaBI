@@ -32,8 +32,12 @@
 
 <div class="stage">
   <div class="phone-wrap">
-    <div id="phone"></div>
-    <div class="phone-label">iPhone · iOS 17 · light only</div>
+    <div id="phone-ios"></div>
+    <div class="phone-label">iPhone · iOS · header qui se replie</div>
+  </div>
+  <div class="phone-wrap">
+    <div id="phone-android"></div>
+    <div class="phone-label">Android · Material · barre compacte en fondu</div>
   </div>
 </div>
 
@@ -42,6 +46,7 @@
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
 
 <script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="android-frame.jsx"></script>
 <script type="text/babel" src="data.jsx"></script>
 <script type="text/babel" src="components.jsx"></script>
 <script type="text/babel" src="screens/Home.jsx"></script>
@@ -55,14 +60,16 @@
 <script type="text/babel" src="HemeaApp.jsx"></script>
 
 <script type="text/babel" data-presets="env,react">
-  function Stage() {
-    return (
-      <IOSDevice width={390} height={844}>
-        <HemeaApp/>
-      </IOSDevice>
-    );
-  }
-  ReactDOM.createRoot(document.getElementById('phone')).render(<Stage/>);
+  ReactDOM.createRoot(document.getElementById('phone-ios')).render(
+    <IOSDevice width={390} height={844}>
+      <HemeaApp platform="ios"/>
+    </IOSDevice>
+  );
+  ReactDOM.createRoot(document.getElementById('phone-android')).render(
+    <AndroidDevice width={412} height={892}>
+      <HemeaApp platform="android"/>
+    </AndroidDevice>
+  );
 </script>
 
 </body>

@@ -141,85 +141,169 @@ function PinnedChartCard({ marker, points, onUnpin }) {
   );
 }
 
-// ─── Collapsible profile header ──────────────────────────────
-// `progress` goes 0→1 as the user scrolls. We interpolate.
-function ProfileHero({ progress, profile, analysesCount, onOpenSettings }) {
-  // Clamp 0..1
-  const p = Math.max(0, Math.min(1, progress));
-  const lerp = (a, b) => a + (b - a) * p;
-
-  const avatarSize = lerp(104, 40);
-  const nameSize   = lerp(32, 18);
-  const padTop     = lerp(48, 10);
-  const padBot     = lerp(48, 10);
-  const gap        = lerp(18, 10);
-  const showHello  = p < 0.6;
-  const showMeta   = p < 0.4;
-
+// ─── Settings gear button (reused in hero + compact bar) ─────
+function SettingsButton({ onClick, size = 40 }) {
   return (
-    <div style={{
-      position: 'relative',
-      padding: `${padTop}px 20px ${padBot}px`,
-      display: 'flex', alignItems: 'center', gap,
-      transition: 'padding 200ms ease-out',
-      zIndex: 1,
+    <button onClick={onClick} aria-label="Réglages" style={{
+      width: size, height: size, borderRadius: '50%', cursor: 'pointer', border: 'none',
+      background: 'rgba(255,255,255,0.62)',
+      backdropFilter: 'blur(20px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+      boxShadow: '0 4px 14px rgba(18,38,63,.08), inset 0 1px 0 rgba(255,255,255,.8)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      flexShrink: 0,
     }}>
-      <PersonAvatar size={avatarSize}/>
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
-        {showHello && (
+      <svg width={size * 0.45} height={size * 0.45} viewBox="0 0 24 24" fill="none" stroke={HEMEA.text} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+      </svg>
+    </button>
+  );
+}
+
+// ─── Large profile hero (lives INSIDE the scroll flow) ───────
+// IMPORTANT: this block has a FIXED layout — it is never resized on scroll.
+// It simply scrolls away with the content, which is why there is zero
+// layout work per frame and therefore no Android flicker. The only scroll-
+// driven value is `compactProgress`, used purely to cross-fade the big
+// wordmark out (opacity) as the small one fades in up in the compact bar.
+function ProfileHero({ compactProgress, profile, analysesCount, onOpenSettings }) {
+  return (
+    <div style={{ position: 'relative', zIndex: 1, padding: '6px 20px 16px' }}>
+      {/* Big wordmark — fades out as the compact bar's small wordmark fades in */}
+      <div style={{
+        marginBottom: 20,
+        opacity: 1 - compactProgress,
+        // translate only — native-driver safe
+        transform: `translateY(${compactProgress * -4}px)`,
+      }}>
+        <HemeaWordmark size={26} color={HEMEA.text}/>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <PersonAvatar size={104}/>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ fontSize: 13, color: HEMEA.body, fontWeight: 600 }}>Bonjour,</div>
           <div style={{
-            fontSize: lerp(13, 11), color: HEMEA.body, fontWeight: 600,
-            opacity: lerp(1, 0), transition: 'opacity 150ms',
-          }}>Bonjour,</div>
-        )}
-        <div style={{
-          fontSize: nameSize, fontWeight: 800, color: HEMEA.text,
-          letterSpacing: '-0.02em', lineHeight: 1.12,
-          transition: 'font-size 200ms ease-out',
-        }}>{profile.name.split(' ')[0]}</div>
-        {showMeta && (
+            fontSize: 32, fontWeight: 800, color: HEMEA.text,
+            letterSpacing: '-0.02em', lineHeight: 1.12,
+          }}>{profile.name.split(' ')[0]}</div>
           <div style={{
-            display: 'flex', gap: 8, marginTop: 4, fontSize: 13, color: HEMEA.text, alignItems: 'center',
-            opacity: lerp(1, 0), transition: 'opacity 150ms', whiteSpace: 'nowrap', fontWeight: 500,
+            display: 'flex', gap: 8, marginTop: 4, fontSize: 13, color: HEMEA.text,
+            alignItems: 'center', whiteSpace: 'nowrap', fontWeight: 500,
           }}>
             <span><b style={{ color: HEMEA.text, fontWeight: 700 }}>{profile.age}</b>&nbsp;ans · {profile.sex}</span>
             <span style={{ color: HEMEA.body }}>·</span>
             <span><b style={{ color: HEMEA.text, fontWeight: 700 }}>{analysesCount}</b>&nbsp;analyses</span>
           </div>
-        )}
+        </div>
+        <SettingsButton onClick={onOpenSettings}/>
       </div>
-      <button onClick={onOpenSettings} aria-label="Réglages" style={{
-        width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', border: 'none',
-        background: 'rgba(255,255,255,0.62)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-        boxShadow: '0 4px 14px rgba(18,38,63,.08), inset 0 1px 0 rgba(255,255,255,.8)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-      }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={HEMEA.text} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
-        </svg>
-      </button>
     </div>
   );
 }
 
-function HomeScreen({ analyses, pinned, onUnpin, onOpenAnalysis, onGoUpload, onOpenSettings, onSeeAllAnalyses, onGoCharts }) {
+// ─── Pinned compact bar (overlays the top, fixed height) ─────
+// Cross-fades IN via opacity + a small translateY as you scroll. Fixed
+// layout, so nothing reflows. This is the only element pinned to the top.
+function CompactBar({ compactProgress, profile, onOpenSettings, topInset = 0 }) {
+  return (
+    <div style={{
+      // Extend up to cover the status-bar inset so the white backing meets
+      // the status bar cleanly — no blue gradient peeking through the top.
+      position: 'absolute', top: -topInset, left: 0, right: 0, zIndex: 3,
+      height: 58 + topInset, paddingTop: topInset,
+      paddingLeft: 16, paddingRight: 16,
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: `rgba(255,255,255,${0.85 * compactProgress})`,
+      backdropFilter: `blur(${20 * compactProgress}px) saturate(180%)`,
+      WebkitBackdropFilter: `blur(${20 * compactProgress}px) saturate(180%)`,
+      borderBottom: `1px solid rgba(18,38,63,${0.06 * compactProgress})`,
+      // opacity + transform only — native-driver safe, no layout work
+      opacity: compactProgress,
+      transform: `translateY(${(compactProgress - 1) * 8}px)`,
+      pointerEvents: compactProgress > 0.5 ? 'auto' : 'none',
+    }}>
+      <HemeaWordmark size={18} color={HEMEA.text}/>
+      <div style={{ width: 1, height: 18, background: 'rgba(18,38,63,0.12)' }}/>
+      <PersonAvatar size={28}/>
+      <div style={{ fontSize: 15, fontWeight: 700, color: HEMEA.text, letterSpacing: '-0.01em' }}>
+        {profile.name.split(' ')[0]}
+      </div>
+      <div style={{ flex: 1 }}/>
+      <SettingsButton onClick={onOpenSettings} size={34}/>
+    </div>
+  );
+}
+
+// ─── iPhone header: the original collapse-on-scroll behaviour ─
+// Resizes via height/padding/font-size. Rich on iOS, but these are LAYOUT
+// props — fine in WebKit, not safe for a native-driver RN scroll on Android.
+// That is exactly why Android uses the cross-fade CompactBar instead.
+function ShrinkHeader({ progress, profile, analysesCount, onOpenSettings }) {
+  const p = Math.max(0, Math.min(1, progress));
+  const lerp = (a, b) => a + (b - a) * p;
+  const avatarSize = lerp(104, 40);
+  const nameSize   = lerp(32, 18);
+  const padTop     = lerp(40, 8);
+  const padBot     = lerp(40, 8);
+  const gap        = lerp(18, 10);
+  const showHello  = p < 0.6;
+  const showMeta   = p < 0.4;
+  return (
+    <div style={{ position: 'relative', zIndex: 1 }}>
+      {/* Brand mark — shrinks with scroll */}
+      <div style={{
+        padding: `${8 - p * 4}px 20px 0`, height: 34 - p * 14, overflow: 'hidden',
+        transition: 'height 200ms ease-out, padding 200ms ease-out',
+      }}>
+        <HemeaWordmark size={Math.round(26 - p * 10)} color={HEMEA.text}/>
+      </div>
+      {/* Profile row — collapses */}
+      <div style={{
+        padding: `${padTop}px 20px ${padBot}px`,
+        display: 'flex', alignItems: 'center', gap,
+        transition: 'padding 200ms ease-out',
+      }}>
+        <PersonAvatar size={avatarSize}/>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {showHello && (
+            <div style={{ fontSize: lerp(13, 11), color: HEMEA.body, fontWeight: 600, opacity: lerp(1, 0), transition: 'opacity 150ms' }}>Bonjour,</div>
+          )}
+          <div style={{ fontSize: nameSize, fontWeight: 800, color: HEMEA.text, letterSpacing: '-0.02em', lineHeight: 1.12, transition: 'font-size 200ms ease-out' }}>{profile.name.split(' ')[0]}</div>
+          {showMeta && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 4, fontSize: 13, color: HEMEA.text, alignItems: 'center', opacity: lerp(1, 0), transition: 'opacity 150ms', whiteSpace: 'nowrap', fontWeight: 500 }}>
+              <span><b style={{ color: HEMEA.text, fontWeight: 700 }}>{profile.age}</b>&nbsp;ans · {profile.sex}</span>
+              <span style={{ color: HEMEA.body }}>·</span>
+              <span><b style={{ color: HEMEA.text, fontWeight: 700 }}>{analysesCount}</b>&nbsp;analyses</span>
+            </div>
+          )}
+        </div>
+        <SettingsButton onClick={onOpenSettings}/>
+      </div>
+    </div>
+  );
+}
+
+function HomeScreen({ analyses, pinned, onUnpin, onOpenAnalysis, onGoUpload, onOpenSettings, onSeeAllAnalyses, onGoCharts, headerMode = 'crossfade', topInset = 50 }) {
   const showEmpty = !analyses || analyses.length === 0;
   const profile = { name: 'Camille Leroy', age: 32, sex: 'F' };
-  const [scrollProgress, setScrollProgress] = React.useState(0);
   const [scrollTop, setScrollTop] = React.useState(0);
   const scrollRef = React.useRef(null);
+  const isShrink = headerMode === 'shrink';
 
   const handleScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    const SHRINK_RANGE = 80; // px of scroll to fully collapse
     setScrollTop(el.scrollTop);
-    setScrollProgress(Math.max(0, Math.min(1, el.scrollTop / SHRINK_RANGE)));
   };
+
+  // iPhone (shrink): collapse over the first 80px.
+  // Android (cross-fade): hold until the big wordmark has scrolled past (~50px),
+  // then fade the compact bar in over 60px. Drives opacity/transform only.
+  const progress = isShrink
+    ? Math.max(0, Math.min(1, scrollTop / 80))
+    : Math.max(0, Math.min(1, (scrollTop - 50) / 60));
 
   const sortedAsc = [...analyses].sort((a, b) => a.timestamp - b.timestamp);
   const pinnedSeries = (pinned || []).map((key) => {
@@ -228,85 +312,104 @@ function HomeScreen({ analyses, pinned, onUnpin, onOpenAnalysis, onGoUpload, onO
     return { marker, points: sortedAsc.map(a => ({ t: a.timestamp, v: a[key], label: a.dateShort })) };
   }).filter(Boolean);
 
+  // Shared scrollable content (indicator card, CTA, pinned charts).
+  const mainContent = (
+    <>
+      <BalanceCard analyses={analyses}/>
+
+      <button onClick={onSeeAllAnalyses} style={{
+        marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        background: '#fff', border: `1px solid ${HEMEA.border}`,
+        borderRadius: 14, padding: '14px 16px',
+        boxShadow: '0 2px 6px rgba(18,38,63,.05)', fontFamily: 'inherit', cursor: 'pointer',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 34, height: 34, borderRadius: 10, background: HEMEA.bgBlue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={HEMEA.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>
+            </svg>
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: HEMEA.text }}>Mes analyses</div>
+            <div style={{ fontSize: 12, color: HEMEA.muted }}>{analyses.length} bilans importés</div>
+          </div>
+        </div>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={HEMEA.muted} strokeWidth="2.4"><polyline points="9 6 15 12 9 18"/></svg>
+      </button>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 4px 8px' }}>
+        <div style={{ fontSize: 11, color: HEMEA.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Graphiques épinglés</div>
+        <button onClick={onGoCharts} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: HEMEA.primary, fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>Tous les graphiques</button>
+      </div>
+
+      {pinnedSeries.length === 0 ? (
+        <div style={{ background: '#fff', borderRadius: 14, padding: '20px 16px', border: `1px dashed ${HEMEA.border}`, textAlign: 'center' }}>
+          <div style={{ fontSize: 13, color: HEMEA.body, marginBottom: 8 }}>Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l'onglet Graphiques.</div>
+          <PrimaryButton size="sm" variant="ghost" onClick={onGoCharts}>Parcourir les graphiques</PrimaryButton>
+        </div>
+      ) : (
+        pinnedSeries.map(({ marker, points }) => (
+          <PinnedChartCard key={marker.key} marker={marker} points={points} onUnpin={() => onUnpin(marker.key)}/>
+        ))
+      )}
+    </>
+  );
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', minHeight: 0 }}>
-      {/* Hero gradient — anchored to the top of the screen; translated upward as the user scrolls.
-          Sits behind everything else (z-index 0) and is non-interactive. Tall enough to comfortably
-          fade past the profile + indicator card; the bottom 35 % is transparent so it blends into
-          the page background. */}
+      {/* Hero gradient — anchored to the top, translated up as the user scrolls.
+          Sits behind everything (z-index 0), non-interactive. */}
       <div aria-hidden="true" style={{
-        position: 'absolute', top: -50, left: 0, right: 0, height: 580,
+        position: 'absolute', top: -topInset, left: 0, right: 0, height: 580,
         background: 'linear-gradient(to bottom, rgba(44,123,229,0.72) 0%, rgba(44,123,229,0.52) 14%, rgba(44,123,229,0.28) 38%, rgba(44,123,229,0.10) 62%, rgba(248,249,250,0.0) 88%)',
         transform: `translateY(${-scrollTop}px)`,
         pointerEvents: 'none', zIndex: 0,
       }}/>
-      {/* Top brand mark — always visible, shrinks with scroll */}
-      <div style={{
-        padding: `${8 - scrollProgress * 4}px 20px 0`,
-        display: 'flex', alignItems: 'center', gap: 4,
-        position: 'relative', zIndex: 1,
-        height: 34 - scrollProgress * 14,
-        overflow: 'hidden',
-        transition: 'height 200ms ease-out, padding 200ms ease-out',
-      }}>
-        <HemeaWordmark size={Math.round(26 - scrollProgress * 13)} color={HEMEA.text}/>
-      </div>
 
       {showEmpty ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 30, gap: 8 }}>
-          <div style={{ fontSize: 19, fontWeight: 700, color: HEMEA.text }}>Aucune analyse</div>
-          <div style={{ fontSize: 14, color: HEMEA.muted, textAlign: 'center', marginBottom: 8 }}>Importez un bilan sanguin pour commencer.</div>
-          <PrimaryButton size="md" onClick={onGoUpload}>Importer un PDF</PrimaryButton>
-        </div>
-      ) : (
         <>
-          {/* Collapsible profile hero (sits outside the scroll container) */}
-          <ProfileHero
-            progress={scrollProgress}
+          <div style={{ position: 'relative', zIndex: 1, padding: '8px 20px 0' }}>
+            <HemeaWordmark size={26} color={HEMEA.text}/>
+          </div>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 30, gap: 8 }}>
+            <div style={{ fontSize: 19, fontWeight: 700, color: HEMEA.text }}>Aucune analyse</div>
+            <div style={{ fontSize: 14, color: HEMEA.muted, textAlign: 'center', marginBottom: 8 }}>Importez un bilan sanguin pour commencer.</div>
+            <PrimaryButton size="md" onClick={onGoUpload}>Importer un PDF</PrimaryButton>
+          </div>
+        </>
+      ) : isShrink ? (
+        /* ── iPhone: header sits OUTSIDE the scroll and collapses ── */
+        <>
+          <ShrinkHeader
+            progress={progress}
             profile={profile}
             analysesCount={analyses.length}
             onOpenSettings={onOpenSettings}
           />
-
           <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflow: 'auto', padding: '6px 16px 120px', position: 'relative', zIndex: 1 }}>
-            <BalanceCard analyses={analyses}/>
-
-            <button onClick={onSeeAllAnalyses} style={{
-              marginTop: 14, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: '#fff', border: `1px solid ${HEMEA.border}`,
-              borderRadius: 14, padding: '14px 16px',
-              boxShadow: '0 2px 6px rgba(18,38,63,.05)', fontFamily: 'inherit', cursor: 'pointer',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 10, background: HEMEA.bgBlue, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={HEMEA.primary} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                    <polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/>
-                  </svg>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: HEMEA.text }}>Mes analyses</div>
-                  <div style={{ fontSize: 12, color: HEMEA.muted }}>{analyses.length} bilans importés</div>
-                </div>
-              </div>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={HEMEA.muted} strokeWidth="2.4"><polyline points="9 6 15 12 9 18"/></svg>
-            </button>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 4px 8px' }}>
-              <div style={{ fontSize: 11, color: HEMEA.muted, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Graphiques épinglés</div>
-              <button onClick={onGoCharts} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: HEMEA.primary, fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}>Tous les graphiques</button>
+            {mainContent}
+          </div>
+        </>
+      ) : (
+        /* ── Android: big hero scrolls away, compact bar cross-fades in ── */
+        <>
+          <CompactBar
+            compactProgress={progress}
+            profile={profile}
+            onOpenSettings={onOpenSettings}
+            topInset={topInset}
+          />
+          <div ref={scrollRef} onScroll={handleScroll} style={{ flex: 1, overflow: 'auto', padding: '0 16px 120px', position: 'relative', zIndex: 1 }}>
+            <div style={{ margin: '0 -16px' }}>
+              <ProfileHero
+                compactProgress={progress}
+                profile={profile}
+                analysesCount={analyses.length}
+                onOpenSettings={onOpenSettings}
+              />
             </div>
-
-            {pinnedSeries.length === 0 ? (
-              <div style={{ background: '#fff', borderRadius: 14, padding: '20px 16px', border: `1px dashed ${HEMEA.border}`, textAlign: 'center' }}>
-                <div style={{ fontSize: 13, color: HEMEA.body, marginBottom: 8 }}>Aucun graphique épinglé. Épinglez vos marqueurs préférés depuis l'onglet Graphiques.</div>
-                <PrimaryButton size="sm" variant="ghost" onClick={onGoCharts}>Parcourir les graphiques</PrimaryButton>
-              </div>
-            ) : (
-              pinnedSeries.map(({ marker, points }) => (
-                <PinnedChartCard key={marker.key} marker={marker} points={points} onUnpin={() => onUnpin(marker.key)}/>
-              ))
-            )}
+            {mainContent}
           </div>
         </>
       )}
