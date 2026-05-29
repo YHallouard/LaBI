@@ -4,6 +4,13 @@ import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { BlurView } from 'expo-blur';
 import { colors, glass, radii } from '../tokens';
 
+// Diagnostic (dev only): confirm whether the native Liquid Glass API is available.
+// If this logs `false` on an iOS 26 device, the app was likely built with an SDK
+// older than iOS 26 (Xcode 26 required) — or it's an iOS 26 beta lacking the API.
+if (__DEV__ && Platform.OS === 'ios') {
+  console.log('[Glass] isGlassEffectAPIAvailable =', isGlassEffectAPIAvailable());
+}
+
 interface Props {
   children?: React.ReactNode;
   /** @deprecated No effect when expo-glass-effect Liquid Glass API is available */

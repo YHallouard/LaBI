@@ -24,6 +24,11 @@ sur Android lors d'un scroll lent doigt posé.
 > ⚠️ Observation : Ca continue de clignoter et de sacader
 - [ ] Overscroll en haut → brand et hero ne flickerent pas
 > ⚠️ Observation : Je sais pas ce qu'est un over scroll
+> 💬 Réponse : L'overscroll est l'effet d'élastique quand on tire le scroll au-delà
+> de son bord (haut/bas) et que le contenu rebondit. Sur **iOS** c'est le bounce natif.
+> Sur **Android** il est **déjà désactivé** ici via `overScrollMode="never"`
+> (`HomeScreen.tsx:535`) → ce test ne s'applique en pratique qu'à iOS : tirer vers le
+> bas en haut de liste et vérifier que brand + hero ne clignotent pas pendant le rebond.
 - [x] Multi-doigts / scroll interrompu → pas de glitch d'état
 
 ---
@@ -49,6 +54,11 @@ C'est nécessaire pour obtenir la vraie réduction de hauteur du hero (200 → 6
 - [ ] Mesurer FPS via React DevTools / Flipper / Perfetto sur ~5 sec de scroll continu
       → cible ≥ 55 fps moyen
 > ⚠️ Observation : comment avoir devTool ? 
+> 💬 Réponse : Le plus simple = ouvrir le **dev menu** (secouer le device, ou `Cmd+M`
+> sur émulateur Android / `Cmd+D` sur simulateur iOS) → **« Show Perf Monitor »**.
+> Un overlay affiche alors les FPS UI et JS en temps réel ; scroller ~5 s et lire la
+> moyenne. Pour un trace précis : **Perfetto** (Android) ou **Instruments** (iOS).
+> React DevTools standalone : `npx react-devtools`.
 
 ---
 
@@ -60,6 +70,13 @@ Liquid Glass natif (iOS 26+) et BlurView (iOS plus ancien). Android : opaque bla
 - [ ] iOS 17+ : `GlassFAB` (settings du hero) affiche le Liquid Glass natif
       (translucide, saturation 180 %, highlight subtil en haut)
 > ⚠️ Observation : ios26 et pas de vrai glass c'est encore le blur
+> 💬 Réponse : Le code (`GlassSurface.tsx`) et les artefacts du package sont corrects.
+> Le Liquid Glass natif n'est actif **que si l'app est compilée avec Xcode 26 / SDK
+> iOS 26** — même sur un device iOS 26. Un build avec un SDK antérieur fait que
+> `isGlassEffectAPIAvailable()` renvoie `false` → fallback BlurView. Un log diagnostic
+> a été ajouté : vérifier dans la console `[Glass] isGlassEffectAPIAvailable = …`.
+> Vérifier aussi `xcodebuild -version` ≥ 26 et rebâtir l'app iOS. NB : certaines beta
+> iOS 26 n'exposent pas l'API (cf. JSDoc du package) → BlurView attendu dans ce cas.
 - [x] iOS 15-16 : fallback BlurView, aspect glassmorphism doit rester correct
 - [x] Android : fond opaque blanc, aucune ombre/blur cassée
 - [x] Rotation device → pas de re-flash du glass
@@ -114,6 +131,12 @@ Flag statique défini dans `package.json` → `reanimated.staticFeatureFlags`.
 - [x] Vérifier qu'un `expo run:android` (rebuild natif) a bien été fait
 - [ ] Confirmer dans les logs natifs que le flag est actif au démarrage
 > ⚠️ Observation : pas sur de le voir dans les logs
+> 💬 Réponse : Normal — `staticFeatureFlags` n'émet **aucun log** au démarrage. La
+> confirmation se fait autrement : (a) un rebuild natif `expo run:android` a bien été
+> refait après l'ajout du flag — tes logs montrent `BUILD SUCCESSFUL` + install de
+> l'APK release, donc OK ; (b) le flag est statiquement compilé dans le binaire, pas
+> togglable à chaud. La vraie validation = le comportement fluide attendu après la
+> refonte transform-only du hero (section 1).
 ```bash
 Android Bundled 35ms src/domain/usecases/RetrieveUserProfileUseCase.ts (1 module)
  LOG  User profile table check: [{"name":"user_profile"}]

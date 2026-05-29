@@ -43,8 +43,18 @@ const HERO_PAD_EXPANDED = 48;
 const HERO_PAD_COLLAPSED = 10;
 const AVATAR_EXPANDED = 104;
 const AVATAR_COLLAPSED = 40;
-const HERO_GAP_EXPANDED = 18;
-const HERO_GAP_COLLAPSED = 10;
+
+// Derived layout constants for the transform-only hero (Plan B).
+// The hero's height is the ONLY animated layout prop; everything inside is
+// position:absolute and animated purely via transform/opacity (UI-thread fast
+// path) so layout and transform never desync → no Android flicker.
+const HERO_EXPANDED_H = AVATAR_EXPANDED + HERO_PAD_EXPANDED * 2; // 200
+const HERO_COLLAPSED_H = AVATAR_COLLAPSED + HERO_PAD_COLLAPSED * 2; // 60
+const AVATAR_SCALE_COLLAPSED = AVATAR_COLLAPSED / AVATAR_EXPANDED;
+const AVATAR_DY = HERO_PAD_COLLAPSED - HERO_PAD_EXPANDED; // -38: avatar top edge slide
+const TEXT_DX = -(AVATAR_EXPANDED - AVATAR_COLLAPSED); // -64: follow shrinking avatar
+const TEXT_DY = (HERO_COLLAPSED_H - HERO_EXPANDED_H) / 2; // -70: recenter in collapsed bar
+const FAB_SIZE = 40;
 
 // ─── BalanceTrendChart ────────────────────────────────────────────────────────
 type ChartPoint = { t: number; v: number; label: string };
@@ -341,38 +351,48 @@ const scrollHandler = useAnimatedScrollHandler({
   },
 });
 
-// Pure Reanimated animations — all on UI thread, no JS bridge
-const brandRowAnimStyle = useAnimatedStyle(() => ({
-  height: interpolate(scrollY.value, [0, SHRINK_RANGE],
-    [BRAND_EXPANDED_H, BRAND_COLLAPSED_H], Extrapolation.CLAMP),
-}));
+// Pure Reanimated — only the hero container animates a layout prop (height).
+// All inner elements animate transform/opacity exclusively (UI-thread fast path),
+// so layout and transform never desync → no Android flicker.
 
+// Brand: fixed-height row; the wordmark scales from its LEFT edge so it stays
+// aligned with the avatar's left edge when collapsed (no layout animation).
 const wordmarkAnimStyle = useAnimatedStyle(() => {
   const scale = interpolate(scrollY.value, [0, SHRINK_RANGE],
     [1, BRAND_COLLAPSED_H / BRAND_EXPANDED_H], Extrapolation.CLAMP);
   return { transform: [{ scale }] };
 });
 
-const heroAnimStyle = useAnimatedStyle(() => ({
-  paddingVertical: interpolate(scrollY.value, [0, SHRINK_RANGE],
-    [HERO_PAD_EXPANDED, HERO_PAD_COLLAPSED], Extrapolation.CLAMP),
-  gap: interpolate(scrollY.value, [0, SHRINK_RANGE],
-    [HERO_GAP_EXPANDED, HERO_GAP_COLLAPSED], Extrapolation.CLAMP),
+// Hero container — the single animated layout prop. Children are absolute, so
+// shrinking this height never reflows them (no transform/layout desync).
+const heroHeightStyle = useAnimatedStyle(() => ({
+  height: interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [HERO_EXPANDED_H, HERO_COLLAPSED_H], Extrapolation.CLAMP),
 }));
 
-// avatarWrap shrinks its layout footprint 104 → 40 so the hero truly collapses to ~60px
-const avatarWrapStyle = useAnimatedStyle(() => {
-  const s = interpolate(scrollY.value, [0, SHRINK_RANGE],
-    [AVATAR_EXPANDED, AVATAR_COLLAPSED], Extrapolation.CLAMP);
-  return { width: s, height: s };
+// Avatar shrinks via scale toward its top-left anchor + slides up to the collapsed bar
+const avatarAnimStyle = useAnimatedStyle(() => {
+  const scale = interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [1, AVATAR_SCALE_COLLAPSED], Extrapolation.CLAMP);
+  const translateY = interpolate(scrollY.value, [0, SHRINK_RANGE],
+    [0, AVATAR_DY], Extrapolation.CLAMP);
+  return { transform: [{ translateY }, { scale }] };
 });
 
-// avatarInner scales visually so PersonAvatar (rendered at 104) fits the shrunk wrap
-const avatarScaleStyle = useAnimatedStyle(() => {
-  const scale = interpolate(scrollY.value, [0, SHRINK_RANGE],
-    [1, AVATAR_COLLAPSED / AVATAR_EXPANDED], Extrapolation.CLAMP);
-  return { transform: [{ scale }] };
-});
+// Text block follows the shrinking avatar horizontally and recenters vertically
+const heroTextAnimStyle = useAnimatedStyle(() => ({
+  transform: [
+    { translateX: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, TEXT_DX], Extrapolation.CLAMP) },
+    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, TEXT_DY], Extrapolation.CLAMP) },
+  ],
+}));
+
+// FAB only recenters vertically (stays pinned to the right edge)
+const fabAnimStyle = useAnimatedStyle(() => ({
+  transform: [
+    { translateY: interpolate(scrollY.value, [0, SHRINK_RANGE], [0, TEXT_DY], Extrapolation.CLAMP) },
+  ],
+}));
 
 const helloAnimStyle = useAnimatedStyle(() => ({
   opacity: interpolate(scrollY.value, [0, SHRINK_RANGE * 0.6],
@@ -454,27 +474,26 @@ const sexLetter = profile?.gender === 'female' ? 'F' : profile?.gender === 'male
 
 return (
   <View style={[styles.root, { paddingTop: insets.top }]}>
-    {/* Brand mark — height + wordmark size shrink together (matches design Home.jsx) */}
-    <Animated.View style={[styles.brandRow, brandRowAnimStyle]}>
-      <Animated.View style={wordmarkAnimStyle}>
+    {/* Brand mark — fixed height; wordmark scales from its left edge (transform only) */}
+    <View style={styles.brandRow}>
+      <Animated.View style={[styles.wordmarkOrigin, wordmarkAnimStyle]}>
         <HemeaWordmark size={26} />
       </Animated.View>
-    </Animated.View>
+    </View>
 
-    {/* Profile hero — avatar shrinks layout; hello/name/meta fade with scroll */}
+    {/* Profile hero — only the container height animates (layout); content is
+        position:absolute and animated purely via transform/opacity → no flicker */}
     {analyses.length > 0 && (
-      <Animated.View style={[styles.hero, heroAnimStyle]}>
-        <Animated.View style={[styles.avatarWrap, avatarWrapStyle]}>
-          <Animated.View style={avatarScaleStyle}>
-            <PersonAvatar
-              name={avatarName}
-              size={AVATAR_EXPANDED}
-              imageUri={resolveProfileImageUri(profile?.profileImage)}
-            />
-          </Animated.View>
+      <Animated.View style={[styles.hero, heroHeightStyle]}>
+        <Animated.View style={[styles.avatarWrap, avatarAnimStyle]}>
+          <PersonAvatar
+            name={avatarName}
+            size={AVATAR_EXPANDED}
+            imageUri={resolveProfileImageUri(profile?.profileImage)}
+          />
         </Animated.View>
 
-        <View style={styles.heroText}>
+        <Animated.View style={[styles.heroText, heroTextAnimStyle]}>
           <Animated.Text style={[styles.helloText, helloAnimStyle]}>
             Bonjour,
           </Animated.Text>
@@ -498,15 +517,17 @@ return (
               </Text>
             )}
           </Animated.View>
-        </View>
+        </Animated.View>
 
-        <GlassFAB
-          size={40}
-          onPress={() => router.push('/settings')}
-          accessibilityLabel="Réglages"
-        >
-          <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
-        </GlassFAB>
+        <Animated.View style={[styles.fabWrap, fabAnimStyle]}>
+          <GlassFAB
+            size={FAB_SIZE}
+            onPress={() => router.push('/settings')}
+            accessibilityLabel="Réglages"
+          >
+            <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
+          </GlassFAB>
+        </Animated.View>
       </Animated.View>
     )}
 
@@ -599,26 +620,37 @@ const styles = StyleSheet.create({
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: BRAND_EXPANDED_H,
     paddingHorizontal: spacing[5],
     overflow: 'hidden',
   },
+  wordmarkOrigin: { transformOrigin: 'left center' },
   hero: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing[5],
+    // Height is animated (heroHeightStyle); children are absolutely positioned.
+    overflow: 'hidden',
   },
   avatarWrap: {
+    position: 'absolute',
+    left: spacing[5],
+    top: HERO_PAD_EXPANDED,
     width: AVATAR_EXPANDED,
     height: AVATAR_EXPANDED,
-    overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
+    transformOrigin: 'top left',
   },
   heroText: {
-    flex: 1,
-    minWidth: 0,
+    position: 'absolute',
+    top: 0,
+    height: HERO_EXPANDED_H,
+    left: spacing[5] + AVATAR_EXPANDED + spacing[3],
+    right: spacing[5] + FAB_SIZE + spacing[3],
     justifyContent: 'center',
-    marginLeft: spacing[3],
+  },
+  fabWrap: {
+    position: 'absolute',
+    right: spacing[5],
+    top: HERO_EXPANDED_H / 2 - FAB_SIZE / 2,
   },
   metaBold: {
     color: colors.textStrong,
