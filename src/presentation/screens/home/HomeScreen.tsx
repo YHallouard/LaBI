@@ -703,6 +703,10 @@ return (
       <>
         <View style={[styles.brandRow, { paddingTop: isCrossfade ? insets.top : 0 }]}>
           <HemeaWordmark size={26} />
+          <View style={{ flex: 1 }} />
+          <GlassFAB size={FAB_SIZE} onPress={() => router.push('/settings')} accessibilityLabel="Réglages">
+            <Ionicons name="settings-outline" size={18} color={colors.textStrong} />
+          </GlassFAB>
         </View>
         <View style={styles.emptyState}>
           <PersonAvatar name={avatarName} size={56} imageUri={avatarUri} />

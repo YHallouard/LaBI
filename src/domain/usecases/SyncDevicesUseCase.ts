@@ -267,9 +267,15 @@ export class SyncDevicesUseCase {
       for (const profile of data.user_profile) {
         if (profile.profileImage && typeof profile.profileImage === "string") {
           try {
+            // The DB stores only the filename (e.g. "profile_image.jpg"),
+            // resolve it to a full path before reading.
+            const imagePath = profile.profileImage.startsWith("file://") || profile.profileImage.startsWith("/")
+              ? profile.profileImage
+              : FileSystem.documentDirectory + profile.profileImage;
+
             console.log(
               "[SyncDevicesUseCase] Converting profile image to base64:",
-              profile.profileImage
+              imagePath
             );
             this.notifyProgress(
               SyncStatus.TRANSFERRING,
@@ -278,16 +284,14 @@ export class SyncDevicesUseCase {
             );
 
             // Check if file exists
-            const fileInfo = await FileSystem.getInfoAsync(
-              profile.profileImage
-            );
+            const fileInfo = await FileSystem.getInfoAsync(imagePath);
             if (fileInfo.exists) {
               // Detect image format from file extension
-              const imageFormat = getImageFormat(profile.profileImage);
+              const imageFormat = getImageFormat(imagePath);
 
               // Read file as base64
               const base64Data = await FileSystem.readAsStringAsync(
-                profile.profileImage,
+                imagePath,
                 {
                   encoding: FileSystem.EncodingType.Base64,
                 }
@@ -301,7 +305,7 @@ export class SyncDevicesUseCase {
             } else {
               console.warn(
                 "[SyncDevicesUseCase] Profile image file does not exist:",
-                profile.profileImage
+                imagePath
               );
               profile.profileImage = null;
             }
@@ -461,9 +465,12 @@ export class SyncDevicesUseCase {
 
     try {
       // Convert base64 image back to file if present
-      let profileImagePath = profileData.profileImage;
-      if (profileImagePath && profileImagePath.startsWith("data:image/")) {
-        profileImagePath = await this.convertBase64ToFile(profileImagePath);
+      let profileImageRef = profileData.profileImage;
+      if (profileImageRef && profileImageRef.startsWith("data:image/")) {
+        const savedPath = await this.convertBase64ToFile(profileImageRef);
+        // Store only the filename — resolveProfileImageUri() reconstructs
+        // the full path at render time from FileSystem.documentDirectory.
+        profileImageRef = savedPath ? savedPath.split("/").pop()! : null;
       }
 
       const userProfile: UserProfile = {
@@ -473,7 +480,7 @@ export class SyncDevicesUseCase {
         name: `${profileData.firstName} ${profileData.lastName}`.trim(),
         birthDate: new Date(profileData.birthDate),
         gender: profileData.gender,
-        profileImage: profileImagePath,
+        profileImage: profileImageRef,
         pinnedMetrics: parsePinnedMetrics(profileData.pinnedMetrics),
       };
 
