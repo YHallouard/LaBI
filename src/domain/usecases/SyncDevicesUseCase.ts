@@ -119,7 +119,9 @@ export class SyncDevicesUseCase {
       }
     });
 
-    await this.syncingService.startScanning();
+    // Scanning is already active from startListening() — do NOT call
+    // startScanning() again as it clears discoveredDevices, which would
+    // cause the subsequent connectToDevice() to fail.
     this.notifyProgress(SyncStatus.SCANNING, 0, "Recherche de l'appareil expéditeur…");
   }
 

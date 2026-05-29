@@ -107,6 +107,15 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
         host,
         port: service.port,
       };
+
+      // Deduplicate: if the same physical device re-advertised (new mDNS
+      // suffix), remove the stale entry so it doesn't appear twice.
+      for (const [key, existing] of this.discoveredDevices) {
+        if (existing.name === displayName && key !== service.name) {
+          this.discoveredDevices.delete(key);
+        }
+      }
+
       this.discoveredDevices.set(service.name, device);
       console.log(`[ZeroconfTCP] Discovered: ${displayName} @ ${host}:${service.port}`);
       this.deviceDiscoveredCallback?.(device);

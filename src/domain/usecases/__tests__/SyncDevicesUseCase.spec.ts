@@ -297,15 +297,7 @@ describe("SyncDevicesUseCase", () => {
 
       expect(progressEvents.length).toBeGreaterThan(0);
       expect(progressEvents[0].status).toBe(SyncStatus.SCANNING);
-      expect(progressEvents[0].message).toContain("Scanning for devices");
-    });
-
-    it("should handle receiver scanning failure", async () => {
-      mockSyncingService._setShouldFailScanning(true);
-
-      await expect(syncDevicesUseCase.startAsReceiver()).rejects.toThrow(
-        "Scanning failed"
-      );
+      expect(progressEvents[0].message).toContain("Recherche de l'appareil expéditeur");
     });
 
     it("should start sync as receiver successfully", async () => {
