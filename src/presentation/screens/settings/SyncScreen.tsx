@@ -20,6 +20,7 @@ import {
   SyncRole,
   SyncStatus,
 } from '../../../ports/services/SyncingServicePort';
+import * as Device from 'expo-device';
 import { RetrieveUserProfileUseCase } from '../../../domain/usecases/RetrieveUserProfileUseCase';
 import { ProfileService } from '../../../domain/services/ProfileService';
 import { RepositoryFactory } from '../../../infrastructure/repositories/RepositoryFactory';
@@ -39,7 +40,7 @@ export function SyncScreen() {
   const [syncRole, setSyncRole] = useState<SyncRole | null>(null);
   const [discoveredDevices, setDiscoveredDevices] = useState<SyncDeviceInfo[]>([]);
   const [syncProgress, setSyncProgress] = useState<SyncProgress>({ status: SyncStatus.IDLE, progress: 0 });
-  const [deviceName, setDeviceName] = useState('Héméa Device');
+  const [deviceName, setDeviceName] = useState(`Héméa ${Device.modelName ?? 'Device'}`);
   const [isLoading, setIsLoading] = useState(true);
 
   const ucRef = useRef<SyncDevicesUseCase | null>(null);
@@ -51,7 +52,7 @@ export function SyncScreen() {
       try {
         const repo = await RepositoryFactory.getUserProfileRepository();
         const profile = await new RetrieveUserProfileUseCase(repo).execute();
-        if (profile) setDeviceName(`${profile.firstName} - Héméa`);
+        if (profile) setDeviceName(`${profile.firstName} - ${Device.modelName ?? 'Appareil'}`);
       } catch { /* keep default */ }
       finally { setIsLoading(false); }
     })();

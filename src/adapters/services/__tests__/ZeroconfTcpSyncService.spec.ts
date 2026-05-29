@@ -9,6 +9,7 @@ import { SyncStatus } from '../../../ports/services/SyncingServicePort';
 type Internals = {
   drainBuffer(): void;
   incomingBuffer: string;
+  serviceName: string;
   zeroconf: {
     publishService: jest.Mock;
     unpublishService: jest.Mock;
@@ -55,11 +56,11 @@ describe('ZeroconfTcpSyncService', () => {
   // ── self-discovery ignore ───────────────────────────────────────────────────
 
   describe('startScanning — self-discovery', () => {
-    const simulateResolved = (svc: ZeroconfTcpSyncService, name: string, host: string) => {
+    const simulateResolved = (svc: ZeroconfTcpSyncService, name: string, host: string, txt?: Record<string, string>) => {
       const i = svc as unknown as Internals;
       const calls = i.zeroconf.on.mock.calls;
       const handler = calls.find(([event]: [string]) => event === 'resolved')?.[1];
-      handler?.({ name, host, port: 47834, addresses: [host] });
+      handler?.({ name, host, port: 47834, addresses: [host], txt });
     };
 
     it('ignores its own mDNS advertisement', async () => {
@@ -68,33 +69,60 @@ describe('ZeroconfTcpSyncService', () => {
       await service.startAdvertising('My Device');
       await service.startScanning();
 
-      simulateResolved(service, 'My Device', '192.168.1.1');
+      // Use the unique serviceName (with random suffix) to simulate self-discovery
+      simulateResolved(service, internals.serviceName, '192.168.1.1');
 
       expect(onDiscovered).not.toHaveBeenCalled();
       expect(service.getDiscoveredDevices()).toHaveLength(0);
     });
 
-    it('adds a peer device with a different name', async () => {
+    it('does not filter a peer that shares the same display name', async () => {
       const onDiscovered = jest.fn();
       service.onDeviceDiscovered(onDiscovered);
       await service.startAdvertising('My Device');
       await service.startScanning();
 
-      simulateResolved(service, "Peer's Device", '192.168.1.2');
+      // Same display name but different mDNS service name (different device)
+      simulateResolved(service, 'My Device [beef]', '192.168.1.2', { displayName: 'My Device' });
+
+      expect(onDiscovered).toHaveBeenCalledTimes(1);
+      expect(service.getDiscoveredDevices()).toHaveLength(1);
+      expect(service.getDiscoveredDevices()[0].name).toBe('My Device');
+    });
+
+    it('adds a peer device and uses displayName from TXT record', async () => {
+      const onDiscovered = jest.fn();
+      service.onDeviceDiscovered(onDiscovered);
+      await service.startAdvertising('My Device');
+      await service.startScanning();
+
+      simulateResolved(service, "Peer's Device [1234]", '192.168.1.2', { displayName: "Peer's Device" });
 
       expect(onDiscovered).toHaveBeenCalledTimes(1);
       expect(service.getDiscoveredDevices()).toHaveLength(1);
       expect(service.getDiscoveredDevices()[0].name).toBe("Peer's Device");
+      expect(service.getDiscoveredDevices()[0].id).toBe("Peer's Device [1234]");
+    });
+
+    it('falls back to service.name when no TXT displayName', async () => {
+      const onDiscovered = jest.fn();
+      service.onDeviceDiscovered(onDiscovered);
+      await service.startAdvertising('My Device');
+      await service.startScanning();
+
+      simulateResolved(service, "Legacy Device", '192.168.1.3');
+
+      expect(service.getDiscoveredDevices()[0].name).toBe("Legacy Device");
     });
 
     it('removes a device on the remove event', async () => {
       await service.startScanning();
-      simulateResolved(service, "Peer's Device", '192.168.1.2');
+      simulateResolved(service, "Peer's Device [abcd]", '192.168.1.2', { displayName: "Peer's Device" });
 
       const i = internals;
       const removeCalls = i.zeroconf.on.mock.calls;
       const removeHandler = removeCalls.find(([event]: [string]) => event === 'remove')?.[1];
-      removeHandler?.("Peer's Device");
+      removeHandler?.("Peer's Device [abcd]");
 
       expect(service.getDiscoveredDevices()).toHaveLength(0);
     });

@@ -27,6 +27,7 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
   private activeSocket: Socket | null = null;
   private incomingBuffer = '';
   private deviceName = 'Héméa';
+  private serviceName = '';
   private isAdvertising = false;
 
   private discoveredDevices: Map<string, DiscoveredDevice> = new Map();
@@ -44,6 +45,8 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
   async startAdvertising(name: string): Promise<void> {
     if (this.isAdvertising) return;
     this.deviceName = name;
+    const suffix = Math.random().toString(16).slice(2, 6);
+    this.serviceName = `${name} [${suffix}]`;
     this.isAdvertising = true;
 
     if (!this.server) {
@@ -51,8 +54,8 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
     }
 
     try {
-      this.zeroconf.publishService(SYNC_SERVICE_TYPE, 'tcp', 'local.', name, SYNC_PORT, {});
-      console.log(`[ZeroconfTCP] Advertising as: ${name} on port ${SYNC_PORT}`);
+      this.zeroconf.publishService(SYNC_SERVICE_TYPE, 'tcp', 'local.', this.serviceName, SYNC_PORT, { displayName: name });
+      console.log(`[ZeroconfTCP] Advertising as: ${this.serviceName} on port ${SYNC_PORT}`);
     } catch (e) {
       this.isAdvertising = false;
       throw e;
@@ -62,7 +65,7 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
   async stopAdvertising(): Promise<void> {
     this.isAdvertising = false;
     try {
-      this.zeroconf.unpublishService(this.deviceName);
+      this.zeroconf.unpublishService(this.serviceName);
     } catch { /* ok */ }
 
     if (this.server) {
@@ -85,19 +88,21 @@ export class ZeroconfTcpSyncService implements SyncingServicePort {
       host: string;
       port: number;
       addresses?: string[];
+      txt?: Record<string, string>;
     }) => {
-      // Ignore ourselves
-      if (service.name === this.deviceName) return;
+      // Ignore ourselves — compare unique mDNS service name
+      if (service.name === this.serviceName) return;
 
       const host = service.addresses?.[0] ?? service.host;
+      const displayName = service.txt?.displayName ?? service.name;
       const device: DiscoveredDevice = {
         id: service.name,
-        name: service.name,
+        name: displayName,
         host,
         port: service.port,
       };
       this.discoveredDevices.set(service.name, device);
-      console.log(`[ZeroconfTCP] Discovered: ${service.name} @ ${host}:${service.port}`);
+      console.log(`[ZeroconfTCP] Discovered: ${displayName} @ ${host}:${service.port}`);
       this.deviceDiscoveredCallback?.(device);
     });
 
