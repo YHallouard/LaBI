@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   BottomSheetModal,
   BottomSheetView,
@@ -16,14 +16,22 @@ interface Props {
 
 export function BottomSheet({ visible, onClose, children, snapPoints }: Props) {
   const ref = useRef<BottomSheetMethods>(null);
+  const isPresented = useRef(false);
 
   useEffect(() => {
     if (visible) {
       ref.current?.present();
-    } else {
+      isPresented.current = true;
+    } else if (isPresented.current) {
       ref.current?.dismiss();
+      isPresented.current = false;
     }
   }, [visible]);
+
+  const handleDismiss = useCallback(() => {
+    isPresented.current = false;
+    onClose();
+  }, [onClose]);
 
   return (
     <BottomSheetModal
@@ -32,7 +40,7 @@ export function BottomSheet({ visible, onClose, children, snapPoints }: Props) {
       enableDynamicSizing={!snapPoints}
       snapPoints={snapPoints}
       enablePanDownToClose
-      onDismiss={onClose}
+      onDismiss={handleDismiss}
       backgroundStyle={{
         backgroundColor: colors.bgElevated,
         borderTopLeftRadius: radii['2xl'],
