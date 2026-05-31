@@ -256,14 +256,86 @@ function BalanceTrendChart({ points, refMax = EQUILIBRIUM_MAX }: { points: Chart
   );
 }
 
+// ─── Time-range segmented control ────────────────────────────────────────────
+type TimeRangeKey = '6M' | 'Y' | '3Y' | 'Max';
+const TIME_RANGES: { key: TimeRangeKey; label: string; days: number | null }[] = [
+  { key: '6M', label: '6 M',  days: 180 },
+  { key: 'Y',  label: '1 A',  days: 365 },
+  { key: '3Y', label: '3 A',  days: 1095 },
+  { key: 'Max', label: 'Max', days: null },
+];
+
+function TimeRangeSegment({ value, onChange }: { value: TimeRangeKey; onChange: (k: TimeRangeKey) => void }) {
+  return (
+    <View style={segStyles.track}>
+      {TIME_RANGES.map(r => {
+        const active = r.key === value;
+        return (
+          <Pressable
+            key={r.key}
+            onPress={() => onChange(r.key)}
+            style={[segStyles.seg, active && segStyles.segActive]}
+          >
+            <Text style={[segStyles.segText, active && segStyles.segTextActive]}>{r.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const segStyles = StyleSheet.create({
+  track: {
+    flexDirection: 'row',
+    backgroundColor: '#E9ECEF',
+    borderRadius: 10,
+    padding: 3,
+  },
+  seg: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderRadius: 8,
+  },
+  segActive: {
+    backgroundColor: colors.bgElevated,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  segText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textMuted,
+  },
+  segTextActive: {
+    color: colors.textStrong,
+  },
+});
+
 // ─── BalanceCard ──────────────────────────────────────────────────────────────
 function BalanceCard({ data }: { data: HealthMagnitudeDataPoint[] }) {
   const [infoVisible, setInfoVisible] = useState(false);
+  const [timeRange, setTimeRange] = useState<TimeRangeKey>('Max');
+
   if (data.length === 0) return null;
   const sorted = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const latest = sorted[sorted.length - 1].magnitude;
   const isGood = latest <= EQUILIBRIUM_MAX;
-  const points: ChartPoint[] = sorted.map(d => ({
+
+  // Filter points by selected time range (null days = show all)
+  const rangeDays = TIME_RANGES.find(r => r.key === timeRange)!.days;
+  const displayed = rangeDays == null
+    ? sorted
+    : (() => {
+        const cutoff = Date.now() - rangeDays * 24 * 60 * 60 * 1000;
+        const filtered = sorted.filter(d => new Date(d.date).getTime() >= cutoff);
+        return filtered.length >= 2 ? filtered : sorted;
+      })();
+
+  const points: ChartPoint[] = displayed.map(d => ({
     t: new Date(d.date).getTime(),
     v: d.magnitude,
     label: new Date(d.date).toLocaleDateString('fr-FR', { month: 'numeric', year: '2-digit' }),
@@ -304,7 +376,11 @@ function BalanceCard({ data }: { data: HealthMagnitudeDataPoint[] }) {
           <Text style={[typography.h2, { marginBottom: spacing[3] }]}>
             Indice d&apos;Équilibre Biologique
           </Text>
-          <Text style={[typography.body, { color: colors.textBody, marginBottom: spacing[3] }]}>
+
+          <Text style={[typography.label, { marginBottom: spacing[2] }]}>Plage affichée</Text>
+          <TimeRangeSegment value={timeRange} onChange={setTimeRange} />
+
+          <Text style={[typography.body, { color: colors.textBody, marginTop: spacing[4], marginBottom: spacing[3] }]}>
             L&apos;IEB représente l&apos;état global de vos analyses.
             Restez{' '}
             <Text style={{ fontWeight: '700', color: colors.textStrong }}>en dessous de 0.50</Text>
