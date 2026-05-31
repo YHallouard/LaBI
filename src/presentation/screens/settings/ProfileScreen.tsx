@@ -167,6 +167,7 @@ export function ProfileScreen({ onboarding = false, onProfileSaved }: ProfileScr
         title={onboarding ? 'Créer mon profil' : 'Profil'}
         subtitle={onboarding ? 'Ces informations permettent de calculer vos plages de référence.' : 'Informations personnelles'}
         onBack={onboarding ? undefined : () => router.back()}
+        safeArea={onboarding}
         right={
           !onboarding && profileExists && !isEditMode ? (
             <Pressable onPress={() => setIsEditMode(true)} style={styles.editBtn}>

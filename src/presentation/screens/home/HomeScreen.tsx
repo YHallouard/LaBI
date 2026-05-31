@@ -506,6 +506,14 @@ const [loading, setLoading] = useState(true);
 
 const scrollY = useSharedValue(0);
 
+// Anti-oscillation: capture the scroll frame's initial height (expanded state).
+// We guarantee content.minHeight > collapsed-frame so the hero collapse never
+// makes content fit entirely (which would bounce contentOffset → feedback loop).
+const [scrollFrameH, setScrollFrameH] = useState(0);
+const onScrollLayout = useCallback((e: LayoutChangeEvent) => {
+  if (scrollFrameH === 0) setScrollFrameH(e.nativeEvent.layout.height);
+}, [scrollFrameH]);
+
 const scrollHandler = useAnimatedScrollHandler({
   onScroll: (e) => {
     scrollY.value = e.contentOffset.y;
@@ -524,22 +532,11 @@ const wordmarkAnimStyle = useAnimatedStyle(() => {
   return { transform: [{ scale }] };
 });
 
-// Hero container — animates ONLY its own height. It is an absolute overlay
-// (see styles.heroOverlay), so its height never resizes the ScrollView frame.
-// Resizing the scroll frame mid-scroll caused a feedback loop on large screens
-// (iPad): collapsing the hero freed ~140px of frame height, making barely-
-// overflowing content fit entirely → iOS bounced the offset back → hero
-// re-expanded → oscillation at end of travel. A constant frame removes it.
+// Hero container — the single animated layout prop. Children are absolute, so
+// shrinking this height never reflows them (no transform/layout desync).
 const heroHeightStyle = useAnimatedStyle(() => ({
   height: interpolate(scrollY.value, [0, SHRINK_RANGE],
     [HERO_EXPANDED_H, HERO_COLLAPSED_H], Extrapolation.CLAMP),
-}));
-
-// Opaque page-bg fades in behind the hero as it collapses, masking the scroll
-// content that slides underneath the compact bar once fully collapsed.
-const heroBgStyle = useAnimatedStyle(() => ({
-  backgroundColor: `rgba(248,249,250,${interpolate(
-    scrollY.value, [0, SHRINK_RANGE], [0, 1], Extrapolation.CLAMP)})`,
 }));
 
 // Avatar shrinks via scale toward its top-left anchor + slides up to the collapsed bar
@@ -799,23 +796,7 @@ return (
           </Animated.View>
         </View>
 
-        {/* ScrollView keeps a constant frame (flex:1, never resized) so the
-            collapsing hero overlay can't feed back into the scroll offset. */}
-        <Animated.ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: HERO_EXPANDED_H + spacing[3], paddingBottom: insets.bottom + 120 },
-          ]}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={scrollHandler}
-        >
-          {mainContent}
-        </Animated.ScrollView>
-
-        {/* Hero — absolute overlay above the scroll; animates only its height. */}
-        <Animated.View style={[styles.heroOverlay, heroHeightStyle, heroBgStyle]} pointerEvents="box-none">
+        <Animated.View style={[styles.hero, heroHeightStyle]}>
           <Animated.View style={[styles.avatarWrap, avatarAnimStyle]}>
             <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={avatarUri} />
           </Animated.View>
@@ -856,6 +837,28 @@ return (
             </GlassFAB>
           </Animated.View>
         </Animated.View>
+
+        <Animated.ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingBottom: insets.bottom + 120,
+              // Anti-oscillation (iPad): guarantee content overflows the
+              // collapsed scroll frame so that the hero collapse never makes
+              // content fit entirely (which would bounce offset back → loop).
+              minHeight: scrollFrameH > 0
+                ? scrollFrameH + (HERO_EXPANDED_H - HERO_COLLAPSED_H) + SHRINK_RANGE
+                : undefined,
+            },
+          ]}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={scrollHandler}
+          onLayout={onScrollLayout}
+        >
+          {mainContent}
+        </Animated.ScrollView>
       </>
     )}
   </View>
@@ -881,16 +884,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   wordmarkOrigin: { transformOrigin: 'left center' },
-  heroOverlay: {
-    // Absolute overlay pinned below the brand row. Height is animated
-    // (heroHeightStyle); children are absolutely positioned. Painting over the
-    // ScrollView (zIndex) lets it mask content sliding under the compact bar
-    // without ever resizing the scroll frame.
-    position: 'absolute',
-    top: BRAND_EXPANDED_H,
-    left: 0,
-    right: 0,
-    zIndex: 2,
+  hero: {
+    // Height is animated (heroHeightStyle); children are absolutely positioned.
     overflow: 'hidden',
   },
   avatarWrap: {

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../tokens';
 import { typography } from '../typography';
 import { HemeaWordmark } from './HemeaWordmark';
@@ -11,11 +12,14 @@ interface Props {
   right?: React.ReactNode;
   showLogo?: boolean;
   onBack?: () => void;
+  /** Add safe-area top inset to the header padding (for full-screen contexts like onboarding). */
+  safeArea?: boolean;
 }
 
-export function ScreenHeader({ title, subtitle, right, showLogo = false, onBack }: Props) {
+export function ScreenHeader({ title, subtitle, right, showLogo = false, onBack, safeArea = false }: Props) {
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, safeArea && { paddingTop: insets.top + spacing[4] }]}>
       {onBack ? (
         <Pressable onPress={onBack} style={styles.backBtn} hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color={colors.primary} />
