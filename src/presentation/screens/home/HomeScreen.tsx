@@ -152,10 +152,33 @@ function ProfileHero({ compactProgress, displayName, avatarName, avatarUri, age,
   );
 }
 
+// Équilibre biologique — seuil de la zone d'équilibre (IEB ≤ EQUILIBRIUM_MAX).
+const EQUILIBRIUM_MAX = 0.5;
+
+// Cardinal spline (tension 0.2) — courbe lissée passant par les points, comme
+// l'ancien graphe « Health magnitude » (cf. CreateCardinalSplineUseCase), au
+// lieu de segments droits. Les points de contrôle sont dérivés des voisins.
+function cardinalSplinePath(pts: { x: number; y: number }[], tension = 0.2): string {
+  if (pts.length < 2) return '';
+  const d: string[] = [`M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i];
+    const p1 = pts[i + 1];
+    const prev = pts[i - 1] ?? p0;     // i === 0 → (p1 - p0)
+    const next = pts[i + 2] ?? p1;     // dernier segment → (p1 - p0)
+    const cp1x = p0.x + (p1.x - prev.x) * tension;
+    const cp1y = p0.y + (p1.y - prev.y) * tension;
+    const cp2x = p1.x - (next.x - p0.x) * tension;
+    const cp2y = p1.y - (next.y - p0.y) * tension;
+    d.push(`C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)} ${cp2x.toFixed(1)} ${cp2y.toFixed(1)} ${p1.x.toFixed(1)} ${p1.y.toFixed(1)}`);
+  }
+  return d.join(' ');
+}
+
 // ─── BalanceTrendChart ────────────────────────────────────────────────────────
 type ChartPoint = { t: number; v: number; label: string };
 
-function BalanceTrendChart({ points, refMax = 1.0 }: { points: ChartPoint[]; refMax?: number }) {
+function BalanceTrendChart({ points, refMax = EQUILIBRIUM_MAX }: { points: ChartPoint[]; refMax?: number }) {
   const [containerW, setContainerW] = useState(0);
   const onLayout = (e: LayoutChangeEvent) => setContainerW(e.nativeEvent.layout.width);
 
@@ -177,7 +200,7 @@ function BalanceTrendChart({ points, refMax = 1.0 }: { points: ChartPoint[]; ref
   const maxT = Math.max(...displayPoints.map(p => p.t));
   const xOf = (t: number) => pad.l + ((t - minT) / (maxT - minT || 1)) * (W - pad.l - pad.r);
   const yOf = (v: number) => H - pad.b - (v / maxV) * (H - pad.t - pad.b);
-  const pathD = displayPoints.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xOf(p.t).toFixed(1)} ${yOf(p.v).toFixed(1)}`).join(' ');
+  const pathD = cardinalSplinePath(displayPoints.map(p => ({ x: xOf(p.t), y: yOf(p.v) })));
   const bandTop = yOf(refMax);
   const bandBot = H - pad.b;
   const labelIdxs = [0, Math.floor((displayPoints.length - 1) / 2), displayPoints.length - 1].filter((v, i, a) => a.indexOf(v) === i);
@@ -239,7 +262,7 @@ function BalanceCard({ data }: { data: HealthMagnitudeDataPoint[] }) {
   if (data.length === 0) return null;
   const sorted = [...data].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const latest = sorted[sorted.length - 1].magnitude;
-  const isGood = latest <= 1.0;
+  const isGood = latest <= EQUILIBRIUM_MAX;
   const points: ChartPoint[] = sorted.map(d => ({
     t: new Date(d.date).getTime(),
     v: d.magnitude,
@@ -266,11 +289,11 @@ function BalanceCard({ data }: { data: HealthMagnitudeDataPoint[] }) {
             </Text>
           </View>
         </View>
-        <BalanceTrendChart points={points} refMax={1.0} />
+        <BalanceTrendChart points={points} refMax={EQUILIBRIUM_MAX} />
         <View style={balanceStyles.legend}>
           <View style={balanceStyles.legendLeft}>
             <View style={balanceStyles.legendSwatch} />
-            <Text style={[typography.caption, { color: colors.textMuted }]}>Zone d&apos;équilibre (≤ 1.00)</Text>
+            <Text style={[typography.caption, { color: colors.textMuted }]}>Zone d&apos;équilibre (≤ 0.50)</Text>
           </View>
           <Text style={[typography.caption, { color: colors.textMuted }]}>Plus bas = meilleur</Text>
         </View>
@@ -284,7 +307,7 @@ function BalanceCard({ data }: { data: HealthMagnitudeDataPoint[] }) {
           <Text style={[typography.body, { color: colors.textBody, marginBottom: spacing[3] }]}>
             L&apos;IEB représente l&apos;état global de vos analyses.
             Restez{' '}
-            <Text style={{ fontWeight: '700', color: colors.textStrong }}>en dessous de 1.00</Text>
+            <Text style={{ fontWeight: '700', color: colors.textStrong }}>en dessous de 0.50</Text>
             {' '}pour être dans la zone d&apos;équilibre.
           </Text>
           <Text style={[typography.body, { color: colors.textBody }]}>
@@ -501,11 +524,22 @@ const wordmarkAnimStyle = useAnimatedStyle(() => {
   return { transform: [{ scale }] };
 });
 
-// Hero container — the single animated layout prop. Children are absolute, so
-// shrinking this height never reflows them (no transform/layout desync).
+// Hero container — animates ONLY its own height. It is an absolute overlay
+// (see styles.heroOverlay), so its height never resizes the ScrollView frame.
+// Resizing the scroll frame mid-scroll caused a feedback loop on large screens
+// (iPad): collapsing the hero freed ~140px of frame height, making barely-
+// overflowing content fit entirely → iOS bounced the offset back → hero
+// re-expanded → oscillation at end of travel. A constant frame removes it.
 const heroHeightStyle = useAnimatedStyle(() => ({
   height: interpolate(scrollY.value, [0, SHRINK_RANGE],
     [HERO_EXPANDED_H, HERO_COLLAPSED_H], Extrapolation.CLAMP),
+}));
+
+// Opaque page-bg fades in behind the hero as it collapses, masking the scroll
+// content that slides underneath the compact bar once fully collapsed.
+const heroBgStyle = useAnimatedStyle(() => ({
+  backgroundColor: `rgba(248,249,250,${interpolate(
+    scrollY.value, [0, SHRINK_RANGE], [0, 1], Extrapolation.CLAMP)})`,
 }));
 
 // Avatar shrinks via scale toward its top-left anchor + slides up to the collapsed bar
@@ -765,7 +799,23 @@ return (
           </Animated.View>
         </View>
 
-        <Animated.View style={[styles.hero, heroHeightStyle]}>
+        {/* ScrollView keeps a constant frame (flex:1, never resized) so the
+            collapsing hero overlay can't feed back into the scroll offset. */}
+        <Animated.ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: HERO_EXPANDED_H + spacing[3], paddingBottom: insets.bottom + 120 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onScroll={scrollHandler}
+        >
+          {mainContent}
+        </Animated.ScrollView>
+
+        {/* Hero — absolute overlay above the scroll; animates only its height. */}
+        <Animated.View style={[styles.heroOverlay, heroHeightStyle, heroBgStyle]} pointerEvents="box-none">
           <Animated.View style={[styles.avatarWrap, avatarAnimStyle]}>
             <PersonAvatar name={avatarName} size={AVATAR_EXPANDED} imageUri={avatarUri} />
           </Animated.View>
@@ -806,16 +856,6 @@ return (
             </GlassFAB>
           </Animated.View>
         </Animated.View>
-
-        <Animated.ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 120 }]}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={scrollHandler}
-        >
-          {mainContent}
-        </Animated.ScrollView>
       </>
     )}
   </View>
@@ -841,8 +881,16 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   wordmarkOrigin: { transformOrigin: 'left center' },
-  hero: {
-    // Height is animated (heroHeightStyle); children are absolutely positioned.
+  heroOverlay: {
+    // Absolute overlay pinned below the brand row. Height is animated
+    // (heroHeightStyle); children are absolutely positioned. Painting over the
+    // ScrollView (zIndex) lets it mask content sliding under the compact bar
+    // without ever resizing the scroll frame.
+    position: 'absolute',
+    top: BRAND_EXPANDED_H,
+    left: 0,
+    right: 0,
+    zIndex: 2,
     overflow: 'hidden',
   },
   avatarWrap: {
