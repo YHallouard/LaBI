@@ -16,22 +16,18 @@ interface Props {
 
 export function BottomSheet({ visible, onClose, children, snapPoints }: Props) {
   const ref = useRef<BottomSheetMethods>(null);
-  const isPresented = useRef(false);
 
   useEffect(() => {
     if (visible) {
       ref.current?.present();
-      isPresented.current = true;
-    } else if (isPresented.current) {
-      ref.current?.dismiss();
-      isPresented.current = false;
     }
   }, [visible]);
 
   const handleDismiss = useCallback(() => {
-    isPresented.current = false;
     onClose();
   }, [onClose]);
+
+  if (!visible) return null;
 
   return (
     <BottomSheetModal
