@@ -40,8 +40,8 @@ export function HelpCenterScreen() {
           <ListRow
             icon="mail-outline"
             title="Envoyer un e-mail"
-            detail="hemea@gmail.com"
-            onPress={() => Linking.openURL('mailto:hemea@gmail.com')}
+            detail="contact.hemea@gmail.com"
+            onPress={() => Linking.openURL('mailto:contact.hemea@gmail.com')}
             isLast
           />
         </ListSection>

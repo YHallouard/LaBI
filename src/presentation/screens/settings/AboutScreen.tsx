@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 
-import { APP_VERSION } from '../../../utils/appConstants';
+import { APP_VERSION, EXPO_SDK_LABEL, REACT_NATIVE_LABEL } from '../../../utils/appConstants';
 import {
   colors, spacing, radii, elevation,
   typography, ScreenHeader, ListRow, ListSection, HemeaWordmark, ModalGrabber,
@@ -37,7 +37,7 @@ export function AboutScreen() {
         <View style={styles.descCard}>
           <Text style={[typography.small, { color: colors.textBody, lineHeight: 20, textAlign: 'center' }]}>
             Héméa vous permet de suivre vos analyses biologiques dans le temps.
-            Importez vos bilans sanguins par PDF grâce à l&apos;OCR Mistral ou saisissez vos valeurs manuellement.
+            Importez vos bilans sanguins par PDF grâce à Mistral AI ou saisissez vos valeurs manuellement.
             Toutes vos données restent sur votre appareil.
           </Text>
         </View>
@@ -56,8 +56,8 @@ export function AboutScreen() {
         <ListSection title="Technique">
           <ListRow
             icon="code-slash-outline"
-            title="Expo SDK 54"
-            detail="React Native"
+            title={EXPO_SDK_LABEL}
+            detail={REACT_NATIVE_LABEL}
           />
           <ListRow
             icon="server-outline"

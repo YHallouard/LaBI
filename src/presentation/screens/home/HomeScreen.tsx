@@ -760,9 +760,6 @@ const mainContent = (
 
     <View style={styles.pinnedHeader}>
       <Text style={[typography.label]}>Graphiques épinglés</Text>
-      <Pressable onPress={() => router.push('/(tabs)/charts')}>
-        <Text style={styles.seeAllText}>Tous les graphiques</Text>
-      </Pressable>
     </View>
 
     {pinnedSeries.length === 0 ? (

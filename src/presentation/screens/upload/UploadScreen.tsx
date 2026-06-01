@@ -38,15 +38,6 @@ export function UploadScreen() {
           onPress={() => router.push('/upload/ai-import')}
           style={({ pressed }) => [styles.card, styles.cardAI, { opacity: pressed ? 0.85 : 1 }]}
         >
-          {/* "RECOMMANDÉ" badge */}
-          <LinearGradient
-            colors={['#2C7BE5', '#4FA3F5']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.recommendedBadge}
-          >
-            <Text style={styles.recommendedText}>Recommandé</Text>
-          </LinearGradient>
 
           <View style={styles.cardBody}>
             {/* Gradient icon */}
@@ -62,7 +53,7 @@ export function UploadScreen() {
             <View style={styles.cardText}>
               <Text style={styles.cardTitle}>Import par IA</Text>
               <Text style={[typography.small, { color: colors.textBody, marginTop: 4, lineHeight: 18 }]}>
-                Glissez un PDF de bilan. L&apos;OCR Mistral extrait automatiquement la date et tous les marqueurs.
+                Glissez un PDF de bilan. Mistral AI extrait automatiquement la date et tous les marqueurs.
               </Text>
               {/* Feature tags */}
               <View style={styles.tagRow}>
@@ -92,7 +83,7 @@ export function UploadScreen() {
             <View style={styles.cardText}>
               <Text style={styles.cardTitle}>Saisie manuelle</Text>
               <Text style={[typography.small, { color: colors.textBody, marginTop: 4, lineHeight: 18 }]}>
-                Entrez vous-même chaque valeur. Idéal si vous n&apos;avez pas le PDF ou que l&apos;OCR a manqué un marqueur.
+                Entrez vous-même chaque valeur. Idéal si vous n&apos;avez pas le PDF ou que vous ne souhaitez pas utiliser Mistral AI.
               </Text>
               {/* Border-style tags */}
               <View style={styles.tagRow}>

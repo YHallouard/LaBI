@@ -206,7 +206,7 @@ export const ApiKeySettingsScreen: React.FC<ApiKeySettingsScreenProps> = ({
   const confirmApiKeyDeletion = () => {
     Alert.alert(
       "Confirm Deletion",
-      "This will delete your API key. You will need to enter it again to use OCR features. Are you sure?",
+      "This will delete your API key. You will need to enter it again to use AI features. Are you sure?",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Delete", style: "destructive", onPress: deleteApiKey },
@@ -233,7 +233,7 @@ export const ApiKeySettingsScreen: React.FC<ApiKeySettingsScreenProps> = ({
           <View>
             <Text style={styles.sectionTitle}>Mistral API Key</Text>
             <Text style={styles.description}>
-              Enter your Mistral API key to enable OCR features. The key is
+              Enter your Mistral API key to enable AI features. The key is
               stored securely on your device.
             </Text>
 
@@ -394,7 +394,7 @@ const ApiKeyDeletionWarning = () => (
       style={styles.warningIcon}
     />
     <Text style={styles.warningText}>
-      Deleting your API key will disable OCR features until a new key is
+      Deleting your API key will disable AI features until a new key is
       provided.
     </Text>
   </View>

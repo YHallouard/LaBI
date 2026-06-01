@@ -17,7 +17,7 @@ const SECTIONS = [
   {
     icon: 'document-text-outline' as const,
     title: 'Traitement des PDFs',
-    text: "Lorsque vous téléversez un PDF pour analyse, il est envoyé à l'API Mistral pour en extraire les valeurs biologiques. Ce traitement est temporaire et aucune donnée n'est conservée par Mistral.",
+    text: "Lorsque vous téléversez un PDF pour analyse, il est envoyé à l'API Mistral pour en extraire les valeurs biologiques. Ce traitement est temporaire et nous supprimons automatiquement les fichiers après traitement.",
   },
   {
     icon: 'lock-closed-outline' as const,

@@ -109,7 +109,7 @@ export function ApiKeySettingsScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ModalGrabber />
-      <ScreenHeader title="Clé API Mistral" subtitle="OCR et extraction des analyses" onBack={() => router.back()} />
+      <ScreenHeader title="Clé API Mistral" subtitle="Mistral AI et extraction des analyses" onBack={() => router.back()} />
 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
@@ -136,7 +136,7 @@ export function ApiKeySettingsScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="information-circle-outline" size={20} color={colors.primary} style={{ marginTop: 1 }} />
             <Text style={[typography.small, { color: colors.textBody, flex: 1 }]}>
-              La clé API Mistral est nécessaire pour utiliser l&apos;OCR sur vos PDFs de bilans sanguins. Elle est stockée de façon sécurisée sur votre appareil.
+              La clé API Mistral est nécessaire pour utiliser Mistral AI sur vos PDFs de bilans sanguins. Elle est stockée de façon sécurisée sur votre appareil.
             </Text>
           </View>
           <Pressable
