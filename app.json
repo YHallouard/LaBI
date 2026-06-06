@@ -2,7 +2,7 @@
   "expo": {
     "name": "Héméa",
     "slug": "Héméa",
-    "version": "1.5.0",
+    "version": "2.0.0",
     "scheme": "hemea",
     "orientation": "portrait",
     "icon": "./assets/icon-ios.png",
@@ -17,6 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.hemea",
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "UIDesignRequiresCompatibility": false,
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to allow you to select and upload a profile picture for your health profile.",
         "NSLocalNetworkUsageDescription": "$(PRODUCT_NAME) uses local network to sync data between devices",
