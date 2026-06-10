@@ -805,7 +805,10 @@ return (
     {analyses.length === 0 ? (
       /* ── Empty state (both platforms) ── */
       <>
-        <View style={[styles.brandRow, { paddingTop: isCrossfade ? insets.top : 0 }]}>
+        <View style={[styles.brandRow, {
+          paddingTop: isCrossfade ? insets.top : 0,
+          height: BRAND_EXPANDED_H + (isCrossfade ? insets.top : 0),
+        }]}>
           <HemeaWordmark size={26} />
           <View style={{ flex: 1 }} />
           <GlassFAB size={FAB_SIZE} onPress={() => router.push('/settings')} accessibilityLabel="Réglages">
