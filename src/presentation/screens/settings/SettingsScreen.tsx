@@ -15,7 +15,6 @@ export function SettingsScreen() {
   return (
     <View style={styles.root}>
       <ModalGrabber />
-      <View style={styles.headerSpacer} />
       <ScreenHeader 
         title="Réglages" 
         onBack={() => router.back()}

@@ -1,9 +1,11 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../tokens';
 
 export function ModalGrabber() {
-  return <View style={styles.grabber} />;
+  const insets = useSafeAreaInsets();
+  return <View style={[styles.grabber, { marginTop: insets.top + spacing[2] }]} />;
 }
 
 const styles = StyleSheet.create({
@@ -13,7 +15,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.border,
     alignSelf: 'center',
-    marginTop: spacing[2],
     marginBottom: spacing[2],
   },
 });

@@ -807,7 +807,7 @@ return (
       <>
         <View style={[styles.brandRow, {
           paddingTop: isCrossfade ? insets.top : 0,
-          height: BRAND_EXPANDED_H + (isCrossfade ? insets.top : 0),
+          height: FAB_SIZE + (isCrossfade ? insets.top : 0),
         }]}>
           <HemeaWordmark size={26} />
           <View style={{ flex: 1 }} />
