@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../tokens';
 
 export function ModalGrabber() {
   const insets = useSafeAreaInsets();
-  return <View style={[styles.grabber, { marginTop: insets.top + spacing[2] }]} />;
+  const topExtra = Platform.OS === 'android' ? insets.top : 0;
+  return <View style={[styles.grabber, { marginTop: topExtra + spacing[2] }]} />;
 }
 
 const styles = StyleSheet.create({

@@ -136,7 +136,7 @@ function buildPoints(analyses: BiologicalAnalysis[], key: string) {
       return {
         v: lv.value as number,
         t: new Date(a.date).getTime(),
-        label: new Date(a.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+        label: new Date(a.date).toLocaleDateString('fr-FR', { month: 'numeric', year: '2-digit' }),
       };
     });
 }
