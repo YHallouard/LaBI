@@ -13,6 +13,17 @@ export type AnalysisStepStatus =
 /** Étape affichée à l'écran : id = stepId émis sur l'EventBus, label = texte UI. */
 export type AnalysisStep = { id: string; label: string };
 
+/** Conclusion de l'analyse, alimentée par les événements analysis.* du bus. */
+export type AnalysisSummary = {
+  biomarkerCount: number | null;
+  missingCategories: string[];
+};
+
+const EMPTY_SUMMARY: AnalysisSummary = {
+  biomarkerCount: null,
+  missingCategories: [],
+};
+
 function buildInitialStepStates(
   steps: readonly AnalysisStep[]
 ): Map<string, AnalysisStepStatus> {
@@ -29,6 +40,7 @@ export function useAnalysisProgress(
 ): {
   stepStates: Map<string, AnalysisStepStatus>;
   thinkingByStep: Map<string, string>;
+  summary: AnalysisSummary;
   reset: () => void;
   isAllCompleted: boolean;
   hasAnyFailed: boolean;
@@ -39,10 +51,12 @@ export function useAnalysisProgress(
   const [thinkingByStep, setThinkingByStep] = useState<Map<string, string>>(
     () => new Map()
   );
+  const [summary, setSummary] = useState<AnalysisSummary>(EMPTY_SUMMARY);
 
   const reset = useCallback(() => {
     setStepStates(buildInitialStepStates(steps));
     setThinkingByStep(new Map());
+    setSummary(EMPTY_SUMMARY);
   }, [steps]);
 
   useEffect(() => {
@@ -80,6 +94,18 @@ export function useAnalysisProgress(
             return next;
           });
           break;
+        case "analysis.completed":
+          setSummary((prev) => ({
+            ...prev,
+            biomarkerCount: event.biomarkerCount,
+          }));
+          break;
+        case "analysis.partial":
+          setSummary((prev) => ({
+            ...prev,
+            missingCategories: event.missingCategories,
+          }));
+          break;
       }
     };
 
@@ -97,5 +123,5 @@ export function useAnalysisProgress(
     (step) => stepStates.get(step.id) === "failed"
   );
 
-  return { stepStates, thinkingByStep, reset, isAllCompleted, hasAnyFailed };
+  return { stepStates, thinkingByStep, summary, reset, isAllCompleted, hasAnyFailed };
 }

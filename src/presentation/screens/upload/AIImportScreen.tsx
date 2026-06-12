@@ -115,12 +115,15 @@ export function AIImportScreen() {
 
   const [analyzing, setAnalyzing] = useState(false);
   const [success, setSuccess] = useState(false);
+  // L'analyse a tourné jusqu'au bout (succès ou échec) : on garde les étapes
+  // et le raisonnement à l'écran pour consultation jusqu'à confirmation.
+  const [finished, setFinished] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastSucceededRef = useRef(false);
 
   const analyzePdfUseCase = bundle?.analyzePdfUseCase ?? null;
   const eventBus = analyzePdfUseCase?.getEventBus?.();
-  const { stepStates, thinkingByStep, reset } = useAnalysisProgress(eventBus, STEPS);
+  const { stepStates, thinkingByStep, summary, reset } = useAnalysisProgress(eventBus, STEPS);
 
   const hasApiKey = !apiKeyError && Boolean(analyzePdfUseCase);
 
@@ -149,6 +152,7 @@ export function AIImportScreen() {
     setAnalyzing(true);
     setError(null);
     setSuccess(false);
+    setFinished(false);
     reset();
     lastSucceededRef.current = false;
     try {
@@ -160,6 +164,15 @@ export function AIImportScreen() {
     } finally {
       useCase.removeProcessingListeners?.();
       setAnalyzing(false);
+      setFinished(true);
+    }
+  };
+
+  const handleFinish = () => {
+    if (router.canDismiss?.()) {
+      router.dismiss();
+    } else {
+      router.back();
     }
   };
 
@@ -190,12 +203,6 @@ export function AIImportScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {success && (
-          <View style={styles.bannerWrap}>
-            <Banner kind="success">Analyse extraite et enregistrée avec succès.</Banner>
-          </View>
-        )}
-
         {error && (
           <View style={styles.bannerWrap}>
             <Banner kind="error">{error}</Banner>
@@ -219,24 +226,26 @@ export function AIImportScreen() {
           </View>
         )}
 
-        <View style={styles.uploadZone}>
-          <View style={styles.uploadIconCircle}>
-            <Ionicons name="cloud-upload-outline" size={26} color={colors.primary} />
+        {/* Zone d'upload — masquée pendant l'analyse et après un succès
+            (elle revient après un échec pour permettre de réessayer). */}
+        {!analyzing && !(finished && success) && (
+          <View style={styles.uploadZone}>
+            <View style={styles.uploadIconCircle}>
+              <Ionicons name="cloud-upload-outline" size={26} color={colors.primary} />
+            </View>
+            <Text style={[typography.lead, styles.uploadTitle]}>Sélectionnez un PDF</Text>
+            <Text style={[typography.small, styles.uploadHint]}>
+              Bilan sanguin, biochimie, lipides… L&apos;extraction des valeurs est automatique.
+            </Text>
+            <PrimaryButton onPress={handleImport} size="lg">
+              {finished ? 'Réessayer avec un PDF' : 'Sélectionner & analyser PDF'}
+            </PrimaryButton>
           </View>
-          <Text style={[typography.lead, styles.uploadTitle]}>Sélectionnez un PDF</Text>
-          <Text style={[typography.small, styles.uploadHint]}>
-            Bilan sanguin, biochimie, lipides… L&apos;extraction des valeurs est automatique.
-          </Text>
-          <PrimaryButton
-            onPress={handleImport}
-            disabled={analyzing}
-            size="lg"
-          >
-            {analyzing ? 'Analyse en cours…' : 'Sélectionner & analyser PDF'}
-          </PrimaryButton>
-        </View>
+        )}
 
-        {analyzing && (
+        {/* Étapes + raisonnement — restent consultables après la fin,
+            jusqu'à confirmation de sortie. */}
+        {(analyzing || finished) && (
           <View style={styles.stepsCard}>
             {STEPS.map((step) => {
               const status = stepStates.get(step.id) ?? 'pending';
@@ -250,6 +259,36 @@ export function AIImportScreen() {
                 </View>
               );
             })}
+          </View>
+        )}
+
+        {/* Conclusion + confirmation de sortie */}
+        {finished && success && (
+          <View style={styles.conclusionCard}>
+            <View style={styles.conclusionHeader}>
+              <Ionicons name="checkmark-circle" size={28} color={colors.successDeep} />
+              <View style={{ flex: 1 }}>
+                <Text style={[typography.lead, { color: colors.textStrong, fontWeight: '700' }]}>
+                  Analyse enregistrée
+                </Text>
+                <Text style={[typography.small, { color: colors.textBody, marginTop: 2 }]}>
+                  {summary.biomarkerCount !== null
+                    ? `${summary.biomarkerCount} marqueur${summary.biomarkerCount > 1 ? 's' : ''} extrait${summary.biomarkerCount > 1 ? 's' : ''} du document.`
+                    : 'Les valeurs ont été extraites du document.'}
+                </Text>
+              </View>
+            </View>
+            {summary.missingCategories.length > 0 && (
+              <Banner kind="warning">
+                {`Catégories non extraites : ${summary.missingCategories.join(', ')}.`}
+              </Banner>
+            )}
+            <Text style={[typography.caption, { color: colors.textMuted }]}>
+              Vous pouvez consulter le raisonnement de chaque étape ci-dessus avant de quitter.
+            </Text>
+            <PrimaryButton onPress={handleFinish} size="lg">
+              Terminer
+            </PrimaryButton>
           </View>
         )}
       </ScrollView>
@@ -313,6 +352,18 @@ const styles = StyleSheet.create({
   },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   stepLabel: { flex: 1 },
+  conclusionCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radii.xl,
+    padding: spacing[4],
+    gap: spacing[3],
+    ...elevation[2],
+  },
+  conclusionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+  },
   // ── Thinking ────────────────────────────────────────────────────────────────
   thinkingWrap: {
     marginLeft: 20 + spacing[3],
