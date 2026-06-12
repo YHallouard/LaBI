@@ -54,6 +54,15 @@ export abstract class AgentStep<TOut> {
 
   protected abstract execute(attempt: number): Promise<TOut>;
 
+  protected emitThinking(delta: string): void {
+    this.bus.emit({
+      type: "step.thinking",
+      stepId: this.stepId,
+      label: this.label,
+      delta,
+    });
+  }
+
   protected formatError(err: unknown): string {
     if (err instanceof Error) return err.message;
     if (typeof err === "string") return err;

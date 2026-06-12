@@ -13,6 +13,8 @@ export interface LlmCallOptions {
   temperature?: number;
   reasoningEffort?: ReasoningEffort;
   maxAttempts?: number;
+  /** Reçoit chaque delta de raisonnement ("thinking") streamé par le modèle. */
+  onReasoningDelta?: (delta: string) => void;
 }
 
 export interface LlmService {

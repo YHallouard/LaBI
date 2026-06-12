@@ -9,6 +9,11 @@ import {
 import { LAB_VALUE_UNITS } from "../../config/LabConfig";
 import { LlmService } from "../../ports/services/LlmService";
 
+/** stepId émis sur l'EventBus pour une catégorie — utilisé par l'UI pour mapper les étapes. */
+export function categoryStepId(category: string): string {
+  return `extract-category-${slugify(category)}`;
+}
+
 export class CategoryExtractionStep extends AgentStep<CategoryExtractionDTO> {
   constructor(
     private readonly llmService: LlmService,
@@ -18,12 +23,7 @@ export class CategoryExtractionStep extends AgentStep<CategoryExtractionDTO> {
     bus: AgentEventBus,
     retryPolicy?: RetryPolicy
   ) {
-    super(
-      `extract-category-${slugify(category)}`,
-      `Analyzing ${category}`,
-      bus,
-      retryPolicy
-    );
+    super(categoryStepId(category), `Analyzing ${category}`, bus, retryPolicy);
   }
 
   protected async execute(attempt: number): Promise<CategoryExtractionDTO> {
@@ -52,11 +52,15 @@ Renvoie STRICTEMENT un objet JSON avec une clé pour chaque champ listé, et val
 
     const userPrompt = `Extrait uniquement les valeurs de la catégorie "${this.category}" de ce PDF d'analyse biologique.`;
 
-    const result = (await this.llmService.generateObject(schema, {
-      documentUrl: this.documentUrl,
-      systemPrompt,
-      userPrompt,
-    })) as CategoryExtractionDTO;
+    const result = (await this.llmService.generateObject(
+      schema,
+      {
+        documentUrl: this.documentUrl,
+        systemPrompt,
+        userPrompt,
+      },
+      { onReasoningDelta: (delta) => this.emitThinking(delta) }
+    )) as CategoryExtractionDTO;
 
     this.emitExtractedValues(result);
     return result;

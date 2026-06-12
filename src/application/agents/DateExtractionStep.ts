@@ -35,7 +35,8 @@ Return strictly the date as { "date": "YYYY-MM-DD" }.`;
         documentUrl: this.documentUrl,
         systemPrompt,
         userPrompt,
-      }
+      },
+      { onReasoningDelta: (delta) => this.emitThinking(delta) }
     );
 
     const parsed = new Date(result.date);

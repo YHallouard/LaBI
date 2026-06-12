@@ -1,4 +1,4 @@
-import * as FileSystem from "expo-file-system/legacy";
+import { File } from "expo-file-system";
 import { Mistral } from "@mistralai/mistralai";
 
 export interface UploadedFile {
@@ -24,13 +24,7 @@ export class MistralFileUploader {
   }
 
   async uploadAndGetSignedUrl(pdfPath: string): Promise<UploadResult> {
-    const base64String = await this.readPdfAsBase64(pdfPath);
-    const file = {
-      name: "document.pdf",
-      type: "application/pdf",
-      data: base64String,
-    };
-    const uploaded = await this.uploadFile(file);
+    const uploaded = await this.uploadFile(new File(pdfPath));
     const signedUrl = await this.getSignedUrlForFile(uploaded.id);
     return { fileId: uploaded.id, signedUrl };
   }
@@ -48,34 +42,19 @@ export class MistralFileUploader {
     }
   }
 
-  private async readPdfAsBase64(pdfPath: string): Promise<string> {
-    return await FileSystem.readAsStringAsync(pdfPath, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-  }
-
-  private async uploadFile(file: {
-    name: string;
-    type: string;
-    data: string;
-  }): Promise<UploadedFile> {
+  private async uploadFile(file: File): Promise<UploadedFile> {
     const formData = this.createFormDataForUpload(file);
     return await this.sendFileUploadRequest(formData);
   }
 
-  private createFormDataForUpload(file: {
-    name: string;
-    type: string;
-    data: string;
-  }): FormData {
+  private createFormDataForUpload(file: File): FormData {
     const formData = new FormData();
     formData.append("purpose", "ocr");
-    formData.append("file", {
-      uri: `data:${file.type};base64,${file.data}`,
-      name: file.name,
-      type: file.type,
-      /* eslint-disable @typescript-eslint/no-explicit-any */
-    } as any);
+    // Expo's WinterCG fetch only serializes string/Blob-like FormData parts
+    // (it rejects RN's `{uri, name, type}` with "Unsupported FormDataPart
+    // implementation"). expo-file-system's File implements Blob — its raw
+    // bytes(), name and mime type feed the multipart part directly.
+    formData.append("file", file as unknown as Blob);
     return formData;
   }
 

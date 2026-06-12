@@ -22,6 +22,7 @@ export type AgentEvent =
       error: string;
       finalAttempt: true;
     }
+  | { type: "step.thinking"; stepId: string; label: string; delta: string }
   | { type: "value.extracted"; labKey: string; value: LabValueDTO }
   | { type: "value.invalid"; labKey: string; reason: string }
   | { type: "analysis.partial"; missingCategories: string[] }

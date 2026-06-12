@@ -1,4 +1,4 @@
-import { generateObject } from "ai";
+import { streamText, Output } from "ai";
 import { createMistral } from "@ai-sdk/mistral";
 import type { z } from "zod";
 import {
@@ -24,9 +24,13 @@ export class MistralLlmService implements LlmService {
     const model = options?.model ?? DEFAULT_MISTRAL_MODEL;
     const reasoningEffort = options?.reasoningEffort ?? "high";
 
-    const { object } = await generateObject({
+    // streamText (au lieu de generateObject) pour recevoir les parts
+    // "reasoning-delta" pendant que le modèle réfléchit — le provider
+    // @ai-sdk/mistral mappe les chunks "thinking" de l'API Mistral vers
+    // ces parts. L'objet final validé par le schéma reste `result.output`.
+    const result = streamText({
       model: this.client(model),
-      schema,
+      output: Output.object({ schema }),
       maxRetries: 0,
       temperature: options?.temperature ?? 0,
       system: ctx.systemPrompt,
@@ -50,6 +54,24 @@ export class MistralLlmService implements LlmService {
       },
     });
 
-    return object as T;
+    // streamText ne rejette pas par défaut : les erreurs arrivent comme
+    // parts "error" dans le stream. On les capture pour les relancer avec
+    // leur cause d'origine (sinon result.output rejette avec un
+    // NoOutputGeneratedError opaque).
+    let streamError: unknown;
+    for await (const part of result.fullStream) {
+      if (part.type === "reasoning-delta") {
+        options?.onReasoningDelta?.(part.text);
+      } else if (part.type === "error") {
+        streamError = part.error;
+      }
+    }
+    if (streamError) {
+      throw streamError instanceof Error
+        ? streamError
+        : new Error(String(streamError));
+    }
+
+    return (await result.output) as T;
   }
 }

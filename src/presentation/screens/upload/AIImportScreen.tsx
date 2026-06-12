@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator,
 } from 'react-native';
@@ -8,19 +8,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useUseCases } from '../../contexts/UseCasesContext';
-import { useAnalysisProgress, AnalysisStepStatus } from '../../hooks/useAnalysisProgress';
+import { useAnalysisProgress, AnalysisStep, AnalysisStepStatus } from '../../hooks/useAnalysisProgress';
+import { categoryStepId } from '../../../application/agents/CategoryExtractionStep';
 import { LAB_VALUE_CATEGORIES } from '../../../config/LabConfig';
 import {
   colors, spacing, radii, elevation, typography, Banner, PrimaryButton,
   ScreenHeader,
 } from '../../../design-system';
 
-const STEPS = [
-  'Envoi du document à Mistral',
-  'Extraction de la date',
-  ...Object.keys(LAB_VALUE_CATEGORIES).map((cat) => `Analyse : ${cat}`),
-  'Enregistrement de l\'analyse',
-  'Suppression du document Mistral',
+// Les ids correspondent aux stepId émis sur l'AgentEventBus — c'est sur eux
+// que la progression et le raisonnement sont mappés (les labels du bus sont
+// en anglais, ceux affichés ici en français).
+const STEPS: AnalysisStep[] = [
+  { id: 'upload-to-mistral', label: 'Envoi du document à Mistral' },
+  { id: 'extract-date', label: 'Extraction de la date' },
+  ...Object.keys(LAB_VALUE_CATEGORIES).map((cat) => ({
+    id: categoryStepId(cat),
+    label: `Analyse : ${cat}`,
+  })),
+  { id: 'saving-analysis', label: 'Enregistrement de l\'analyse' },
+  { id: 'delete-from-mistral', label: 'Suppression du document Mistral' },
 ];
 
 function StepRow({ label, status }: { label: string; status: AnalysisStepStatus }) {
@@ -51,6 +58,56 @@ function StepRow({ label, status }: { label: string; status: AnalysisStepStatus 
   );
 }
 
+// ─── ThinkingSection ─────────────────────────────────────────────────────────
+// Section dépliante sous chaque étape : le raisonnement du modèle s'y déroule
+// en direct (auto-scroll vers le bas), puis se replie quand l'étape se termine.
+function ThinkingSection({ text, active }: { text: string; active: boolean }) {
+  const [open, setOpen] = useState(true);
+  const userToggledRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    // Déplié pendant que le modèle réfléchit, replié en fin d'étape —
+    // sauf si l'utilisateur a choisi lui-même un état.
+    if (!userToggledRef.current) setOpen(active);
+  }, [active]);
+
+  if (!text) return null;
+
+  return (
+    <View style={styles.thinkingWrap}>
+      <Pressable
+        onPress={() => {
+          userToggledRef.current = true;
+          setOpen(o => !o);
+        }}
+        style={styles.thinkingHeader}
+        accessibilityRole="button"
+        accessibilityLabel={open ? 'Replier le raisonnement' : 'Déplier le raisonnement'}
+      >
+        <Ionicons
+          name={open ? 'chevron-down' : 'chevron-forward'}
+          size={12}
+          color={colors.textMuted}
+        />
+        <Text style={styles.thinkingTitle}>Raisonnement</Text>
+        {active && <View style={styles.thinkingLiveDot} />}
+      </Pressable>
+      {open && (
+        <ScrollView
+          ref={scrollRef}
+          style={styles.thinkingScroll}
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
+        >
+          <Text style={styles.thinkingText}>{text}</Text>
+        </ScrollView>
+      )}
+    </View>
+  );
+}
+
 export function AIImportScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -63,7 +120,7 @@ export function AIImportScreen() {
 
   const analyzePdfUseCase = bundle?.analyzePdfUseCase ?? null;
   const eventBus = analyzePdfUseCase?.getEventBus?.();
-  const { stepStates, reset } = useAnalysisProgress(eventBus, STEPS);
+  const { stepStates, thinkingByStep, reset } = useAnalysisProgress(eventBus, STEPS);
 
   const hasApiKey = !apiKeyError && Boolean(analyzePdfUseCase);
 
@@ -181,9 +238,18 @@ export function AIImportScreen() {
 
         {analyzing && (
           <View style={styles.stepsCard}>
-            {STEPS.map((step) => (
-              <StepRow key={step} label={step} status={stepStates.get(step) ?? 'pending'} />
-            ))}
+            {STEPS.map((step) => {
+              const status = stepStates.get(step.id) ?? 'pending';
+              return (
+                <View key={step.id}>
+                  <StepRow label={step.label} status={status} />
+                  <ThinkingSection
+                    text={thinkingByStep.get(step.id) ?? ''}
+                    active={status === 'in_progress'}
+                  />
+                </View>
+              );
+            })}
           </View>
         )}
       </ScrollView>
@@ -247,4 +313,42 @@ const styles = StyleSheet.create({
   },
   stepRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   stepLabel: { flex: 1 },
+  // ── Thinking ────────────────────────────────────────────────────────────────
+  thinkingWrap: {
+    marginLeft: 20 + spacing[3],
+    marginTop: 2,
+    marginBottom: spacing[1],
+  },
+  thinkingHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[1],
+    paddingVertical: 2,
+  },
+  thinkingTitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  thinkingLiveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  thinkingScroll: {
+    maxHeight: 96,
+    marginTop: spacing[1],
+    paddingLeft: spacing[2],
+    borderLeftWidth: 2,
+    borderLeftColor: colors.border,
+  },
+  thinkingText: {
+    fontSize: 11,
+    lineHeight: 16,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+  },
 });
