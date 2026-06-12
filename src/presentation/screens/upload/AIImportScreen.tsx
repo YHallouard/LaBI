@@ -69,10 +69,18 @@ export function AIImportScreen() {
 
   const handleImport = async () => {
     if (analyzing) return;
-    if (!hasApiKey) {
-      if (!apiKeyError) await checkAndLoadApiKey();
-      setError(apiKeyError ?? 'Clé API non configurée. Configurez-la dans Réglages.');
-      return;
+
+    // The use case may be missing even though a key is stored (e.g. transient
+    // failure at startup): re-check the key and use the returned instance
+    // directly — reading apiKeyError/bundle here would see stale state.
+    let useCase = analyzePdfUseCase;
+    if (!useCase) {
+      useCase = await checkAndLoadApiKey();
+      if (!useCase) {
+        setError('Clé API non configurée. Configurez-la dans Réglages.');
+        return;
+      }
+      setError(null);
     }
 
     const result = await DocumentPicker.getDocumentAsync({
@@ -87,13 +95,13 @@ export function AIImportScreen() {
     reset();
     lastSucceededRef.current = false;
     try {
-      await analyzePdfUseCase!.execute(result.assets[0].uri);
+      await useCase.execute(result.assets[0].uri);
       lastSucceededRef.current = true;
       setSuccess(true);
     } catch {
       setError('Échec du traitement du PDF. Vérifiez votre clé API Mistral et réessayez.');
     } finally {
-      analyzePdfUseCase!.removeProcessingListeners?.();
+      useCase.removeProcessingListeners?.();
       setAnalyzing(false);
     }
   };

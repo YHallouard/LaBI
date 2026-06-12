@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { BiologicalAnalysis, LabValue } from '../../../domain/entities/Biologica
 import { ReferenceRange } from '../../../domain/services/ReferenceRangeCalculator';
 import { useUseCases } from '../../contexts/UseCasesContext';
 import { LAB_VALUE_CATEGORIES, LAB_VALUE_UNITS, LAB_VALUE_EXPLANATIONS } from '../../../config/LabConfig';
+import { loadChartTimeRange, saveChartTimeRange } from '../../../infrastructure/preferences/chartPreferences';
 import {
   colors, spacing, radii, elevation,
   typography, ScreenHeader, StatCard,
@@ -37,6 +38,10 @@ const RANGES: { key: RangeKey; label: string; months: number | null }[] = [
   { key: '3Y', label: '3 ans', months: 36 },
   { key: 'Tout', label: 'Tout', months: null },
 ];
+
+function isRangeKey(value: string | null): value is RangeKey {
+  return RANGES.some(r => r.key === value);
+}
 
 function filterByRange(analyses: BiologicalAnalysis[], range: RangeKey): BiologicalAnalysis[] {
   const r = RANGES.find(r => r.key === range);
@@ -259,6 +264,15 @@ export function ChartScreen() {
   const [infoMarker, setInfoMarker] = useState<{ key: string; unit: string; refMin?: number; refMax?: number } | null>(null);
   const pillAnim = useState(() => new Animated.Value(0))[0];
 
+  // The last selected range is the new default until the user changes it again.
+  useEffect(() => {
+    let cancelled = false;
+    loadChartTimeRange().then(saved => {
+      if (!cancelled && isRangeKey(saved)) setRange(saved);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       if (!bundle) return;
@@ -387,6 +401,7 @@ export function ChartScreen() {
               key={r.key}
               onPress={() => {
                 setRange(r.key);
+                saveChartTimeRange(r.key);
                 setPillOpen(false);
                 Animated.spring(pillAnim, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
               }}

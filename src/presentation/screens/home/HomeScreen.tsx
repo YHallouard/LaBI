@@ -247,7 +247,16 @@ function BalanceTrendChart({ points, refMax = EQUILIBRIUM_MAX }: { points: Chart
           />
         ))}
         {labelIdxs.map(i => (
-          <SvgText key={i} x={xOf(displayPoints[i].t)} y={H - 6} fontSize={9} fill={colors.chartAxisLabel} textAnchor="middle">
+          // First/last labels are anchored inward: their points sit ~6px from
+          // the SVG edges, so a centered anchor would clip half the text.
+          <SvgText
+            key={i}
+            x={xOf(displayPoints[i].t)}
+            y={H - 6}
+            fontSize={9}
+            fill={colors.chartAxisLabel}
+            textAnchor={i === 0 ? 'start' : i === displayPoints.length - 1 ? 'end' : 'middle'}
+          >
             {displayPoints[i].label}
           </SvgText>
         ))}

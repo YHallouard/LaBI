@@ -60,7 +60,7 @@ type UseCasesContextType = {
   onApiKeySaved: (apiKey: string) => Promise<void>;
   onApiKeyDeleted: () => void;
   onManualReload: () => void;
-  checkAndLoadApiKey: () => Promise<void>;
+  checkAndLoadApiKey: () => Promise<AnalyzePdfUseCase | null>;
 };
 
 const UseCasesContext = createContext<UseCasesContextType | undefined>(undefined);
@@ -128,28 +128,31 @@ export const UseCasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   };
 
-  const checkAndLoadApiKey = async (loadApiKey?: LoadApiKeyUseCase): Promise<void> => {
+  // Returns the freshly created AnalyzePdfUseCase so callers can use it
+  // immediately, without waiting for the bundle state update to re-render.
+  const checkAndLoadApiKey = async (loadApiKey?: LoadApiKeyUseCase): Promise<AnalyzePdfUseCase | null> => {
     const uc = loadApiKey ?? bundle?.loadApiKey;
-    if (!uc) return;
+    if (!uc) return null;
     try {
       const key = await uc.execute();
       if (key) {
         setApiKeyError(null);
-        await createOcrService(key);
-      } else {
-        setApiKeyError("API key not set. Please configure it in Settings.");
+        return await createOcrService(key);
       }
+      setApiKeyError("Clé API non configurée. Configurez-la dans Réglages.");
+      return null;
     } catch {
-      setApiKeyError("Failed to load API key configuration.");
+      setApiKeyError("Impossible de charger la clé API.");
+      return null;
     }
   };
 
-  const createOcrService = async (apiKey: string): Promise<void> => {
+  const createOcrService = async (apiKey: string): Promise<AnalyzePdfUseCase> => {
     const biologicalRepo = await RepositoryFactory.getBiologicalAnalysisRepository();
     const ocrService = new MistralOcrService(apiKey);
-    setBundle((prev) =>
-      prev ? { ...prev, analyzePdfUseCase: new AnalyzePdfUseCase(ocrService, biologicalRepo) } : prev
-    );
+    const analyzePdfUseCase = new AnalyzePdfUseCase(ocrService, biologicalRepo);
+    setBundle((prev) => (prev ? { ...prev, analyzePdfUseCase } : prev));
+    return analyzePdfUseCase;
   };
 
   const startInitialization = async (): Promise<void> => {
@@ -180,7 +183,7 @@ export const UseCasesProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const onApiKeyDeleted = (): void => {
-    setApiKeyError("API key not set. Please configure it in Settings.");
+    setApiKeyError("Clé API non configurée. Configurez-la dans Réglages.");
     setAnalyzePdfUseCase(null);
   };
 
